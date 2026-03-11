@@ -1,0 +1,35 @@
+# i3-setup/styling.yml
+---
+- name: i3 styling customization
+  hosts: local
+  vars_prompt:
+    - name: styling_accent
+      prompt: "Accent color hex (green, default #a7c080)"
+      default: "#a7c080"
+      private: false
+    - name: styling_bg
+      prompt: "Background color hex (bg0, default #2e383c)"
+      default: "#2e383c"
+      private: false
+    - name: styling_fg
+      prompt: "Foreground/text color hex (fg, default #d3c6aa)"
+      default: "#d3c6aa"
+      private: false
+    - name: styling_gaps_inner
+      prompt: "i3 inner gap in px (default 10)"
+      default: "10"
+      private: false
+    - name: styling_gaps_outer
+      prompt: "i3 outer gap in px (default 5)"
+      default: "5"
+      private: false
+    - name: styling_font_size
+      prompt: "Terminal font size in pt (default 11)"
+      default: "11"
+      private: false
+    - name: styling_border_width
+      prompt: "i3 border width in px (default 2)"
+      default: "2"
+      private: false
+  roles:
+    - styling

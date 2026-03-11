@@ -1,0 +1,4 @@
+# i3-setup/group_vars/all.yml
+---
+# Single source of truth for shared variables used across multiple roles.
+dotfiles_dest: "{{ ansible_env.HOME }}/dotfiles"

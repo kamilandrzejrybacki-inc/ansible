@@ -1,0 +1,8 @@
+# i3-setup/roles/fastfetch/meta/main.yml
+---
+galaxy_info:
+  role_name: fastfetch
+  author: kamilrybacki
+  description: Install fastfetch from GitHub releases
+  min_ansible_version: "2.10"
+dependencies: []

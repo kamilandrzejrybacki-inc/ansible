@@ -1,0 +1,45 @@
+# i3-setup/roles/fastfetch/tasks/main.yml
+---
+- name: Check if fastfetch is already installed
+  ansible.builtin.command:
+    cmd: which fastfetch
+  register: fastfetch_check
+  changed_when: false
+  failed_when: false
+
+- name: Get latest fastfetch release info from GitHub API
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest"
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+  register: fastfetch_release
+  when: fastfetch_check.rc != 0
+
+- name: Set fastfetch download URL
+  ansible.builtin.set_fact:
+    fastfetch_deb_url: >-
+      {{ fastfetch_release.json.assets
+         | selectattr('name', 'match', 'fastfetch-linux-amd64\\.deb')
+         | map(attribute='browser_download_url')
+         | first }}
+  when: fastfetch_check.rc != 0
+
+- name: Download fastfetch .deb
+  ansible.builtin.get_url:
+    url: "{{ fastfetch_deb_url }}"
+    dest: /tmp/fastfetch.deb
+    mode: "0644"
+  when: fastfetch_check.rc != 0
+
+- name: Install fastfetch .deb
+  ansible.builtin.apt:
+    deb: /tmp/fastfetch.deb
+  become: true
+  when: fastfetch_check.rc != 0
+
+- name: Clean up fastfetch .deb
+  ansible.builtin.file:
+    path: /tmp/fastfetch.deb
+    state: absent
+  when: fastfetch_check.rc != 0

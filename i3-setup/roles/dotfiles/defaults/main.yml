@@ -15,6 +15,7 @@ dotfiles_links:
   - src: ".config/kitty/kitty.conf"
   - src: ".config/kitty/everforest.conf"
   - src: ".config/fastfetch/config.jsonc"
+  - src: ".config/picom/picom.conf"
   - src: ".local/bin/lock.sh"
 
 dotfiles_executables:

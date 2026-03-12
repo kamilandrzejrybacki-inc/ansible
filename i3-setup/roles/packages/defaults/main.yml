@@ -9,6 +9,7 @@ packages:
   - zsh
   - nitrogen
   - xss-lock
+  - picom
   - feh
   - pulseaudio-utils
   - papirus-icon-theme

@@ -19,7 +19,7 @@
         Or run manually:
           claude mcp add --transport http -s {{ mcp_scope }} \
             --header "Authorization: Bearer <your-mcp-access-token>" \
-            {{ mcp_server_name }} http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
+            {{ mcp_server_name }} http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp-server/http
   when: n8n_mcp_token | default('') == ''
 
 - name: Check if MCP server is already configured
@@ -36,7 +36,7 @@
     -s {{ mcp_scope }}
     --header "Authorization: Bearer {{ n8n_mcp_token }}"
     {{ mcp_server_name }}
-    http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
+    http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp-server/http
   when:
     - n8n_mcp_token | default('') != ''
     - mcp_server_name not in (existing_mcp.stdout | default(''))
@@ -61,7 +61,7 @@
       Claude Code MCP configuration complete.
 
       Server name: {{ mcp_server_name }}
-      MCP URL:     http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
+      MCP URL:     http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp-server/http
       Scope:       {{ mcp_scope }}
       Auth:        Bearer token configured
 

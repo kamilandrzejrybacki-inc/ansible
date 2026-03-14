@@ -55,7 +55,7 @@
       n8n is running at http://{{ inventory_hostname }}:{{ n8n_port }}
 
       The instance-level MCP endpoint is:
-        http://{{ inventory_hostname }}:{{ n8n_port }}/mcp
+        http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http
 
       One manual step remains:
         1. Log in to n8n at the URL above.
@@ -67,4 +67,4 @@
         Alternatively, run manually on the Claude Code machine:
           claude mcp add --transport http -s user \
             --header "Authorization: Bearer <your-mcp-access-token>" \
-            n8n http://{{ inventory_hostname }}:{{ n8n_port }}/mcp
+            n8n http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http

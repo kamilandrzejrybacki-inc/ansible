@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: claude_mcp
+  author: kamilrybacki
+  description: Configure Claude Code MCP server for n8n integration
+  min_ansible_version: "2.10"
+dependencies: []

@@ -1,0 +1,11 @@
+---
+# n8n Docker settings
+n8n_container_name: n8n
+n8n_image: docker.n8n.io/n8nio/n8n
+n8n_port: 5678
+n8n_volume_name: n8n_data
+n8n_restart_policy: unless-stopped
+
+# Claude MCP settings
+mcp_server_name: n8n
+mcp_scope: user

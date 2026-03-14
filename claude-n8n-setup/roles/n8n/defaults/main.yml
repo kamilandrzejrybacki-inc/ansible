@@ -1,0 +1,3 @@
+---
+n8n_health_check_retries: 12
+n8n_health_check_delay: 5

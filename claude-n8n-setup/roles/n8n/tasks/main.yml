@@ -1,0 +1,70 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Docker volume for n8n data
+  community.docker.docker_volume:
+    name: "{{ n8n_volume_name }}"
+    state: present
+
+- name: Start n8n container
+  community.docker.docker_container:
+    name: "{{ n8n_container_name }}"
+    image: "{{ n8n_image }}"
+    state: started
+    restart_policy: "{{ n8n_restart_policy }}"
+    published_ports:
+      - "{{ n8n_port }}:5678"
+    volumes:
+      - "{{ n8n_volume_name }}:/home/node/.n8n"
+
+- name: Wait for n8n to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ n8n_port }}"
+    status_code: [200, 302]
+  register: n8n_health
+  until: n8n_health is not failed
+  retries: "{{ n8n_health_check_retries }}"
+  delay: "{{ n8n_health_check_delay }}"
+
+- name: Check if owner account already exists
+  ansible.builtin.uri:
+    url: "http://localhost:{{ n8n_port }}/rest/owner/setup"
+    method: POST
+    body_format: json
+    body:
+      email: "{{ n8n_owner_email }}"
+      password: "{{ n8n_owner_password }}"
+      firstName: "{{ n8n_owner_first_name }}"
+      lastName: "{{ n8n_owner_last_name }}"
+    status_code: [200, 400]
+  register: owner_setup_result
+
+- name: Report owner account creation result
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Owner account created successfully.'
+         if owner_setup_result.status == 200
+         else 'Owner account already exists (skipped).' }}
+
+- name: Display n8n access information
+  ansible.builtin.debug:
+    msg: |
+      n8n is running at http://{{ inventory_hostname }}:{{ n8n_port }}
+
+      The instance-level MCP endpoint is:
+        http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http
+
+      One manual step remains:
+        1. Log in to n8n at the URL above.
+        2. Go to Settings > Instance-level MCP.
+        3. Copy your MCP Access Token from the Access Token tab.
+        4. Re-run this playbook — you will be prompted for the token,
+           which will be configured in Claude Code automatically.
+
+        Alternatively, run manually on the Claude Code machine:
+          claude mcp add --transport http -s user \
+            --header "Authorization: Bearer <your-mcp-access-token>" \
+            n8n http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http

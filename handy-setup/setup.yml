@@ -1,0 +1,6 @@
+# handy-setup/setup.yml
+---
+- name: Handy speech-to-text setup
+  hosts: local
+  roles:
+    - handy

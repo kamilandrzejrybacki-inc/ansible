@@ -1,0 +1,8 @@
+# handy-setup/roles/handy/meta/main.yml
+---
+galaxy_info:
+  role_name: handy
+  author: kamilrybacki
+  description: Install Handy speech-to-text application on Linux
+  min_ansible_version: "2.10"
+dependencies: []

@@ -1,0 +1,18 @@
+# handy-setup/roles/handy/defaults/main.yml
+---
+handy_common_packages:
+  - libgtk-layer-shell0
+  - libwebkit2gtk-4.1-0
+  - wget
+
+handy_x11_packages:
+  - xdotool
+
+handy_wayland_packages:
+  - wtype
+
+handy_deb_filename: "Handy_{{ handy_version }}_amd64.deb"
+handy_appimage_filename: "Handy_{{ handy_version }}_amd64.AppImage"
+
+handy_deb_url: "https://github.com/{{ handy_github_repo }}/releases/download/v{{ handy_version }}/{{ handy_deb_filename }}"
+handy_appimage_url: "https://github.com/{{ handy_github_repo }}/releases/download/v{{ handy_version }}/{{ handy_appimage_filename }}"

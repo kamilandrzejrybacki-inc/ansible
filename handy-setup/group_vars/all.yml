@@ -1,0 +1,15 @@
+# handy-setup/group_vars/all.yml
+---
+# Handy release version and download settings
+handy_version: "0.7.10"
+handy_github_repo: "cjpais/Handy"
+handy_download_dir: "/tmp/handy"
+
+# Installation method: "deb" or "appimage"
+handy_install_method: "deb"
+
+# AppImage install location (only used when handy_install_method is "appimage")
+handy_appimage_dir: "/opt/handy"
+
+# Display server: "x11" or "wayland"
+handy_display_server: "x11"

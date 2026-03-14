@@ -1,0 +1,100 @@
+# handy-setup/roles/handy/tasks/main.yml
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Install common dependencies
+  ansible.builtin.apt:
+    name: "{{ handy_common_packages }}"
+    state: present
+  become: true
+
+- name: Install X11 text input tools
+  ansible.builtin.apt:
+    name: "{{ handy_x11_packages }}"
+    state: present
+  become: true
+  when: handy_display_server == "x11"
+
+- name: Install Wayland text input tools
+  ansible.builtin.apt:
+    name: "{{ handy_wayland_packages }}"
+    state: present
+  become: true
+  when: handy_display_server == "wayland"
+
+- name: Check if Handy is already installed
+  ansible.builtin.command: which handy
+  register: handy_check
+  changed_when: false
+  failed_when: false
+
+- name: Create download directory
+  ansible.builtin.file:
+    path: "{{ handy_download_dir }}"
+    state: directory
+    mode: "0755"
+  when: handy_check.rc != 0
+
+# --- .deb installation ---
+
+- name: Download Handy .deb package
+  ansible.builtin.get_url:
+    url: "{{ handy_deb_url }}"
+    dest: "{{ handy_download_dir }}/{{ handy_deb_filename }}"
+    mode: "0644"
+  when:
+    - handy_check.rc != 0
+    - handy_install_method == "deb"
+
+- name: Install Handy .deb package
+  ansible.builtin.apt:
+    deb: "{{ handy_download_dir }}/{{ handy_deb_filename }}"
+    state: present
+  become: true
+  when:
+    - handy_check.rc != 0
+    - handy_install_method == "deb"
+
+# --- AppImage installation ---
+
+- name: Create AppImage directory
+  ansible.builtin.file:
+    path: "{{ handy_appimage_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+  when:
+    - handy_check.rc != 0
+    - handy_install_method == "appimage"
+
+- name: Download Handy AppImage
+  ansible.builtin.get_url:
+    url: "{{ handy_appimage_url }}"
+    dest: "{{ handy_appimage_dir }}/{{ handy_appimage_filename }}"
+    mode: "0755"
+  become: true
+  when:
+    - handy_check.rc != 0
+    - handy_install_method == "appimage"
+
+- name: Create symlink for AppImage in PATH
+  ansible.builtin.file:
+    src: "{{ handy_appimage_dir }}/{{ handy_appimage_filename }}"
+    dest: /usr/local/bin/handy
+    state: link
+  become: true
+  when:
+    - handy_check.rc != 0
+    - handy_install_method == "appimage"
+
+# --- Cleanup ---
+
+- name: Remove download directory
+  ansible.builtin.file:
+    path: "{{ handy_download_dir }}"
+    state: absent
+  when: handy_check.rc != 0

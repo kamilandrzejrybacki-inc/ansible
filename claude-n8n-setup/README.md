@@ -16,13 +16,25 @@ Designed for a home lab with two Linux machines on the same LAN.
 
 ## Usage
 
+The playbook is designed to be run **twice**:
+
+### First run — deploy n8n and create the owner account
+
 ```bash
 ansible-playbook claude-n8n-setup/setup.yml \
   -i claude-n8n-setup/inventory/hosts.ini \
   --ask-become-pass
 ```
 
-You will be prompted for:
+This installs Docker, starts n8n, and creates the owner account automatically via `POST /rest/owner/setup`. Leave the MCP Access Token prompt blank on first run.
+
+After the playbook finishes, log in to `http://<n8n_host_ip>:5678`, go to **Settings > Instance-level MCP**, and copy your MCP Access Token.
+
+### Second run — configure Claude Code MCP
+
+Re-run the same command and paste the MCP Access Token when prompted. The playbook will register n8n as an MCP server in Claude Code at user scope.
+
+## Prompts
 
 | Prompt | Default | Description |
 |---|---|---|
@@ -30,26 +42,29 @@ You will be prompted for:
 | n8n SSH user | — | SSH user on the n8n host |
 | Claude Code client IP | `localhost` | IP of the Claude Code machine (use `localhost` if running from it) |
 | Claude Code SSH user | — | SSH user on the Claude client (ignored if localhost) |
-| Bearer token | *(auto-generated)* | Token for MCP auth; leave blank to generate a 48-char random token |
-| MCP endpoint path | *(blank)* | e.g. `/mcp/<id>`; leave blank to configure later via n8n UI |
-
-## Post-Setup
-
-After the playbook completes:
-
-1. Open `http://<n8n_host_ip>:5678` in a browser and complete the n8n initial setup.
-2. Go to **Settings > MCP** and enable the MCP server.
-3. Configure a **Header Auth** credential with header `Authorization` and value `Bearer <your-token>`.
-4. If you left the MCP endpoint path blank during the playbook run, copy the path from n8n and either re-run the playbook or manually update `~/.claude.json`.
-5. Verify with `claude mcp list`.
+| Owner email | — | Email for the n8n admin account |
+| Owner password | *(hidden)* | Password for the n8n admin account |
+| Owner first name | `Admin` | First name for the n8n admin account |
+| Owner last name | `User` | Last name for the n8n admin account |
+| MCP Access Token | *(blank)* | n8n MCP token; leave blank on first run, paste on second run |
 
 ## Roles
 
 | Role | What it does |
 |---|---|
 | `docker` | Installs Docker engine via the official APT repository (Debian/Ubuntu) |
-| `n8n` | Creates a Docker volume and runs the n8n container with persistence |
-| `claude_mcp` | Registers n8n as an MCP server in Claude Code at user scope |
+| `n8n` | Creates a Docker volume, runs the n8n container, and creates the owner account |
+| `claude_mcp` | Registers n8n as an MCP server in Claude Code at user scope (`~/.claude.json`) |
+
+## What gets automated vs. manual
+
+| Step | Automated? |
+|---|---|
+| Docker installation | Yes |
+| n8n container deployment | Yes |
+| Owner account creation | Yes (via internal REST API) |
+| MCP Access Token retrieval | No (must copy from n8n UI once) |
+| Claude Code MCP registration | Yes (on second run with token) |
 
 ## Structure
 

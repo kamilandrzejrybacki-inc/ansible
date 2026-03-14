@@ -5,41 +5,47 @@
   changed_when: false
   failed_when: claude_cli_check.rc != 0
 
+- name: Skip MCP configuration if no token provided
+  ansible.builtin.debug:
+    msg: |
+      No MCP Access Token was provided — skipping Claude Code MCP configuration.
+
+      To complete setup:
+        1. Log in to n8n at http://{{ n8n_host_ip }}:{{ n8n_port }}
+        2. Go to Settings > Instance-level MCP
+        3. Copy your MCP Access Token from the Access Token tab
+        4. Re-run this playbook and provide the token when prompted
+
+        Or run manually:
+          claude mcp add --transport http -s {{ mcp_scope }} \
+            --header "Authorization: Bearer <your-mcp-access-token>" \
+            {{ mcp_server_name }} http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
+  when: n8n_mcp_token | default('') == ''
+
 - name: Check if MCP server is already configured
   ansible.builtin.command: claude mcp list -s {{ mcp_scope }}
   register: existing_mcp
   changed_when: false
   failed_when: false
-
-- name: Build MCP URL
-  ansible.builtin.set_fact:
-    mcp_url: "http://{{ n8n_host_ip }}:{{ n8n_port }}{{ n8n_mcp_path | default('') }}"
-
-- name: Warn if MCP path was not provided
-  ansible.builtin.debug:
-    msg: |
-      No MCP endpoint path was provided. The MCP URL is currently set to:
-        {{ mcp_url }}
-
-      After configuring MCP in the n8n UI, you can either:
-        - Re-run this playbook with the correct path, or
-        - Manually update ~/.claude.json with the full URL.
-  when: n8n_mcp_path | default('') == ''
+  when: n8n_mcp_token | default('') != ''
 
 - name: Add MCP server to Claude Code
   ansible.builtin.command: >-
     claude mcp add
     --transport http
     -s {{ mcp_scope }}
-    --header "Authorization: Bearer {{ mcp_token }}"
+    --header "Authorization: Bearer {{ n8n_mcp_token }}"
     {{ mcp_server_name }}
-    {{ mcp_url }}
-  when: mcp_server_name not in (existing_mcp.stdout | default(''))
+    http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
+  when:
+    - n8n_mcp_token | default('') != ''
+    - mcp_server_name not in (existing_mcp.stdout | default(''))
 
 - name: Read Claude config for verification
   ansible.builtin.slurp:
     src: "{{ claude_json_path }}"
   register: claude_config
+  when: n8n_mcp_token | default('') != ''
 
 - name: Verify MCP entry exists in Claude config
   ansible.builtin.assert:
@@ -47,6 +53,7 @@
       - "mcp_server_name in (claude_config.content | b64decode)"
     fail_msg: "MCP server '{{ mcp_server_name }}' was not found in {{ claude_json_path }}"
     success_msg: "MCP server '{{ mcp_server_name }}' is configured in {{ claude_json_path }}"
+  when: n8n_mcp_token | default('') != ''
 
 - name: Display summary
   ansible.builtin.debug:
@@ -54,8 +61,9 @@
       Claude Code MCP configuration complete.
 
       Server name: {{ mcp_server_name }}
-      MCP URL:     {{ mcp_url }}
+      MCP URL:     http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp
       Scope:       {{ mcp_scope }}
       Auth:        Bearer token configured
 
-      You can verify with: claude mcp list
+      Verify with: claude mcp list
+  when: n8n_mcp_token | default('') != ''

@@ -1,0 +1,5 @@
+---
+- name: reload caddy
+  community.docker.docker_container_exec:
+    container: "{{ caddy_container_name }}"
+    command: caddy reload --config /etc/caddy/Caddyfile

@@ -1,0 +1,33 @@
+---
+- name: Create Homepage data directory
+  ansible.builtin.file:
+    path: "{{ homepage_data_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Homepage configuration files
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ homepage_data_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - services.yaml
+    - settings.yaml
+    - bookmarks.yaml
+    - widgets.yaml
+  notify: restart homepage
+
+- name: Deploy Homepage container
+  community.docker.docker_container:
+    name: "{{ homepage_container_name }}"
+    image: "{{ homepage_image }}"
+    state: started
+    restart_policy: unless-stopped
+    volumes:
+      - "{{ homepage_data_dir }}:/app/config"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env:
+      PUID: "1000"
+      PGID: "1000"
+    networks:
+      - name: "{{ docker_network_name }}"

@@ -1,0 +1,37 @@
+{
+	email {{ caddy_email }}
+}
+
+(authelia) {
+	forward_auth {{ authelia_container_name }}:9091 {
+		uri /api/authz/forward-auth
+		copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+	}
+}
+
+# Authelia portal
+auth.{{ domain }} {
+	reverse_proxy {{ authelia_container_name }}:9091
+}
+
+# Homepage dashboard
+home.{{ domain }} {
+	import authelia
+	reverse_proxy {{ homepage_container_name }}:3000
+}
+
+# Cockpit system management + terminal
+cockpit.{{ domain }} {
+	import authelia
+	reverse_proxy localhost:{{ cockpit_port }} {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}
+
+# WireGuard admin UI
+wg.{{ domain }} {
+	import authelia
+	reverse_proxy {{ wireguard_container_name }}:51821
+}

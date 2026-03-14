@@ -1,0 +1,37 @@
+---
+- name: Create Caddy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ caddy_data_dir }}"
+    - "{{ caddy_data_dir }}/config"
+    - "{{ caddy_data_dir }}/data"
+
+- name: Deploy Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_data_dir }}/Caddyfile"
+    mode: "0644"
+  notify: reload caddy
+
+- name: Deploy Caddy container
+  community.docker.docker_container:
+    name: "{{ caddy_container_name }}"
+    image: "{{ caddy_image }}"
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - "{{ caddy_data_dir }}/Caddyfile:/etc/caddy/Caddyfile"
+      - "{{ caddy_data_dir }}/data:/data"
+      - "{{ caddy_data_dir }}/config:/config"
+    networks:
+      - name: "{{ docker_network_name }}"
+    network_mode: null
+    etc_hosts:
+      host.docker.internal: host-gateway

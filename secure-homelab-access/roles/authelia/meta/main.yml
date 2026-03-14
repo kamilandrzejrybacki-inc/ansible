@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: authelia
+  author: kamilrybacki
+  description: Authelia 2FA authentication gateway
+  min_ansible_version: "2.10"
+dependencies: []

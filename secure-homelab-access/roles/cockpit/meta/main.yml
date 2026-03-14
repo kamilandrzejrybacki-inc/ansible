@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: cockpit
+  author: kamilrybacki
+  description: Cockpit system management and web terminal
+  min_ansible_version: "2.10"
+dependencies: []

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: caddy
+  author: kamilrybacki
+  description: Caddy reverse proxy with Authelia forward-auth
+  min_ansible_version: "2.10"
+dependencies: []

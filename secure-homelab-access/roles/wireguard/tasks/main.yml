@@ -1,0 +1,47 @@
+---
+- name: Create WireGuard data directory
+  ansible.builtin.file:
+    path: "{{ wireguard_data_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Enable IP forwarding
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    sysctl_set: true
+    reload: true
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv4.conf.all.src_valid_mark
+
+- name: Deploy wg-easy container
+  community.docker.docker_container:
+    name: "{{ wireguard_container_name }}"
+    image: "{{ wireguard_image }}"
+    state: started
+    restart_policy: unless-stopped
+    capabilities:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: "1"
+      net.ipv4.ip_forward: "1"
+    env:
+      LANG: "en"
+      WG_HOST: "{{ public_ip }}"
+      PASSWORD_HASH: "{{ wireguard_password | password_hash('bcrypt') }}"
+      WG_PORT: "{{ wireguard_port | string }}"
+      WG_DEFAULT_DNS: "{{ wireguard_dns }}"
+      WG_MTU: "{{ wireguard_mtu | string }}"
+      WG_PERSISTENT_KEEPALIVE: "{{ wireguard_persistent_keepalive | string }}"
+      WG_DEFAULT_ADDRESS: "10.8.0.x"
+      UI_TRAFFIC_STATS: "true"
+      UI_CHART_TYPE: "2"
+    volumes:
+      - "{{ wireguard_data_dir }}:/etc/wireguard"
+    ports:
+      - "{{ wireguard_port }}:{{ wireguard_port }}/udp"
+      - "{{ wireguard_web_port }}:51821/tcp"
+    networks:
+      - name: "{{ docker_network_name }}"

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: wireguard
+  author: kamilrybacki
+  description: WireGuard VPN via wg-easy Docker container
+  min_ansible_version: "2.10"
+dependencies: []

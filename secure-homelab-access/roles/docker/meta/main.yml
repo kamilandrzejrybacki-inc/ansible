@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: docker
+  author: kamilrybacki
+  description: Docker engine and compose installation
+  min_ansible_version: "2.10"
+dependencies: []

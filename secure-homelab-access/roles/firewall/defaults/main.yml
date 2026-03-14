@@ -1,0 +1,3 @@
+---
+ufw_packages:
+  - ufw

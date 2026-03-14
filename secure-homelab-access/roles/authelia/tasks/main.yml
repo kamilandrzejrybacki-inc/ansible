@@ -1,0 +1,40 @@
+---
+- name: Create Authelia directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ authelia_data_dir }}"
+    - "{{ authelia_data_dir }}/config"
+
+- name: Deploy Authelia configuration
+  ansible.builtin.template:
+    src: configuration.yml.j2
+    dest: "{{ authelia_data_dir }}/config/configuration.yml"
+    mode: "0600"
+  notify: restart authelia
+
+- name: Deploy Authelia users database
+  ansible.builtin.template:
+    src: users_database.yml.j2
+    dest: "{{ authelia_data_dir }}/config/users_database.yml"
+    mode: "0600"
+  notify: restart authelia
+
+- name: Deploy Authelia container
+  community.docker.docker_container:
+    name: "{{ authelia_container_name }}"
+    image: "{{ authelia_image }}"
+    state: started
+    restart_policy: unless-stopped
+    volumes:
+      - "{{ authelia_data_dir }}/config:/config"
+    env:
+      TZ: "UTC"
+    networks:
+      - name: "{{ docker_network_name }}"
+    labels:
+      homepage.group: "Infrastructure"
+      homepage.name: "Authelia"
+      homepage.description: "Authentication Portal"

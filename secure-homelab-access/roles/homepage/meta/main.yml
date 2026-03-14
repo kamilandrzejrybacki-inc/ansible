@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: homepage
+  author: kamilrybacki
+  description: Homepage dashboard for homelab services
+  min_ansible_version: "2.10"
+dependencies: []

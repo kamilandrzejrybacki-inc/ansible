@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: fail2ban
+  author: kamilrybacki
+  description: Fail2ban brute-force protection
+  min_ansible_version: "2.10"
+dependencies: []

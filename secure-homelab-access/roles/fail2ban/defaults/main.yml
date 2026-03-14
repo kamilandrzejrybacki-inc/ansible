@@ -1,0 +1,3 @@
+---
+fail2ban_packages:
+  - fail2ban

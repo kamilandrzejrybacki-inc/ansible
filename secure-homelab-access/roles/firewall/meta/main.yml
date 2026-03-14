@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: firewall
+  author: kamilrybacki
+  description: UFW firewall configuration - only WireGuard + SSH exposed
+  min_ansible_version: "2.10"
+dependencies: []

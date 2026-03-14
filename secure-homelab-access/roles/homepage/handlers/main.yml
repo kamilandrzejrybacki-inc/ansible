@@ -1,0 +1,6 @@
+---
+- name: restart homepage
+  community.docker.docker_container:
+    name: "{{ homepage_container_name }}"
+    state: started
+    restart: true

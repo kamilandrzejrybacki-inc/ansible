@@ -1,0 +1,2 @@
+---
+wireguard_image: "ghcr.io/wg-easy/wg-easy:latest"

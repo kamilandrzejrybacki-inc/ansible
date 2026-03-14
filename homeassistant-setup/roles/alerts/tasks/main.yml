@@ -1,0 +1,20 @@
+---
+- name: Skip alerting if no webhook URL provided
+  ansible.builtin.debug:
+    msg: "No webhook URL provided — skipping alerting setup"
+  when: alert_webhook_url | length == 0
+
+- name: Deploy alerting automations
+  ansible.builtin.template:
+    src: automations.yaml.j2
+    dest: "{{ ha_config_dir }}/automations.yaml"
+    mode: "0644"
+  when: alert_webhook_url | length > 0
+
+- name: Ensure automations are included in configuration
+  ansible.builtin.blockinfile:
+    path: "{{ ha_config_dir }}/configuration.yaml"
+    marker: "# {mark} ANSIBLE MANAGED — Automations"
+    block: |
+      automation: !include automations.yaml
+  when: alert_webhook_url | length > 0

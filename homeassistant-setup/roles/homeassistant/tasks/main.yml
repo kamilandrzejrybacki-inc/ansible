@@ -1,0 +1,42 @@
+---
+- name: Install python3-docker for Ansible Docker modules
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+    update_cache: true
+
+- name: Create Home Assistant config directory
+  ansible.builtin.file:
+    path: "{{ ha_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Start Home Assistant container
+  community.docker.docker_container:
+    name: "{{ ha_container_name }}"
+    image: "{{ ha_image }}"
+    state: started
+    restart_policy: "{{ ha_restart_policy }}"
+    network_mode: host
+    volumes:
+      - "{{ ha_config_dir }}:/config"
+    env:
+      TZ: "{{ ha_timezone }}"
+
+- name: Wait for Home Assistant to be ready
+  ansible.builtin.uri:
+    url: "http://localhost:{{ ha_port }}"
+    method: GET
+    status_code: 200
+  register: ha_health
+  until: ha_health.status == 200
+  retries: 30
+  delay: 10
+
+- name: Display Home Assistant access info
+  ansible.builtin.debug:
+    msg: |
+      Home Assistant is running!
+      Access it at: http://{{ ansible_host }}:{{ ha_port }}
+      Config directory: {{ ha_config_dir }}
+      Complete the onboarding wizard in the browser to create your admin account.

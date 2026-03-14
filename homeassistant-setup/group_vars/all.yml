@@ -1,0 +1,29 @@
+---
+# Home Assistant Docker settings
+ha_container_name: homeassistant
+ha_image: ghcr.io/home-assistant/home-assistant:stable
+ha_port: 8123
+ha_config_dir: /opt/homeassistant/config
+ha_restart_policy: unless-stopped
+
+# Alerting thresholds
+alert_cpu_threshold: 90
+alert_disk_threshold: 85
+
+# Monitored services — extend this list to add new services
+# Supported types: http, ping, docker
+#
+# Examples:
+#   - name: n8n
+#     type: http
+#     url: "http://192.168.1.10:5678/healthz"
+#
+#   - name: router
+#     type: ping
+#     host: 192.168.1.1
+#
+#   - name: n8n
+#     type: docker
+#     container_name: n8n
+#
+monitored_services: []

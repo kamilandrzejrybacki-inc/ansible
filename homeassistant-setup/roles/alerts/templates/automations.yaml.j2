@@ -1,0 +1,81 @@
+# Home Assistant alerting automations — managed by Ansible
+
+- id: alert_high_cpu
+  alias: "Alert: High CPU Usage"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.processor_use
+      above: {{ alert_cpu_threshold }}
+      for:
+        minutes: 5
+  action:
+    - service: rest_command.webhook_alert
+      data:
+        message: "High CPU usage: {% raw %}{{ states('sensor.processor_use') }}{% endraw %}%"
+        severity: warning
+        source: system
+
+- id: alert_high_disk
+  alias: "Alert: High Disk Usage"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.disk_use_percent
+      above: {{ alert_disk_threshold }}
+  action:
+    - service: rest_command.webhook_alert
+      data:
+        message: "High disk usage: {% raw %}{{ states('sensor.disk_use_percent') }}{% endraw %}%"
+        severity: warning
+        source: system
+
+{% for service in monitored_services %}
+{% if service.type == 'http' %}
+- id: "alert_{{ service.name | lower | replace(' ', '_') }}_down"
+  alias: "Alert: {{ service.name }} Down"
+  trigger:
+    - platform: state
+      entity_id: sensor.{{ service.name | lower | replace(' ', '_') }}_status
+      to: "offline"
+      for:
+        minutes: 2
+  action:
+    - service: rest_command.webhook_alert
+      data:
+        message: "Service {{ service.name }} is offline"
+        severity: critical
+        source: "{{ service.name }}"
+
+{% endif %}
+{% if service.type == 'ping' %}
+- id: "alert_{{ service.name | lower | replace(' ', '_') }}_unreachable"
+  alias: "Alert: {{ service.name }} Unreachable"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.{{ service.name | lower | replace(' ', '_') }}
+      to: "off"
+      for:
+        minutes: 2
+  action:
+    - service: rest_command.webhook_alert
+      data:
+        message: "Host {{ service.name }} ({{ service.host }}) is unreachable"
+        severity: critical
+        source: "{{ service.name }}"
+
+{% endif %}
+{% if service.type == 'docker' %}
+- id: "alert_{{ service.name | lower | replace(' ', '_') }}_stopped"
+  alias: "Alert: {{ service.name }} Container Stopped"
+  trigger:
+    - platform: state
+      entity_id: sensor.{{ service.name | lower | replace(' ', '_') }}_container
+      from: "running"
+  action:
+    - service: rest_command.webhook_alert
+      data:
+        message: "Container {{ service.container_name }} is {% raw %}{{ states('sensor.{{ service.name | lower | replace(' ', '_') }}_container') }}{% endraw %}"
+        severity: critical
+        source: "{{ service.name }}"
+
+{% endif %}
+{% endfor %}

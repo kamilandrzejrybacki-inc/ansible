@@ -1,0 +1,80 @@
+title: Homelab Monitor
+views:
+  - title: System
+    path: system
+    icon: mdi:chip
+    cards:
+      - type: gauge
+        entity: sensor.processor_use
+        name: CPU Usage
+        min: 0
+        max: 100
+        severity:
+          green: 0
+          yellow: 60
+          red: 85
+
+      - type: gauge
+        entity: sensor.memory_use_percent
+        name: Memory Usage
+        min: 0
+        max: 100
+        severity:
+          green: 0
+          yellow: 60
+          red: 85
+
+      - type: gauge
+        entity: sensor.disk_use_percent
+        name: Disk Usage
+        min: 0
+        max: 100
+        severity:
+          green: 0
+          yellow: 70
+          red: 85
+
+      - type: sensor
+        entity: sensor.network_in_eth0
+        name: Network In
+        graph: line
+
+      - type: sensor
+        entity: sensor.network_out_eth0
+        name: Network Out
+        graph: line
+
+      - type: sensor
+        entity: sensor.uptime
+        name: HA Uptime
+
+{% set http_services = monitored_services | selectattr('type', 'equalto', 'http') | list %}
+{% set ping_services = monitored_services | selectattr('type', 'equalto', 'ping') | list %}
+{% set docker_services = monitored_services | selectattr('type', 'equalto', 'docker') | list %}
+{% if http_services | length > 0 or ping_services | length > 0 or docker_services | length > 0 %}
+  - title: Services
+    path: services
+    icon: mdi:lan
+    cards:
+{% for service in http_services %}
+      - type: entity
+        entity: sensor.{{ service.name | lower | replace(' ', '_') }}_status
+        name: "{{ service.name }}"
+        icon: mdi:web
+
+{% endfor %}
+{% for service in ping_services %}
+      - type: entity
+        entity: binary_sensor.{{ service.name | lower | replace(' ', '_') }}
+        name: "{{ service.name }}"
+        icon: mdi:lan-connect
+
+{% endfor %}
+{% for service in docker_services %}
+      - type: entity
+        entity: sensor.{{ service.name | lower | replace(' ', '_') }}_container
+        name: "{{ service.name }}"
+        icon: mdi:docker
+
+{% endfor %}
+{% endif %}

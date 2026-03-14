@@ -1,0 +1,4 @@
+---
+alert_webhook_url: ""
+alert_cpu_threshold: 90
+alert_disk_threshold: 85

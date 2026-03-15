@@ -35,6 +35,8 @@ done < <(find . -path "*/roles/*/molecule" -type d | sort)
 
 if [ ${#ROLES[@]} -eq 0 ]; then
   echo "matrix={\"include\":[]}"
+  echo "has_roles=false"
 else
   echo "matrix={\"include\":[$(IFS=,; echo "${ROLES[*]}")]}"
+  echo "has_roles=true"
 fi

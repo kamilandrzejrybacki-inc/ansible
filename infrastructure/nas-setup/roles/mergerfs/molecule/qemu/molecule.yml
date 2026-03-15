@@ -25,7 +25,7 @@ provisioner:
         ansible_port: 2222
         ansible_user: ubuntu
         ansible_ssh_private_key_file: /tmp/molecule-qemu/id_rsa
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/molecule-qemu/known_hosts"
 verifier:
   name: testinfra
   options:

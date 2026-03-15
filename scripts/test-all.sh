@@ -21,7 +21,7 @@ PASSED=()
 
 while IFS= read -r mol_dir; do
   if [ -d "${mol_dir}/${SCENARIO}" ]; then
-    role_path=$(dirname "$(dirname "$mol_dir")")
+    role_path=$(dirname "$mol_dir")
     role_path="${role_path#./}"
     role_name=$(basename "$role_path")
     playbook_name=$(basename "$(dirname "$(dirname "$role_path")")")

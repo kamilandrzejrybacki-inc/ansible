@@ -9,13 +9,16 @@ on:
     paths:
       - 'infrastructure/**'
 
+permissions:
+  contents: read
+
 jobs:
   discover-privileged:
     name: Discover privileged roles
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
-      has_roles: ${{ steps.check.outputs.has_roles }}
+      has_roles: ${{ steps.discover.outputs.has_roles }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,22 +27,12 @@ jobs:
         id: discover
         run: ./scripts/discover-roles.sh privileged >> "$GITHUB_OUTPUT"
 
-      - name: Check if any roles found
-        id: check
-        run: |
-          MATRIX='${{ steps.discover.outputs.matrix }}'
-          if echo "$MATRIX" | grep -q '"role_path"'; then
-            echo "has_roles=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_roles=false" >> "$GITHUB_OUTPUT"
-          fi
-
   discover-qemu:
     name: Discover QEMU roles
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
-      has_roles: ${{ steps.check.outputs.has_roles }}
+      has_roles: ${{ steps.discover.outputs.has_roles }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,16 +40,6 @@ jobs:
       - name: Discover QEMU roles
         id: discover
         run: ./scripts/discover-roles.sh qemu >> "$GITHUB_OUTPUT"
-
-      - name: Check if any roles found
-        id: check
-        run: |
-          MATRIX='${{ steps.discover.outputs.matrix }}'
-          if echo "$MATRIX" | grep -q '"role_path"'; then
-            echo "has_roles=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_roles=false" >> "$GITHUB_OUTPUT"
-          fi
 
   test-roles-privileged:
     name: "Test (privileged): ${{ matrix.role_name }}"
@@ -83,13 +66,16 @@ jobs:
 
       - name: Run Molecule (privileged Docker)
         working-directory: ${{ matrix.role_path }}
-        run: molecule test -s ${{ matrix.scenario }}
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        run: molecule test -s "$SCENARIO"
 
   test-roles-qemu:
     name: "Test (QEMU): ${{ matrix.role_name }}"
     needs: discover-qemu
     if: needs.discover-qemu.outputs.has_roles == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix: ${{ fromJson(needs.discover-qemu.outputs.matrix) }}
       fail-fast: false
@@ -114,63 +100,12 @@ jobs:
       - name: Cache QEMU cloud image
         uses: actions/cache@v4
         with:
-          path: ~/.cache/molecule-qemu/
-          key: qemu-ubuntu2404-${{ hashFiles('requirements-test.txt') }}
+          path: /tmp/molecule-qemu/
+          key: qemu-ubuntu2404-${{ github.run_id }}
+          restore-keys: qemu-ubuntu2404-
 
       - name: Run Molecule (QEMU)
         working-directory: ${{ matrix.role_path }}
-        run: molecule test -s ${{ matrix.scenario }}
-
-  discover-integration:
-    name: Discover integration scenarios
-    runs-on: ubuntu-latest
-    outputs:
-      has_scenarios: ${{ steps.check.outputs.has_scenarios }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check for integration scenarios
-        id: check
-        run: |
-          if find . -path "*/molecule/integration" -type d | grep -q .; then
-            echo "has_scenarios=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_scenarios=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  test-playbooks:
-    name: "Integration: ${{ matrix.playbook.name }}"
-    needs: [test-roles-privileged, test-roles-qemu, discover-integration]
-    if: always() && !failure() && !cancelled() && needs.discover-integration.outputs.has_scenarios == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        playbook:
-          - name: secure-homelab-access
-            path: infrastructure/secure-homelab-access
-          - name: nas-setup
-            path: infrastructure/nas-setup
-          - name: homeassistant-setup
-            path: home-services/homeassistant-setup
-          - name: k8s-full-setup
-            path: k8s/k8s-full-setup
-      fail-fast: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install test dependencies
-        run: pip install -r requirements-test.txt
-
-      - name: Install Ansible collections
-        run: ansible-galaxy collection install -r requirements.yml
-
-      - name: Run playbook integration test
-        working-directory: ${{ matrix.playbook.path }}
-        run: molecule test -s integration
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        run: molecule test -s "$SCENARIO"

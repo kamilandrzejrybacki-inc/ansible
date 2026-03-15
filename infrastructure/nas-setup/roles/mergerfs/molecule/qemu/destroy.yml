@@ -13,7 +13,9 @@
     - name: Kill QEMU process
       ansible.builtin.command:
         cmd: "kill {{ qemu_pid.content | b64decode | trim }}"
-      when: qemu_pid is not failed
+      when:
+        - qemu_pid is not failed
+        - (qemu_pid.content | b64decode | trim) is match('^[0-9]+$')
       changed_when: true
       failed_when: false
 

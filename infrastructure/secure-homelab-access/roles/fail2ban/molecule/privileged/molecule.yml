@@ -11,8 +11,6 @@ platforms:
     command: /lib/systemd/systemd
     privileged: true
     pre_build_image: true
-    capabilities:
-      - NET_ADMIN
     tmpfs:
       - /run
       - /tmp

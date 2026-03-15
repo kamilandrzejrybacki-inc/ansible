@@ -3,8 +3,12 @@ name: CI - Fast
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -36,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
-      has_roles: ${{ steps.check.outputs.has_roles }}
+      has_roles: ${{ steps.discover.outputs.has_roles }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,16 +48,6 @@ jobs:
       - name: Discover testable roles
         id: discover
         run: ./scripts/discover-roles.sh docker >> "$GITHUB_OUTPUT"
-
-      - name: Check if any roles found
-        id: check
-        run: |
-          MATRIX='${{ steps.discover.outputs.matrix }}'
-          if echo "$MATRIX" | grep -q '"role_path"'; then
-            echo "has_roles=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_roles=false" >> "$GITHUB_OUTPUT"
-          fi
 
   test-roles-docker:
     name: "Test: ${{ matrix.role_name }}"
@@ -80,4 +74,6 @@ jobs:
 
       - name: Run Molecule
         working-directory: ${{ matrix.role_path }}
-        run: molecule test -s ${{ matrix.scenario }}
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        run: molecule test -s "$SCENARIO"

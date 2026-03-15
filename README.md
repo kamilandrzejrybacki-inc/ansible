@@ -36,6 +36,7 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 | [`home-services/kuma-setup/`](./home-services/kuma-setup/) | Uptime Kuma monitoring — Docker, health checks, status pages |
 | [`home-services/vaultwarden-setup/`](./home-services/vaultwarden-setup/) | Vaultwarden password manager — Docker, admin-only registration |
 | [`home-services/paperless-setup/`](./home-services/paperless-setup/) | Paperless-ngx document management — Docker Compose, Redis, PostgreSQL |
+| [`home-services/stirling-pdf-setup/`](./home-services/stirling-pdf-setup/) | Stirling-PDF document toolkit — merge, split, convert, OCR, compress |
 
 ### `infrastructure/` — Networking, storage & security
 

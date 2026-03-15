@@ -1,0 +1,48 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Stirling-PDF data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ stirling_data_dir }}/configs"
+    - "{{ stirling_data_dir }}/logs"
+    - "{{ stirling_data_dir }}/training-data"
+
+- name: Start Stirling-PDF container
+  community.docker.docker_container:
+    name: "{{ stirling_container_name }}"
+    image: "{{ stirling_image }}"
+    state: started
+    restart_policy: "{{ stirling_restart_policy }}"
+    published_ports:
+      - "127.0.0.1:{{ stirling_port }}:8080"
+    volumes:
+      - "{{ stirling_data_dir }}/configs:/configs"
+      - "{{ stirling_data_dir }}/logs:/logs"
+      - "{{ stirling_data_dir }}/training-data:/usr/share/tessdata"
+
+- name: Wait for Stirling-PDF to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ stirling_port }}"
+    status_code: [200, 302]
+  register: stirling_health
+  until: stirling_health is not failed
+  retries: "{{ stirling_health_check_retries }}"
+  delay: "{{ stirling_health_check_delay }}"
+
+- name: Display Stirling-PDF access information
+  ansible.builtin.debug:
+    msg: |
+      Stirling-PDF is running at http://{{ inventory_hostname }}:{{ stirling_port }}
+
+      Features: merge, split, convert, compress, OCR, watermark, sign, and more.
+      Configs and OCR training data persist in {{ stirling_data_dir }}.
+
+      To put behind a reverse proxy, configure your proxy to forward
+      to 127.0.0.1:{{ stirling_port }}.

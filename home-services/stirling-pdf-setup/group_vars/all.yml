@@ -1,0 +1,8 @@
+---
+stirling_container_name: stirling-pdf
+stirling_image: "frooodle/s-pdf:0.36.5"
+stirling_port: 8080
+stirling_data_dir: /opt/stirling-pdf
+stirling_restart_policy: unless-stopped
+stirling_health_check_retries: 12
+stirling_health_check_delay: 5

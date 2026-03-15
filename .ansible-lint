@@ -9,6 +9,7 @@ skip_list:
   - command-instead-of-shell  # Using shell where command suffices — pre-existing
   - yaml[comments-indentation]  # Comment indentation — conflicts with existing style
   - yaml[octal-values]  # Octal value format — pre-existing
+  - syntax-check[specific]  # Role resolution fails for cross-playbook refs and molecule converge files
 
 warn_list:
   - role-name  # Role name conventions
@@ -18,3 +19,4 @@ exclude_paths:
   - docs/
   - dev-tools/claude-code-setup/files/
   - .github/
+  - '**/molecule/'

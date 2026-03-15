@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# Paperless-ngx Setup
+# =============================================================================
+# Deploys Paperless-ngx document management on a remote host via Docker Compose.
+#
+# Usage:
+#   ansible-playbook home-services/paperless-setup/setup.yml \
+#     -i home-services/paperless-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Paperless-ngx Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/5] IP or hostname of the target machine
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/5] SSH user for the target machine"
+      private: false
+
+    - name: paperless_admin_user
+      prompt: "[3/5] Admin username"
+      default: "admin"
+      private: false
+
+    - name: paperless_admin_password
+      prompt: "[4/5] Admin password"
+      private: true
+      confirm: true
+
+    - name: paperless_document_path
+      prompt: "[5/5] Document storage path (leave blank for Docker volume, or enter NAS/external path)"
+      default: ""
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: paperless_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        paperless_admin_user: "{{ paperless_admin_user }}"
+        paperless_admin_password: "{{ paperless_admin_password }}"
+        paperless_document_path: "{{ paperless_document_path }}"
+      no_log: true
+
+- name: Install Docker and deploy Paperless-ngx
+  hosts: paperless_hosts
+  become: true
+  roles:
+    - docker
+    - paperless

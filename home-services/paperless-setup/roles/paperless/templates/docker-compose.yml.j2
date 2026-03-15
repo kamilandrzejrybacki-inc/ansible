@@ -1,0 +1,60 @@
+services:
+  redis:
+    container_name: {{ paperless_container_name }}-redis
+    image: {{ paperless_redis_image }}
+    restart: {{ paperless_restart_policy }}
+    volumes:
+      - paperless-redis-data:/data
+    networks:
+      - paperless-net
+
+  db:
+    container_name: {{ paperless_container_name }}-db
+    image: {{ paperless_postgres_image }}
+    restart: {{ paperless_restart_policy }}
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: "{{ paperless_db_password }}"
+    volumes:
+      - paperless-db-data:/var/lib/postgresql/data
+    networks:
+      - paperless-net
+
+  webserver:
+    container_name: {{ paperless_container_name }}
+    image: {{ paperless_image }}
+    restart: {{ paperless_restart_policy }}
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "127.0.0.1:{{ paperless_port }}:8000"
+    volumes:
+      - paperless-data:/usr/src/paperless/data
+{% if paperless_document_path | length > 0 %}
+      - {{ paperless_document_path }}:/usr/src/paperless/media
+{% else %}
+      - paperless-media:/usr/src/paperless/media
+{% endif %}
+    environment:
+      PAPERLESS_REDIS: "redis://redis:6379"
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBPASS: "{{ paperless_db_password }}"
+      PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
+      PAPERLESS_ADMIN_USER: "{{ paperless_admin_user }}"
+      PAPERLESS_ADMIN_PASSWORD: "{{ paperless_admin_password }}"
+    networks:
+      - paperless-net
+
+volumes:
+  paperless-redis-data:
+  paperless-db-data:
+  paperless-data:
+{% if paperless_document_path | length == 0 %}
+  paperless-media:
+{% endif %}
+
+networks:
+  paperless-net:
+    driver: bridge

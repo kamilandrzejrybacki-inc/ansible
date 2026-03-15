@@ -1,0 +1,60 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Paperless data directory
+  ansible.builtin.file:
+    path: "{{ paperless_data_dir }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Create document storage directory (if custom path)
+  ansible.builtin.file:
+    path: "{{ paperless_document_path }}"
+    state: directory
+    mode: "0755"
+  when: paperless_document_path | length > 0
+
+- name: Auto-generate secrets
+  ansible.builtin.set_fact:
+    paperless_db_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=64') }}"
+    paperless_secret_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=64') }}"
+  no_log: true
+
+- name: Template Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ paperless_data_dir }}/docker-compose.yml"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Deploy Paperless-ngx stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ paperless_data_dir }}"
+    state: present
+
+- name: Wait for Paperless-ngx to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ paperless_port }}"
+    status_code: [200, 302]
+  register: paperless_health
+  until: paperless_health is not failed
+  retries: "{{ paperless_health_check_retries }}"
+  delay: "{{ paperless_health_check_delay }}"
+
+- name: Display Paperless-ngx access information
+  ansible.builtin.debug:
+    msg: |
+      Paperless-ngx is running at http://{{ inventory_hostname }}:{{ paperless_port }}
+
+      Admin user: {{ paperless_admin_user }}
+      Document storage: {{ paperless_document_path | default('Docker volume (paperless-media)', true) }}
+
+      To put behind a reverse proxy, configure your proxy to forward
+      to 127.0.0.1:{{ paperless_port }}.

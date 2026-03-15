@@ -1,0 +1,8 @@
+---
+vaultwarden_container_name: vaultwarden
+vaultwarden_image: "vaultwarden/server:1.32.7"
+vaultwarden_port: 8080
+vaultwarden_data_dir: /opt/vaultwarden
+vaultwarden_restart_policy: unless-stopped
+vaultwarden_health_check_retries: 12
+vaultwarden_health_check_delay: 5

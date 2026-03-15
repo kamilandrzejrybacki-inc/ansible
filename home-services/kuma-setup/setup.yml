@@ -1,0 +1,45 @@
+---
+# =============================================================================
+# Uptime Kuma Setup
+# =============================================================================
+# Deploys Uptime Kuma monitoring on a remote host via Docker.
+#
+# Usage:
+#   ansible-playbook home-services/kuma-setup/setup.yml \
+#     -i home-services/kuma-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Uptime Kuma Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the target machine
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user for the target machine"
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: kuma_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+
+- name: Install Docker and deploy Uptime Kuma
+  hosts: kuma_hosts
+  become: true
+  roles:
+    - docker
+    - kuma

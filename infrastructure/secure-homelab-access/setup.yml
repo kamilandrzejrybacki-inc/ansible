@@ -26,47 +26,53 @@
           Secure Homelab Remote Access - Setup Wizard
         ══════════════════════════════════════════════
 
-        [1/8] What is your public IP address?
+        [1/9] What is your public IP address?
       private: false
 
     - name: prompt_domain
       prompt: |
-        [2/8] What domain will you use? (e.g. homelab.example.com)
+        [2/9] What domain will you use? (e.g. homelab.example.com)
               DNS records for *.domain should point to your VPN address.
               You can also use <your-ip>.nip.io for testing without DNS
       private: false
 
     - name: prompt_ssh_port
-      prompt: "[3/8] SSH port"
+      prompt: "[3/9] SSH port"
       default: "22"
       private: false
 
     - name: prompt_caddy_email
       prompt: |
-        [4/8] Email for Let's Encrypt certificate notifications
+        [4/9] Email for Let's Encrypt certificate notifications
       private: false
 
     # -- WireGuard --
     - name: prompt_wireguard_password
       prompt: |
-        [5/8] WireGuard admin UI password (for managing VPN peers)
+        [5/9] WireGuard admin UI password (for managing VPN peers)
       private: true
       confirm: true
 
     # -- Authelia --
     - name: prompt_authelia_user
-      prompt: "[6/8] Authelia admin username"
+      prompt: "[6/9] Authelia admin username"
       default: "admin"
       private: false
 
     - name: prompt_authelia_password
-      prompt: "[7/8] Authelia admin password (will be hashed with bcrypt)"
+      prompt: "[7/9] Authelia admin password (will be hashed with bcrypt)"
       private: true
       confirm: true
 
     - name: prompt_authelia_email
-      prompt: "[8/8] Authelia admin email (for notifications and recovery)"
+      prompt: "[8/9] Authelia admin email (for notifications and recovery)"
       private: false
+
+    # -- Pi-hole --
+    - name: prompt_pihole_password
+      prompt: "[9/9] Pi-hole admin password (for DNS dashboard)"
+      private: true
+      confirm: true
 
   pre_tasks:
     - name: Set prompted values as facts
@@ -78,6 +84,7 @@
         wireguard_password: "{{ prompt_wireguard_password }}"
         authelia_default_user: "{{ prompt_authelia_user }}"
         authelia_default_email: "{{ prompt_authelia_email }}"
+        pihole_password: "{{ prompt_pihole_password }}"
       no_log: true
 
     - name: Generate Authelia password hash (bcrypt)
@@ -103,8 +110,10 @@
       ansible.builtin.set_fact:
         firewall_allowed_tcp_ports:
           - "{{ ssh_port }}"
+          - "53"
         firewall_allowed_udp_ports:
           - "{{ wireguard_port }}"
+          - "53"
 
     - name: Display deployment summary
       ansible.builtin.debug:
@@ -125,6 +134,7 @@
               {{ subdomain_home }}.{{ domain }}     → Homepage dashboard
               {{ subdomain_cockpit }}.{{ domain }}  → System management + terminal
               {{ subdomain_wireguard }}.{{ domain }}       → WireGuard peer management
+              {{ subdomain_pihole }}.{{ domain }}     → Pi-hole DNS dashboard
 
             Auth user:    {{ authelia_default_user }}
             Secrets:      auto-generated (jwt, session, encryption key)
@@ -143,6 +153,9 @@
 
     - role: docker
       tags: [docker]
+
+    - role: pihole
+      tags: [pihole, dns]
 
     - role: wireguard
       tags: [wireguard, vpn]
@@ -176,6 +189,7 @@
              https://{{ subdomain_home }}.{{ domain }}    → Dashboard
              https://{{ subdomain_cockpit }}.{{ domain }} → Terminal & system management
              https://{{ subdomain_wireguard }}.{{ domain }}      → VPN management
+             https://{{ subdomain_pihole }}.{{ domain }} → DNS ad-blocking dashboard
 
           3. DNS: Point *.{{ domain }} → {{ vpn_address }}
              (via Pi-hole, /etc/hosts, or your DNS provider)

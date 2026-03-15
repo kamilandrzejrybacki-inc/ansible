@@ -31,3 +31,9 @@
 	import authelia
 	reverse_proxy {{ wireguard_container_name }}:51821
 }
+
+# Pi-hole DNS dashboard
+{{ subdomain_pihole }}.{{ domain }} {
+	import authelia
+	reverse_proxy {{ pihole_container_name }}:{{ pihole_web_port }}
+}

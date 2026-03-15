@@ -33,12 +33,15 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 | [`home-services/n8n-setup/`](./home-services/n8n-setup/) | n8n workflow automation — Docker, owner account creation |
 | [`home-services/homeassistant-setup/`](./home-services/homeassistant-setup/) | Home Assistant homelab monitor — Docker, monitoring, dashboards, webhook alerts |
 | [`home-services/seafile-setup/`](./home-services/seafile-setup/) | Seafile self-hosted cloud storage — Docker, Caddy reverse proxy |
+| [`home-services/kuma-setup/`](./home-services/kuma-setup/) | Uptime Kuma monitoring — Docker, health checks, status pages |
+| [`home-services/vaultwarden-setup/`](./home-services/vaultwarden-setup/) | Vaultwarden password manager — Docker, admin-only registration |
+| [`home-services/paperless-setup/`](./home-services/paperless-setup/) | Paperless-ngx document management — Docker Compose, Redis, PostgreSQL |
 
 ### `infrastructure/` — Networking, storage & security
 
 | Directory | Description |
 |---|---|
-| [`infrastructure/secure-homelab-access/`](./infrastructure/secure-homelab-access/) | Secure homelab remote access — WireGuard, Authelia, Caddy, fail2ban, Cockpit |
+| [`infrastructure/secure-homelab-access/`](./infrastructure/secure-homelab-access/) | Secure homelab remote access — WireGuard, Authelia, Caddy, Pi-hole, fail2ban, Cockpit |
 | [`infrastructure/nas-setup/`](./infrastructure/nas-setup/) | NAS setup — mergerfs, SnapRAID, NFS, SMART monitoring, backups |
 
 ## Usage

@@ -1,0 +1,57 @@
+---
+- name: Disable systemd-resolved stub listener
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "^#?DNSStubListener="
+    line: "DNSStubListener=no"
+    backup: true
+  notify: Restart systemd-resolved
+
+- name: Flush handlers to apply resolved changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Symlink resolv.conf to systemd-resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
+- name: Create Pi-hole data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ pihole_data_dir }}/etc-pihole"
+    - "{{ pihole_data_dir }}/etc-dnsmasq.d"
+
+- name: Deploy Pi-hole container
+  community.docker.docker_container:
+    name: "{{ pihole_container_name }}"
+    image: "{{ pihole_image }}"
+    state: started
+    restart_policy: unless-stopped
+    env:
+      WEBPASSWORD: "{{ pihole_password }}"
+      PIHOLE_DNS_: "{{ pihole_upstream_dns }}"
+      DNSMASQ_LISTENING: "all"
+    volumes:
+      - "{{ pihole_data_dir }}/etc-pihole:/etc/pihole"
+      - "{{ pihole_data_dir }}/etc-dnsmasq.d:/etc/dnsmasq.d"
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    networks:
+      - name: "{{ docker_network_name }}"
+        ipv4_address: "{{ pihole_dns_ip }}"
+  no_log: true
+
+- name: Wait for Pi-hole to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ pihole_web_port }}/admin/"
+    status_code: [200, 302]
+  register: pihole_health
+  until: pihole_health is not failed
+  retries: "{{ pihole_health_check_retries }}"
+  delay: "{{ pihole_health_check_delay }}"

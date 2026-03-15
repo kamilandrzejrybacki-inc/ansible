@@ -1,0 +1,43 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Docker volume for Uptime Kuma data
+  community.docker.docker_volume:
+    name: "{{ kuma_volume_name }}"
+    state: present
+
+- name: Start Uptime Kuma container
+  community.docker.docker_container:
+    name: "{{ kuma_container_name }}"
+    image: "{{ kuma_image }}"
+    state: started
+    restart_policy: "{{ kuma_restart_policy }}"
+    published_ports:
+      - "127.0.0.1:{{ kuma_port }}:3001"
+    volumes:
+      - "{{ kuma_volume_name }}:/app/data"
+
+- name: Wait for Uptime Kuma to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ kuma_port }}"
+    status_code: [200, 302]
+  register: kuma_health
+  until: kuma_health is not failed
+  retries: "{{ kuma_health_check_retries }}"
+  delay: "{{ kuma_health_check_delay }}"
+
+- name: Display Uptime Kuma access information
+  ansible.builtin.debug:
+    msg: |
+      Uptime Kuma is running at http://{{ inventory_hostname }}:{{ kuma_port }}
+
+      Next steps:
+        1. Open the URL above in your browser.
+        2. Create your admin account on first launch.
+        3. Add monitors for your services.
+
+      To put behind a reverse proxy, configure your proxy to forward
+      to 127.0.0.1:{{ kuma_port }}.

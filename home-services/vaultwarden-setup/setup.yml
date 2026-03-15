@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# Vaultwarden Setup
+# =============================================================================
+# Deploys Vaultwarden (self-hosted Bitwarden) on a remote host via Docker.
+#
+# Usage:
+#   ansible-playbook home-services/vaultwarden-setup/setup.yml \
+#     -i home-services/vaultwarden-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Vaultwarden Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/3] IP or hostname of the target machine
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/3] SSH user for the target machine"
+      private: false
+
+    - name: vaultwarden_admin_token
+      prompt: "[3/3] Admin token for the /admin panel"
+      private: true
+      confirm: true
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: vaultwarden_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        vaultwarden_admin_token: "{{ vaultwarden_admin_token }}"
+      no_log: true
+
+- name: Install Docker and deploy Vaultwarden
+  hosts: vaultwarden_hosts
+  become: true
+  roles:
+    - docker
+    - vaultwarden

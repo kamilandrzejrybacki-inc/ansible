@@ -1,0 +1,8 @@
+---
+kuma_container_name: kuma
+kuma_image: "louislam/uptime-kuma:1.23.16"
+kuma_port: 3001
+kuma_volume_name: kuma_data
+kuma_restart_policy: unless-stopped
+kuma_health_check_retries: 12
+kuma_health_check_delay: 5

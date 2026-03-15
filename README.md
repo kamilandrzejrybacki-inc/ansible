@@ -18,7 +18,7 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 | Directory | Description |
 |---|---|
 | [`dev-tools/claude-code-setup/`](./dev-tools/claude-code-setup/) | Claude Code environment — CLI, plugins, MCP servers, Serena, rules |
-| [`dev-tools/claude-n8n-setup/`](./dev-tools/claude-n8n-setup/) | Claude Code + n8n MCP integration — Docker, n8n, Claude MCP configuration |
+| [`dev-tools/claude-n8n-mcp/`](./dev-tools/claude-n8n-mcp/) | Connect Claude Code to an existing n8n instance via MCP |
 
 ### `k8s/` — Kubernetes
 
@@ -30,6 +30,7 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 
 | Directory | Description |
 |---|---|
+| [`home-services/n8n-setup/`](./home-services/n8n-setup/) | n8n workflow automation — Docker, owner account creation |
 | [`home-services/homeassistant-setup/`](./home-services/homeassistant-setup/) | Home Assistant homelab monitor — Docker, monitoring, dashboards, webhook alerts |
 | [`home-services/seafile-setup/`](./home-services/seafile-setup/) | Seafile self-hosted cloud storage — Docker, Caddy reverse proxy |
 

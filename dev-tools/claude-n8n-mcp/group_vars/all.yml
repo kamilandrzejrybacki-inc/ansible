@@ -1,0 +1,5 @@
+---
+# Claude MCP settings
+mcp_server_name: n8n
+mcp_scope: user
+n8n_port: 5678

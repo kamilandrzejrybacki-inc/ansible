@@ -1,0 +1,68 @@
+---
+# =============================================================================
+# Claude Code ↔ n8n MCP Connection
+# =============================================================================
+# Connects Claude Code to an existing n8n instance via MCP.
+#
+# Prerequisites:
+#   - n8n already running (deploy with home-services/n8n-setup first)
+#   - MCP Access Token copied from n8n UI (Settings > Instance-level MCP)
+#   - Claude Code CLI installed on the client machine
+#
+# Usage:
+#   ansible-playbook dev-tools/claude-n8n-mcp/setup.yml \
+#     -i dev-tools/claude-n8n-mcp/inventory/hosts.ini
+# =============================================================================
+
+- name: Gather n8n connection details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: n8n_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Claude Code ↔ n8n MCP Setup
+        ══════════════════════════════════════════════
+
+        [1/3] IP or hostname of the n8n instance
+      private: false
+
+    - name: n8n_mcp_token
+      prompt: "[2/3] n8n MCP Access Token (from Settings > Instance-level MCP)"
+      private: true
+
+    - name: claude_host_ip
+      prompt: "[3/3] Claude Code client IP (enter 'localhost' if this machine)"
+      default: "localhost"
+      private: false
+
+  tasks:
+    - name: Add Claude Code client to dynamic inventory (remote)
+      ansible.builtin.add_host:
+        name: "{{ claude_host_ip }}"
+        groups: claude_clients
+        ansible_python_interpreter: /usr/bin/python3
+        n8n_host_ip: "{{ n8n_host_ip }}"
+        n8n_port: "{{ n8n_port }}"
+        n8n_mcp_token: "{{ n8n_mcp_token }}"
+      no_log: true
+      when: claude_host_ip != 'localhost'
+
+    - name: Add Claude Code client to dynamic inventory (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: claude_clients
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+        n8n_host_ip: "{{ n8n_host_ip }}"
+        n8n_port: "{{ n8n_port }}"
+        n8n_mcp_token: "{{ n8n_mcp_token }}"
+      no_log: true
+      when: claude_host_ip == 'localhost'
+
+- name: Configure Claude Code MCP integration
+  hosts: claude_clients
+  roles:
+    - claude_mcp

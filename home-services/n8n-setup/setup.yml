@@ -1,0 +1,67 @@
+---
+# =============================================================================
+# n8n Setup
+# =============================================================================
+# Deploys n8n workflow automation on a remote host via Docker.
+#
+# Usage:
+#   ansible-playbook home-services/n8n-setup/setup.yml \
+#     -i home-services/n8n-setup/inventory/hosts.ini \
+#     --ask-become-pass
+#
+# After deployment, retrieve the MCP Access Token from the n8n UI
+# and run the claude-n8n-mcp playbook to connect Claude Code.
+# =============================================================================
+
+- name: Gather n8n host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: n8n_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          n8n Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/5] IP or hostname of the n8n host machine
+      private: false
+
+    - name: n8n_ssh_user
+      prompt: "[2/5] SSH user for the n8n host"
+      private: false
+
+    - name: n8n_owner_email
+      prompt: "[3/5] Email for the n8n owner account"
+      private: false
+
+    - name: n8n_owner_password
+      prompt: "[4/5] Password for the n8n owner account"
+      private: true
+      confirm: true
+
+    - name: n8n_owner_first_name
+      prompt: "[5/5] First name for the n8n owner account"
+      default: "Admin"
+      private: false
+
+  tasks:
+    - name: Add n8n host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ n8n_host_ip }}"
+        groups: n8n_hosts
+        ansible_user: "{{ n8n_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        n8n_owner_email: "{{ n8n_owner_email }}"
+        n8n_owner_password: "{{ n8n_owner_password }}"
+        n8n_owner_first_name: "{{ n8n_owner_first_name }}"
+        n8n_owner_last_name: "User"
+      no_log: true
+
+- name: Install Docker and deploy n8n
+  hosts: n8n_hosts
+  become: true
+  roles:
+    - docker
+    - n8n

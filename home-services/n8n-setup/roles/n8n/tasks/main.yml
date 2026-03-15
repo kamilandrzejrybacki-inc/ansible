@@ -58,14 +58,10 @@
       The instance-level MCP endpoint is:
         http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http
 
-      One manual step remains:
+      Next steps:
         1. Log in to n8n at the URL above.
         2. Go to Settings > Instance-level MCP.
         3. Copy your MCP Access Token from the Access Token tab.
-        4. Re-run this playbook — you will be prompted for the token,
-           which will be configured in Claude Code automatically.
-
-        Alternatively, run manually on the Claude Code machine:
-          claude mcp add --transport http -s user \
-            --header "Authorization: Bearer <your-mcp-access-token>" \
-            n8n http://{{ inventory_hostname }}:{{ n8n_port }}/mcp-server/http
+        4. Run the claude-n8n-mcp playbook to connect Claude Code:
+             ansible-playbook dev-tools/claude-n8n-mcp/setup.yml \
+               -i dev-tools/claude-n8n-mcp/inventory/hosts.ini

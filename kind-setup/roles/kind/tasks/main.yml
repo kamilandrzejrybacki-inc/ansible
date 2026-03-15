@@ -1,0 +1,56 @@
+---
+# --- kind binary ---
+
+- name: Check if kind is already installed
+  ansible.builtin.command: kind version
+  register: kind_check
+  changed_when: false
+  failed_when: false
+
+- name: Set kind architecture
+  ansible.builtin.set_fact:
+    kind_arch: "{{ arch_map[ansible_architecture] | default(ansible_architecture) }}"
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+  when: kind_check.rc != 0
+
+- name: Download kind binary
+  ansible.builtin.get_url:
+    url: "https://kind.sigs.k8s.io/dl/{{ kind_version }}/kind-linux-{{ kind_arch }}"
+    dest: /usr/local/bin/kind
+    mode: "0755"
+  when: kind_check.rc != 0
+
+# --- kubectl ---
+
+- name: Check if kubectl is already installed
+  ansible.builtin.command: kubectl version --client
+  register: kubectl_check
+  changed_when: false
+  failed_when: false
+
+- name: Download Kubernetes APT signing key
+  ansible.builtin.shell: |
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key \
+      | gpg --dearmor -o {{ kubectl_apt_keyring }}
+  args:
+    creates: "{{ kubectl_apt_keyring }}"
+  when: kubectl_check.rc != 0
+
+- name: Add Kubernetes APT repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by={{ kubectl_apt_keyring }}]
+      https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /
+    filename: kubernetes
+    state: present
+  when: kubectl_check.rc != 0
+
+- name: Install kubectl
+  ansible.builtin.apt:
+    name: kubectl
+    state: present
+    update_cache: true
+  when: kubectl_check.rc != 0

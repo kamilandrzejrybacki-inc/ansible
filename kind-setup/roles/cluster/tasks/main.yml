@@ -1,0 +1,38 @@
+---
+- name: Check if kind cluster already exists
+  ansible.builtin.command: kind get clusters
+  register: existing_clusters
+  changed_when: false
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ cluster_config_dir }}"
+    state: directory
+    mode: "0755"
+  when: cluster_name not in existing_clusters.stdout_lines
+
+- name: Render kind cluster config
+  ansible.builtin.template:
+    src: kind-config.yml.j2
+    dest: "{{ cluster_config_dir }}/{{ cluster_name }}.yml"
+    mode: "0644"
+  when: cluster_name not in existing_clusters.stdout_lines
+
+- name: Create kind cluster
+  ansible.builtin.command: >
+    kind create cluster
+    --name {{ cluster_name }}
+    --config {{ cluster_config_dir }}/{{ cluster_name }}.yml
+  when: cluster_name not in existing_clusters.stdout_lines
+
+- name: Verify cluster is reachable
+  ansible.builtin.command: kubectl cluster-info --context kind-{{ cluster_name }}
+  changed_when: false
+  register: cluster_info
+  retries: 6
+  delay: 5
+  until: cluster_info.rc == 0
+
+- name: Show cluster info
+  ansible.builtin.debug:
+    msg: "{{ cluster_info.stdout_lines }}"

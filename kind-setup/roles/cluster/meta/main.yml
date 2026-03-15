@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: cluster
+  author: kamilrybacki
+  description: Create and configure a kind Kubernetes cluster
+  min_ansible_version: "2.10"
+dependencies: []

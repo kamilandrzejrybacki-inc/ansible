@@ -1,0 +1,10 @@
+---
+# kind cluster settings
+cluster_name: local-cluster
+cluster_worker_count: 2
+cluster_api_port: 6443
+cluster_http_port: 80
+cluster_https_port: 443
+
+# kind binary
+kind_version: v0.27.0

@@ -1,0 +1,70 @@
+# Home Assistant configuration — managed by Ansible
+homeassistant:
+  name: Homelab Monitor
+  unit_system: metric
+
+default_config:
+
+# System monitoring
+sensor:
+  - platform: systemmonitor
+    resources:
+{% for resource in system_monitor_resources %}
+      - type: {{ resource.type }}
+{% if resource.arg is defined %}
+        arg: "{{ resource.arg }}"
+{% endif %}
+{% endfor %}
+
+  - platform: uptime
+
+{% for service in monitored_services %}
+{% if service.type == 'http' %}
+  - platform: rest
+    name: "{{ service.name }} Status"
+    resource: "{{ service.url }}"
+    method: GET
+    scan_interval: 30
+    timeout: 10
+    value_template: >-
+      {% raw %}{{ 'online' if value else 'offline' }}{% endraw %}
+
+{% endif %}
+{% endfor %}
+
+{% set ping_services = monitored_services | selectattr('type', 'equalto', 'ping') | list %}
+{% if ping_services | length > 0 %}
+binary_sensor:
+{% for service in ping_services %}
+  - platform: ping
+    name: "{{ service.name }}"
+    host: "{{ service.host }}"
+    scan_interval: 30
+    count: 2
+
+{% endfor %}
+{% endif %}
+
+{% set docker_services = monitored_services | selectattr('type', 'equalto', 'docker') | list %}
+{% if docker_services | length > 0 %}
+# Docker container monitoring via command line sensors
+command_line:
+{% for service in docker_services %}
+  - sensor:
+      name: "{{ service.name }} Container"
+      command: "docker inspect -f {% raw %}'{{.State.Status}}'{% endraw %} {{ service.container_name }}"
+      scan_interval: 30
+
+{% endfor %}
+{% endif %}
+
+{% if alert_webhook_url | length > 0 %}
+# Webhook alerting endpoint
+rest_command:
+  webhook_alert:
+    url: "{{ alert_webhook_url }}"
+    method: POST
+    content_type: application/json
+    payload: >-
+      {% raw %}{"text": "{{ message }}", "severity": "{{ severity }}", "source": "{{ source }}", "timestamp": "{{ now().isoformat() }}"}{% endraw %}
+{% endif %}

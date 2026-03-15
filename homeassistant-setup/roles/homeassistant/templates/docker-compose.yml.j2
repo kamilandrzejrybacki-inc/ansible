@@ -1,0 +1,11 @@
+version: "3"
+services:
+  homeassistant:
+    container_name: {{ ha_container_name }}
+    image: {{ ha_image }}
+    volumes:
+      - {{ ha_config_dir }}:/config
+    environment:
+      - TZ={{ ha_timezone }}
+    restart: {{ ha_restart_policy }}
+    network_mode: host

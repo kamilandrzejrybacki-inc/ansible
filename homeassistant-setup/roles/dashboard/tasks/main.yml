@@ -1,0 +1,27 @@
+---
+- name: Create Lovelace dashboard directory
+  ansible.builtin.file:
+    path: "{{ ha_config_dir }}/dashboards"
+    state: directory
+    mode: "0755"
+
+- name: Deploy monitoring dashboard
+  ansible.builtin.template:
+    src: lovelace.yaml.j2
+    dest: "{{ ha_config_dir }}/dashboards/monitoring.yaml"
+    mode: "0644"
+
+- name: Ensure dashboard is included in configuration
+  ansible.builtin.blockinfile:
+    path: "{{ ha_config_dir }}/configuration.yaml"
+    marker: "# {mark} ANSIBLE MANAGED — Lovelace dashboards"
+    block: |
+      lovelace:
+        mode: yaml
+        dashboards:
+          monitoring:
+            mode: yaml
+            filename: dashboards/monitoring.yaml
+            title: Homelab Monitor
+            icon: mdi:server-network
+            show_in_sidebar: true

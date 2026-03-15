@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: homeassistant
+  author: kamilrybacki
+  description: Deploy Home Assistant container with persistent storage
+  min_ansible_version: "2.10"
+dependencies: []

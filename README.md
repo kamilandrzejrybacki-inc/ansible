@@ -11,6 +11,9 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 | [`i3-setup/`](./i3-setup/) | i3wm desktop environment — packages, dotfiles, i3lock-color, fastfetch, styling |
 | [`claude-n8n-setup/`](./claude-n8n-setup/) | Claude Code + n8n MCP integration — Docker, n8n, Claude MCP configuration |
 | [`kind-setup/`](./kind-setup/) | Local Kubernetes provisioning — Docker, kind, kubectl, multi-node cluster |
+| [`nas-setup/`](./nas-setup/) | NAS setup — mergerfs, SnapRAID, NFS, SMART monitoring, backups |
+| [`seafile-setup/`](./seafile-setup/) | Seafile self-hosted cloud storage — Docker, Caddy reverse proxy |
+| [`homeassistant-setup/`](./homeassistant-setup/) | Home Assistant homelab monitor — Docker, monitoring, dashboards, webhook alerts |
 
 ## Usage
 

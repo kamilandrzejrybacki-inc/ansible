@@ -1,0 +1,22 @@
+---
+- name: Deploy Home Assistant configuration
+  ansible.builtin.template:
+    src: configuration.yaml.j2
+    dest: "{{ ha_config_dir }}/configuration.yaml"
+    mode: "0644"
+
+- name: Restart Home Assistant to apply configuration
+  community.docker.docker_container:
+    name: "{{ ha_container_name }}"
+    state: started
+    restart: true
+
+- name: Wait for Home Assistant to restart
+  ansible.builtin.uri:
+    url: "http://localhost:{{ ha_port }}"
+    method: GET
+    status_code: 200
+  register: ha_restart_check
+  until: ha_restart_check.status == 200
+  retries: 30
+  delay: 10

@@ -19,4 +19,45 @@
         dest: /etc/docker/daemon.json
         mode: "0644"
   roles:
-    - role: vaultwarden
+    - role: docker
+  tasks:
+    - name: Install Python Docker SDK
+      ansible.builtin.apt:
+        name: python3-docker
+        state: present
+
+    - name: Create Vaultwarden data directory
+      ansible.builtin.file:
+        path: "{{ vaultwarden_data_dir }}"
+        state: directory
+        mode: "0700"
+        owner: root
+        group: root
+
+    - name: Set pre-hashed admin token (skip docker run hash in CI)
+      ansible.builtin.set_fact:
+        _vw_hashed_token: "{{ vaultwarden_admin_token }}"
+
+    - name: Start Vaultwarden container
+      community.docker.docker_container:
+        name: "{{ vaultwarden_container_name }}"
+        image: "{{ vaultwarden_image }}"
+        state: started
+        restart_policy: "{{ vaultwarden_restart_policy }}"
+        env:
+          SIGNUPS_ALLOWED: "false"
+          ADMIN_TOKEN: "{{ _vw_hashed_token }}"
+          ROCKET_PORT: "80"
+        published_ports:
+          - "127.0.0.1:{{ vaultwarden_port }}:80"
+        volumes:
+          - "{{ vaultwarden_data_dir }}:/data"
+
+    - name: Wait for Vaultwarden to become reachable
+      ansible.builtin.uri:
+        url: "http://localhost:{{ vaultwarden_port }}"
+        status_code: [200, 302]
+      register: vw_health
+      until: vw_health is not failed
+      retries: "{{ vaultwarden_health_check_retries }}"
+      delay: "{{ vaultwarden_health_check_delay }}"

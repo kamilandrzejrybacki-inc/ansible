@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# Kubernetes Full Stack Setup
+# =============================================================================
+# Provisions a local kind cluster and installs the complete k8s management
+# stack: Helm, k9s, Headlamp dashboard, and ArgoCD GitOps controller.
+#
+# This is a convenience playbook that chains the individual k8s playbooks.
+# Roles are reused from sibling playbooks via ansible.cfg roles_path.
+#
+# Usage:
+#   ansible-playbook k8s/k8s-full-setup/setup.yml \
+#     -i k8s/k8s-full-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+# -- Play 1: Gather all settings via a unified wizard ------------------------
+- name: Kubernetes Full Stack - Setup Wizard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: cluster_name
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Kubernetes Full Stack Setup Wizard
+        ══════════════════════════════════════════════
+
+        This will provision a kind cluster and install:
+          • Helm 3 CLI
+          • k9s terminal UI
+          • Headlamp web dashboard
+          • ArgoCD GitOps controller
+
+        [1/5] Cluster name
+      default: "local-cluster"
+      private: false
+
+    - name: cluster_worker_count
+      prompt: "[2/5] Number of worker nodes"
+      default: "2"
+      private: false
+
+    - name: cluster_api_port
+      prompt: "[3/5] API server host port"
+      default: "6443"
+      private: false
+
+    - name: cluster_http_port
+      prompt: "[4/5] Host HTTP port (mapped to control-plane port 80)"
+      default: "80"
+      private: false
+
+    - name: cluster_https_port
+      prompt: "[5/5] Host HTTPS port (mapped to control-plane port 443)"
+      default: "443"
+      private: false
+
+  tasks:
+    - name: Set cluster configuration facts
+      ansible.builtin.set_fact:
+        cluster_name: "{{ cluster_name }}"
+        cluster_worker_count: "{{ cluster_worker_count }}"
+        cluster_api_port: "{{ cluster_api_port }}"
+        cluster_http_port: "{{ cluster_http_port }}"
+        cluster_https_port: "{{ cluster_https_port }}"
+
+# -- Play 2: Install Docker, kind, and provision the cluster ------------------
+- name: Provision kind cluster
+  hosts: local
+  become: true
+  roles:
+    - docker
+    - kind
+    - cluster
+
+# -- Play 3: Install CLI tools (Helm + k9s) ----------------------------------
+- name: Install Kubernetes CLI tools
+  hosts: local
+  become: true
+  roles:
+    - helm
+    - k9s
+
+# -- Play 4: Deploy Headlamp dashboard ---------------------------------------
+- name: Deploy Headlamp dashboard
+  hosts: local
+  roles:
+    - headlamp
+
+# -- Play 5: Deploy ArgoCD ---------------------------------------------------
+- name: Deploy ArgoCD GitOps controller
+  hosts: local
+  roles:
+    - argocd

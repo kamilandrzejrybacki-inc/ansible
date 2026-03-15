@@ -1,0 +1,29 @@
+---
+# -- kind cluster -------------------------------------------------------------
+cluster_name: local-cluster
+cluster_worker_count: 2
+cluster_api_port: 6443
+cluster_http_port: 80
+cluster_https_port: 443
+kind_version: "v0.27.0"
+
+# -- Helm CLI -----------------------------------------------------------------
+helm_version: "v3.16.4"
+
+# -- k9s CLI ------------------------------------------------------------------
+k9s_version: "v0.32.7"
+
+# -- Headlamp -----------------------------------------------------------------
+headlamp_namespace: headlamp
+headlamp_chart_version: "0.25.0"
+headlamp_port: 4466
+headlamp_service_type: ClusterIP
+headlamp_health_check_retries: 15
+headlamp_health_check_delay: 5
+
+# -- ArgoCD -------------------------------------------------------------------
+argocd_namespace: argocd
+argocd_version: "v2.13.3"
+argocd_port: 8443
+argocd_health_check_retries: 20
+argocd_health_check_delay: 10

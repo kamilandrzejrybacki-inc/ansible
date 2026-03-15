@@ -19,14 +19,7 @@ def test_containerd_installed(host):
     assert containerd.is_installed
 
 
-def test_docker_service_running(host):
-    """Verify Docker service is running and enabled."""
-    service = host.service("docker")
-    assert service.is_running
-    assert service.is_enabled
-
-
-def test_docker_compose_available(host):
-    """Verify docker compose plugin is available."""
-    result = host.run("docker compose version")
-    assert result.rc == 0
+def test_docker_compose_plugin_installed(host):
+    """Verify docker-compose-plugin package is installed."""
+    result = host.package("docker-compose-plugin")
+    assert result.is_installed

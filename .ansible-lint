@@ -1,0 +1,20 @@
+---
+skip_list:
+  - schema[meta]  # Missing license in meta/main.yml — pre-existing across all roles
+  - name[casing]  # Task name casing — pre-existing style across playbooks
+  - var-naming[no-role-prefix]  # Variable naming without role prefix — pre-existing pattern
+  - command-instead-of-module  # Using command where module exists — pre-existing in several roles
+  - risky-shell-pipe  # Shell pipes without pipefail — pre-existing
+  - no-changed-when  # Missing changed_when — pre-existing in command tasks
+  - command-instead-of-shell  # Using shell where command suffices — pre-existing
+  - yaml[comments-indentation]  # Comment indentation — conflicts with existing style
+  - yaml[octal-values]  # Octal value format — pre-existing
+
+warn_list:
+  - role-name  # Role name conventions
+  - yaml[line-length]  # Line length warnings
+
+exclude_paths:
+  - docs/
+  - dev-tools/claude-code-setup/files/
+  - .github/

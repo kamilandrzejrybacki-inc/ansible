@@ -76,5 +76,5 @@ jobs:
         working-directory: ${{ matrix.role_path }}
         env:
           SCENARIO: ${{ matrix.scenario }}
-          ANSIBLE_CONDITIONAL_BARE_VARS: "false"
+          ANSIBLE_ALLOW_BROKEN_CONDITIONALS: "true"
         run: molecule test -s "$SCENARIO"

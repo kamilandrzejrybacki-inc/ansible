@@ -1,0 +1,56 @@
+---
+# =============================================================================
+# Helm Setup
+# =============================================================================
+# Installs Helm 3 CLI on a target machine.
+#
+# Usage:
+#   ansible-playbook k8s/helm-setup/setup.yml \
+#     -i k8s/helm-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Helm Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the target machine
+              (enter 'localhost' if this machine)
+      default: "localhost"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user (ignored if localhost)"
+      default: ""
+      private: false
+
+  tasks:
+    - name: Add target host (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: helm_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip != 'localhost'
+
+    - name: Add target host (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: helm_hosts
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip == 'localhost'
+
+- name: Install Helm
+  hosts: helm_hosts
+  become: true
+  roles:
+    - helm

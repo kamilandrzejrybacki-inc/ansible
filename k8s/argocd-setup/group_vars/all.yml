@@ -1,0 +1,4 @@
+---
+argocd_namespace: argocd
+argocd_version: "v2.13.3"
+argocd_port: 8443

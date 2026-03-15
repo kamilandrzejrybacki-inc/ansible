@@ -1,0 +1,54 @@
+---
+- name: Check that kubectl is available
+  ansible.builtin.command: kubectl version --client
+  register: kubectl_check
+  changed_when: false
+  failed_when: kubectl_check.rc != 0
+
+- name: Create ArgoCD namespace
+  ansible.builtin.command: kubectl create namespace {{ argocd_namespace }}
+  register: _ns_create
+  changed_when: _ns_create.rc == 0
+  failed_when: _ns_create.rc != 0 and 'already exists' not in _ns_create.stderr
+
+- name: Apply ArgoCD installation manifest
+  ansible.builtin.command: >-
+    kubectl apply -n {{ argocd_namespace }}
+    -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml
+
+- name: Wait for ArgoCD server to be ready
+  ansible.builtin.command: >-
+    kubectl wait --for=condition=available deployment/argocd-server
+    -n {{ argocd_namespace }}
+    --timeout=300s
+  changed_when: false
+
+- name: Get initial admin password
+  ansible.builtin.command: >-
+    kubectl get secret argocd-initial-admin-secret
+    -n {{ argocd_namespace }}
+    -o jsonpath='{.data.password}'
+  register: _argocd_password_b64
+  changed_when: false
+  no_log: true
+
+- name: Decode admin password
+  ansible.builtin.set_fact:
+    _argocd_password: "{{ _argocd_password_b64.stdout | b64decode }}"
+  no_log: true
+
+- name: Display ArgoCD access information
+  ansible.builtin.debug:
+    msg: |
+      ArgoCD is deployed in the '{{ argocd_namespace }}' namespace.
+
+      To access ArgoCD, run:
+        kubectl port-forward -n {{ argocd_namespace }} svc/argocd-server {{ argocd_port }}:443
+
+      Then open https://localhost:{{ argocd_port }}
+
+      Username: admin
+      Password: {{ _argocd_password }}
+
+      IMPORTANT: Change the admin password after first login:
+        argocd account update-password

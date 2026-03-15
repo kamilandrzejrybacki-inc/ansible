@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: helm
+  author: kamilrybacki
+  description: Install Helm 3 CLI
+  min_ansible_version: "2.10"
+dependencies: []

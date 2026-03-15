@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# ArgoCD Setup
+# =============================================================================
+# Deploys ArgoCD GitOps controller into an existing Kubernetes cluster.
+#
+# Prerequisites:
+#   - kubectl configured with cluster access
+#
+# Usage:
+#   ansible-playbook k8s/argocd-setup/setup.yml \
+#     -i k8s/argocd-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          ArgoCD Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the machine with kubectl access
+              (enter 'localhost' if this machine)
+      default: "localhost"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user (ignored if localhost)"
+      default: ""
+      private: false
+
+  tasks:
+    - name: Add target host (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: k8s_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip != 'localhost'
+
+    - name: Add target host (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: k8s_hosts
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip == 'localhost'
+
+- name: Deploy ArgoCD
+  hosts: k8s_hosts
+  roles:
+    - argocd

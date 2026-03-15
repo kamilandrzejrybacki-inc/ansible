@@ -1,0 +1,56 @@
+---
+# =============================================================================
+# k9s Setup
+# =============================================================================
+# Installs k9s terminal UI for Kubernetes on a target machine.
+#
+# Usage:
+#   ansible-playbook k8s/k9s-setup/setup.yml \
+#     -i k8s/k9s-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          k9s Setup Wizard
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the target machine
+              (enter 'localhost' if this machine)
+      default: "localhost"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user (ignored if localhost)"
+      default: ""
+      private: false
+
+  tasks:
+    - name: Add target host (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: k9s_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip != 'localhost'
+
+    - name: Add target host (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: k9s_hosts
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+      when: target_host_ip == 'localhost'
+
+- name: Install k9s
+  hosts: k9s_hosts
+  become: true
+  roles:
+    - k9s

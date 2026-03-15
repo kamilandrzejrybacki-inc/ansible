@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: argocd
+  author: kamilrybacki
+  description: Deploy ArgoCD GitOps controller to Kubernetes
+  min_ansible_version: "2.10"
+dependencies: []

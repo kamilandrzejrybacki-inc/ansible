@@ -25,6 +25,10 @@ Each playbook set lives in its own subdirectory and is fully self-contained — 
 | Directory | Description |
 |---|---|
 | [`k8s/kind-setup/`](./k8s/kind-setup/) | Local Kubernetes provisioning — Docker, kind, kubectl, multi-node cluster |
+| [`k8s/helm-setup/`](./k8s/helm-setup/) | Helm 3 CLI installation |
+| [`k8s/k9s-setup/`](./k8s/k9s-setup/) | k9s terminal UI for Kubernetes |
+| [`k8s/headlamp-setup/`](./k8s/headlamp-setup/) | Headlamp Kubernetes dashboard — Helm chart, admin token |
+| [`k8s/argocd-setup/`](./k8s/argocd-setup/) | ArgoCD GitOps controller — kubectl manifests, admin password |
 
 ### `home-services/` — Self-hosted applications
 

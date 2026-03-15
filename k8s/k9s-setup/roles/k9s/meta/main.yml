@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: k9s
+  author: kamilrybacki
+  description: Install k9s terminal UI for Kubernetes
+  min_ansible_version: "2.10"
+dependencies: []

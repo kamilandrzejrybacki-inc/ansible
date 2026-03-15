@@ -1,0 +1,5 @@
+---
+headlamp_namespace: headlamp
+headlamp_chart_version: "0.25.0"
+headlamp_port: 4466
+headlamp_service_type: ClusterIP

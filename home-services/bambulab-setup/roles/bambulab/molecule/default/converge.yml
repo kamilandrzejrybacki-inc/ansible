@@ -1,0 +1,79 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock HA config directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install unzip (required for extraction)
+      ansible.builtin.apt:
+        name: unzip
+        state: present
+        update_cache: true
+  tasks:
+    - name: Get latest ha-bambulab release info
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ bambulab_repo }}/releases/latest"
+        method: GET
+        return_content: true
+        headers:
+          Accept: application/vnd.github.v3+json
+      register: bambulab_release
+
+    - name: Set release download URL
+      ansible.builtin.set_fact:
+        bambulab_zip_url: "{{ bambulab_release.json.zipball_url }}"
+        bambulab_version: "{{ bambulab_release.json.tag_name }}"
+
+    - name: Create custom_components directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}/custom_components"
+        state: directory
+        mode: "0755"
+
+    - name: Download ha-bambulab release zip
+      ansible.builtin.get_url:
+        url: "{{ bambulab_zip_url }}"
+        dest: /tmp/bambulab.zip
+        mode: "0644"
+
+    - name: Extract ha-bambulab zip to temporary location
+      ansible.builtin.unarchive:
+        src: /tmp/bambulab.zip
+        dest: /tmp/
+        remote_src: true
+      register: bambulab_extract
+
+    - name: Find extracted directory
+      ansible.builtin.find:
+        paths: /tmp
+        patterns: "greghesp-ha-bambulab-*"
+        file_type: directory
+      register: bambulab_extracted_dir
+
+    - name: Create bambu_lab target directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}/custom_components/bambu_lab"
+        state: directory
+        mode: "0755"
+
+    - name: Copy bambu_lab integration files
+      ansible.builtin.copy:
+        src: "{{ bambulab_extracted_dir.files[0].path }}/custom_components/bambu_lab/"
+        dest: "{{ ha_config_dir }}/custom_components/bambu_lab/"
+        remote_src: true
+        mode: "0644"
+
+    - name: Remove temporary files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/bambulab.zip
+        - "{{ bambulab_extracted_dir.files[0].path }}"

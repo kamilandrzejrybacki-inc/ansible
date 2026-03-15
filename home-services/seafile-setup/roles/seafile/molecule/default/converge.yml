@@ -1,0 +1,52 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create Docker config directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+    - name: Configure Docker to use vfs storage driver
+      ansible.builtin.copy:
+        content: '{"storage-driver": "vfs"}'
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+    - name: Install Docker prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        state: present
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://download.docker.com/linux/ubuntu noble stable"
+        state: present
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+          - python3-docker
+        state: present
+        update_cache: true
+    - name: Ensure Docker service is started
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+  roles:
+    - role: seafile

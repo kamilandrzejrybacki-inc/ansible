@@ -1,0 +1,12 @@
+---
+ansible_user: root
+
+claude_mcp_servers:
+  - name: "claude.ai Gmail"
+    transport: http
+    url: "https://gmail.mcp.claude.com/mcp"
+    scope: user
+  - name: "claude.ai Google Calendar"
+    transport: http
+    url: "https://gcal.mcp.claude.com/mcp"
+    scope: user

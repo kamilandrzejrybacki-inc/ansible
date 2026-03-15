@@ -1,0 +1,21 @@
+---
+ansible_user: root
+docker_data_dir: /opt/homelab
+docker_network_name: homelab-net
+docker_network_subnet: "172.20.0.0/24"
+caddy_container_name: caddy
+caddy_image: "caddy:2-alpine"
+caddy_data_dir: /opt/homelab/caddy
+caddy_email: "admin@test.local"
+domain: test.local
+subdomain_auth: auth
+subdomain_home: home
+subdomain_cockpit: cockpit
+subdomain_wireguard: wg
+subdomain_pihole: pihole
+authelia_container_name: authelia
+homepage_container_name: homepage
+wireguard_container_name: wg-easy
+pihole_container_name: pihole
+pihole_web_port: 8053
+cockpit_port: 9090

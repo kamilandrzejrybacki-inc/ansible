@@ -1,0 +1,8 @@
+---
+ansible_user: root
+ha_config_dir: /tmp/test-ha-config
+homeassistant_container_name: homeassistant
+homeassistant_port: 8123
+alert_webhook_url: "https://hooks.example.com/test-webhook"
+printer_name: x1c
+ams_slots: 4

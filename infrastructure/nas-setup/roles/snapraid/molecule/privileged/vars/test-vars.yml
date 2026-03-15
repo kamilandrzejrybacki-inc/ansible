@@ -1,0 +1,28 @@
+---
+ansible_user: root
+all_usb_drives:
+  - /dev/sdb
+  - /dev/sdc
+  - /dev/sdd
+  - /dev/sde
+parity_drive_count: 1
+usb_parity_drives:
+  - /dev/sde
+usb_data_drives:
+  - /dev/sdb
+  - /dev/sdc
+  - /dev/sdd
+data_drive_count: 3
+data_mount_base: /mnt/data
+parity_mount_base: /mnt/parity
+snapraid_install_method: apt
+snapraid_delete_threshold: 40
+snapraid_exclude_patterns:
+  - "*.unrecoverable"
+  - "/tmp/"
+  - "/lost+found/"
+  - ".Thumbs.db"
+  - ".DS_Store"
+  - "*.bak"
+snapraid_sync_schedule: "0 3 * * *"
+snapraid_scrub_schedule: "0 5 * * 0"

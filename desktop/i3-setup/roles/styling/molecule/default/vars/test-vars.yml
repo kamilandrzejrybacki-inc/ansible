@@ -1,0 +1,11 @@
+---
+ansible_user: root
+dotfiles_dest: /tmp/test-dotfiles
+
+styling_accent: "#a7c080"
+styling_bg: "#2e383c"
+styling_fg: "#d3c6aa"
+styling_gaps_inner: "10"
+styling_gaps_outer: "5"
+styling_font_size: "11"
+styling_border_width: "2"

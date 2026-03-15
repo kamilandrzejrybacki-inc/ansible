@@ -1,0 +1,4 @@
+---
+node_major_version: 22
+node_min_version: 18
+claude_code_package: "@anthropic-ai/claude-code"

@@ -1,0 +1,6 @@
+---
+ansible_user: root
+ha_config_dir: /tmp/test-ha-config
+ha_container_name: homeassistant
+ha_port: 8123
+hacs_download_url: https://github.com/hacs/integration/releases/latest/download/hacs.zip

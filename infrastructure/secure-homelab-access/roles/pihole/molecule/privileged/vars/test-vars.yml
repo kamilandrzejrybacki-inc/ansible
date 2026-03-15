@@ -1,0 +1,14 @@
+---
+ansible_user: root
+docker_data_dir: /opt/homelab
+docker_network_name: homelab-net
+docker_network_subnet: "172.20.0.0/24"
+pihole_container_name: pihole
+pihole_image: "pihole/pihole:2024.07.0"
+pihole_data_dir: /opt/homelab/pihole
+pihole_web_port: 8053
+pihole_dns_ip: "172.20.0.10"
+pihole_password: "testpassword123"
+pihole_upstream_dns: "1.1.1.1;1.0.0.1"
+pihole_health_check_retries: 12
+pihole_health_check_delay: 5

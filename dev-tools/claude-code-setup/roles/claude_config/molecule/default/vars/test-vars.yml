@@ -1,0 +1,3 @@
+---
+ansible_user: root
+claude_config_dir: /tmp/test-claude-config

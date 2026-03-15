@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock mergerfs pool directory
+      ansible.builtin.file:
+        path: /mnt/pool
+        state: directory
+        mode: "0755"
+    - name: Create mock internal storage directory
+      ansible.builtin.file:
+        path: /mnt/storage
+        state: directory
+        mode: "0755"
+  roles:
+    - role: backups

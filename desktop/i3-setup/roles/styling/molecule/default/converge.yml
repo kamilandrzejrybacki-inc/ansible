@@ -1,0 +1,46 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock dotfiles directory structure
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /tmp/test-dotfiles
+        - /tmp/test-dotfiles/.config/i3
+        - /tmp/test-dotfiles/.config/kitty
+
+    - name: Create mock .Xresources
+      ansible.builtin.copy:
+        content: |
+          #define green  #a7c080
+          #define bg0    #2e383c
+          #define fg     #d3c6aa
+        dest: /tmp/test-dotfiles/.Xresources
+        mode: "0644"
+
+    - name: Create mock i3 config
+      ansible.builtin.copy:
+        content: |
+          gaps inner 10
+          gaps outer 5
+          default_border pixel 2
+          default_floating_border pixel 2
+        dest: /tmp/test-dotfiles/.config/i3/config
+        mode: "0644"
+
+    - name: Create mock kitty.conf
+      ansible.builtin.copy:
+        content: |
+          font_size 11
+        dest: /tmp/test-dotfiles/.config/kitty/kitty.conf
+        mode: "0644"
+  tasks:
+    - name: Include styling role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

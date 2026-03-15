@@ -1,0 +1,8 @@
+---
+ansible_user: root
+claude_json_path: /root/.claude.json
+mcp_server_name: n8n
+mcp_scope: user
+n8n_host_ip: "127.0.0.1"
+n8n_port: 5678
+n8n_mcp_token: "test-token-for-molecule"

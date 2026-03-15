@@ -1,0 +1,10 @@
+---
+handy_version: "0.7.10"
+handy_github_repo: "cjpais/Handy"
+handy_download_dir: "/tmp/handy"
+handy_install_method: "deb"
+handy_appimage_dir: "/opt/handy"
+handy_display_server: "x11"
+handy_model: "none"
+handy_shortcut: "no"
+handy_autostart: "no"

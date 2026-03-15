@@ -1,0 +1,7 @@
+---
+ansible_user: root
+claude_commands_dir: /tmp/test-claude-commands
+
+claude_commands:
+  - name: serena-onboard
+    template: serena-onboard.md.j2

@@ -1,0 +1,47 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock HA config directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Install unzip (required for extraction)
+      ansible.builtin.apt:
+        name: unzip
+        state: present
+        update_cache: true
+  tasks:
+    - name: Create custom_components directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}/custom_components"
+        state: directory
+        mode: "0755"
+
+    - name: Create HACS target directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}/custom_components/hacs"
+        state: directory
+        mode: "0755"
+
+    - name: Download HACS release zip
+      ansible.builtin.get_url:
+        url: "{{ hacs_download_url }}"
+        dest: /tmp/hacs.zip
+        mode: "0644"
+
+    - name: Extract HACS into custom_components
+      ansible.builtin.unarchive:
+        src: /tmp/hacs.zip
+        dest: "{{ ha_config_dir }}/custom_components/hacs"
+        remote_src: true
+
+    - name: Remove HACS zip
+      ansible.builtin.file:
+        path: /tmp/hacs.zip
+        state: absent

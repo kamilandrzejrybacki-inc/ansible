@@ -1,0 +1,10 @@
+---
+ansible_user: root
+dotfiles_repo: "https://github.com/kamilrybacki/dotfiles.git"
+dotfiles_dest: /tmp/test-dotfiles
+
+dotfiles_links:
+  - src: ".Xresources"
+  - src: ".config/i3/config"
+
+dotfiles_executables: []

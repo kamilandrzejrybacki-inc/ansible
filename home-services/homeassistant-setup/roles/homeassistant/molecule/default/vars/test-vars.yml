@@ -1,0 +1,8 @@
+---
+ansible_user: root
+ha_container_name: homeassistant
+ha_image: "ghcr.io/home-assistant/home-assistant:stable"
+ha_port: 8123
+ha_config_dir: /opt/homeassistant/config
+ha_restart_policy: unless-stopped
+ha_timezone: UTC

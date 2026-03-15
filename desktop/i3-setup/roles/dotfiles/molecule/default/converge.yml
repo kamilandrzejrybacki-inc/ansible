@@ -1,0 +1,16 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  tasks:
+    - name: Install git (required for cloning)
+      ansible.builtin.apt:
+        name: git
+        state: present
+        update_cache: true
+
+    - name: Include dotfiles role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

@@ -1,0 +1,24 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock templates directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../templates"
+        state: directory
+        mode: "0755"
+
+    - name: Create mock command template
+      ansible.builtin.copy:
+        content: |
+          # Serena Onboard
+          Onboard a new project with Serena.
+        dest: "{{ playbook_dir }}/../../templates/serena-onboard.md.j2"
+        mode: "0644"
+  tasks:
+    - name: Include commands role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

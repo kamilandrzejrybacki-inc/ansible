@@ -1,0 +1,37 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock source files directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ playbook_dir }}/../../files/claude"
+        - "{{ playbook_dir }}/../../files/claude/rules"
+
+    - name: Create mock settings.json source
+      ansible.builtin.copy:
+        content: |
+          {
+            "permissions": {},
+            "theme": "dark"
+          }
+        dest: "{{ playbook_dir }}/../../files/claude/settings.json"
+        mode: "0644"
+
+    - name: Create mock rules file
+      ansible.builtin.copy:
+        content: |
+          # Test rule
+          Follow coding standards.
+        dest: "{{ playbook_dir }}/../../files/claude/rules/coding-style.md"
+        mode: "0644"
+  tasks:
+    - name: Include claude_config role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

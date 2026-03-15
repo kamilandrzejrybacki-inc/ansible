@@ -1,0 +1,26 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Install python3-pip for pipx
+      ansible.builtin.apt:
+        name: python3-pip
+        state: present
+        update_cache: true
+    - name: Create Serena config source directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../files/serena"
+        state: directory
+        mode: "0755"
+    - name: Create stub Serena config file
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../../files/serena/serena_config.yml"
+        content: |
+          ---
+          # Stub config for testing
+        mode: "0644"
+  roles:
+    - role: serena

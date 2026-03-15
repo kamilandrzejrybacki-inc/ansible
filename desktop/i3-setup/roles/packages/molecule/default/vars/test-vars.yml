@@ -1,0 +1,5 @@
+---
+packages:
+  - zsh
+  - feh
+  - dunst

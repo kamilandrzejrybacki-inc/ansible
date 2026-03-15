@@ -1,0 +1,46 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock claude CLI that writes config
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          CLAUDE_JSON="${HOME}/.claude.json"
+          case "$1" in
+            mcp)
+              case "$2" in
+                list)
+                  if [ -f "$CLAUDE_JSON" ]; then
+                    cat "$CLAUDE_JSON"
+                  fi
+                  ;;
+                add)
+                  # Extract server name (positional arg after flags)
+                  shift 2
+                  SERVER_NAME=""
+                  SERVER_URL=""
+                  while [ $# -gt 0 ]; do
+                    case "$1" in
+                      --transport|-s|--header) shift ;;
+                      *) if [ -z "$SERVER_NAME" ]; then SERVER_NAME="$1"; else SERVER_URL="$1"; fi ;;
+                    esac
+                    shift
+                  done
+                  echo "{\"mcpServers\": {\"${SERVER_NAME}\": {\"url\": \"${SERVER_URL}\"}}}" > "$CLAUDE_JSON"
+                  ;;
+              esac
+              ;;
+            *)
+              echo "mock claude: $@"
+              ;;
+          esac
+        dest: /usr/local/bin/claude
+        mode: "0755"
+  tasks:
+    - name: Include claude_mcp role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

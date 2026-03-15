@@ -1,0 +1,3 @@
+---
+uv_version: "0.7.12"
+serena_config_dir: "{{ ansible_env.HOME }}/.serena"

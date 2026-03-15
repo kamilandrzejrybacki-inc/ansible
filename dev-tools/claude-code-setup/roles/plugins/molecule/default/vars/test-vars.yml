@@ -1,0 +1,12 @@
+---
+ansible_user: root
+
+claude_marketplaces:
+  - "obra/superpowers-marketplace"
+
+claude_plugins:
+  - "superpowers@claude-plugins-official"
+  - "context7@claude-plugins-official"
+
+claude_blocked_plugins:
+  - "code-review@claude-plugins-official"

@@ -1,0 +1,14 @@
+---
+ansible_user: root
+docker_data_dir: /opt/homelab
+docker_network_name: homelab-net
+docker_network_subnet: "172.20.0.0/24"
+homepage_container_name: homepage
+homepage_image: "ghcr.io/gethomepage/homepage:v0.9.13"
+homepage_data_dir: /opt/homelab/homepage
+domain: test.local
+subdomain_auth: auth
+subdomain_home: home
+subdomain_cockpit: cockpit
+subdomain_wireguard: wg
+subdomain_pihole: pihole

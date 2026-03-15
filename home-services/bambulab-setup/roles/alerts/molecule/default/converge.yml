@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock HA config directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create mock HA configuration.yaml
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ ha_config_dir }}/configuration.yaml"
+        mode: "0644"
+  tasks:
+    - name: Include alerts role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

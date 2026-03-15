@@ -1,0 +1,19 @@
+---
+ansible_user: root
+monitoring_packages:
+  - smartmontools
+  - mailutils
+smartd_alert_email: "test@example.com"
+all_usb_drives:
+  - /dev/sdb
+  - /dev/sdc
+  - /dev/sdd
+  - /dev/sde
+parity_drive_count: 1
+usb_parity_drives:
+  - /dev/sde
+usb_data_drives:
+  - /dev/sdb
+  - /dev/sdc
+  - /dev/sdd
+internal_drive: /dev/sda

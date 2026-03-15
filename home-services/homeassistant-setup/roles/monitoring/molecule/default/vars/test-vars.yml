@@ -1,0 +1,27 @@
+---
+ansible_user: root
+ha_config_dir: /tmp/test-ha-config
+ha_container_name: homeassistant
+ha_port: 8123
+alert_webhook_url: "https://hooks.example.com/test-webhook"
+
+monitored_services:
+  - name: n8n
+    type: http
+    url: "http://192.168.1.10:5678/healthz"
+  - name: router
+    type: ping
+    host: 192.168.1.1
+  - name: gitea
+    type: docker
+    container_name: gitea
+
+system_monitor_resources:
+  - type: processor_use
+  - type: memory_use_percent
+  - type: disk_use_percent
+    arg: /
+  - type: network_in
+    arg: eth0
+  - type: network_out
+    arg: eth0

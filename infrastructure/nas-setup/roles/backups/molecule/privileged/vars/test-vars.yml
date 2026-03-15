@@ -1,0 +1,10 @@
+---
+ansible_user: root
+mergerfs_mount: /mnt/pool
+internal_mount: /mnt/storage
+backup_schedule: "0 4 * * *"
+backup_source: /mnt/pool
+backup_dest: /mnt/storage/backups
+backup_log: /var/log/nas-backup.log
+backup_rsync_opts: "-avh --delete --log-file=/var/log/nas-backup.log"
+backup_retention_days: 30

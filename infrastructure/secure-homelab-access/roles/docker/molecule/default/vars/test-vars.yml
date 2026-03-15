@@ -1,0 +1,10 @@
+---
+ansible_user: root
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin
+docker_data_dir: /opt/homelab
+docker_network_name: homelab-net
+docker_network_subnet: "172.20.0.0/24"

@@ -1,0 +1,32 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Install i3lock-color build dependencies
+      ansible.builtin.apt:
+        name:
+          - git
+          - autoconf
+          - automake
+          - pkg-config
+          - libpam-dev
+          - libcairo-dev
+          - libfontconfig-dev
+          - libxcb-composite0-dev
+          - libev-dev
+          - libx11-xcb-dev
+          - libxkbcommon-dev
+          - libxkbcommon-x11-dev
+          - libxcb-xkb-dev
+          - libxcb-image0-dev
+          - libxcb-util0-dev
+          - libxcb-xrm-dev
+          - libxcb-randr0-dev
+          - libgif-dev
+          - make
+          - gcc
+        state: present
+        update_cache: true
+  roles:
+    - role: i3lock_color

@@ -1,0 +1,16 @@
+---
+ansible_user: root
+docker_data_dir: /opt/homelab
+docker_network_name: homelab-net
+docker_network_subnet: "172.20.0.0/24"
+authelia_container_name: authelia
+authelia_image: "authelia/authelia:4.38"
+authelia_data_dir: /opt/homelab/authelia
+domain: test.local
+subdomain_auth: auth
+authelia_session_secret: "test-session-secret-at-least-20-chars"
+authelia_storage_encryption_key: "test-encryption-key-at-least-20-chars"
+authelia_jwt_secret: "test-jwt-secret-at-least-20-chars-long"
+authelia_default_user: testadmin
+authelia_default_password_hash: "$2b$12$000000000000000000000uQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+authelia_default_email: "admin@test.local"

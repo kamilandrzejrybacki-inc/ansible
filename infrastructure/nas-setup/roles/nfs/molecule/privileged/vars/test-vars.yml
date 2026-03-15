@@ -1,0 +1,9 @@
+---
+ansible_user: root
+nfs_server_packages:
+  - nfs-kernel-server
+  - nfs-common
+mergerfs_mount: /mnt/pool
+internal_mount: /mnt/storage
+nfs_allowed_network: "192.168.1.0/24"
+nfs_options: "rw,sync,no_subtree_check,root_squash,all_squash,anonuid=65534,anongid=65534"

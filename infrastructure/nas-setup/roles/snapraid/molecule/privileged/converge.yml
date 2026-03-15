@@ -1,0 +1,31 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock data mount directories
+      ansible.builtin.file:
+        path: "/mnt/data/disk{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: [1, 2, 3]
+    - name: Create mock parity mount directory
+      ansible.builtin.file:
+        path: /mnt/parity/parity1
+        state: directory
+        mode: "0755"
+    - name: Install snapraid (may not be in default repos, create stub)
+      ansible.builtin.shell: |
+        if ! command -v snapraid &>/dev/null; then
+          echo '#!/bin/bash' > /usr/bin/snapraid
+          echo 'echo "snapraid stub"' >> /usr/bin/snapraid
+          chmod +x /usr/bin/snapraid
+          mkdir -p /var/lib/dpkg/info
+          touch /var/lib/dpkg/info/snapraid.list
+        fi
+      args:
+        creates: /usr/bin/snapraid
+  roles:
+    - role: snapraid

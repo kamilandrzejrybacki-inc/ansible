@@ -1,0 +1,49 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock claude CLI that tracks installed plugins
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          PLUGIN_STORE="/tmp/claude-mock-plugins"
+          MARKETPLACE_STORE="/tmp/claude-mock-marketplaces"
+          touch "$PLUGIN_STORE" "$MARKETPLACE_STORE"
+
+          case "$1" in
+            plugins)
+              case "$2" in
+                list)
+                  cat "$PLUGIN_STORE"
+                  ;;
+                install)
+                  echo "$3" >> "$PLUGIN_STORE"
+                  ;;
+                disable)
+                  sed -i "/$3/d" "$PLUGIN_STORE"
+                  ;;
+                marketplace)
+                  case "$3" in
+                    list)
+                      cat "$MARKETPLACE_STORE"
+                      ;;
+                    add)
+                      echo "$4" >> "$MARKETPLACE_STORE"
+                      ;;
+                  esac
+                  ;;
+              esac
+              ;;
+            *)
+              echo "mock claude: $@"
+              ;;
+          esac
+        dest: /usr/local/bin/claude
+        mode: "0755"
+  tasks:
+    - name: Include plugins role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

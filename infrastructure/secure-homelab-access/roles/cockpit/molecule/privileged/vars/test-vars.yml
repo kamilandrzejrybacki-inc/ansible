@@ -1,0 +1,9 @@
+---
+ansible_user: root
+cockpit_packages:
+  - cockpit
+  - cockpit-storaged
+  - cockpit-networkmanager
+  - cockpit-packagekit
+cockpit_allow_unencrypted: true
+domain: example.test

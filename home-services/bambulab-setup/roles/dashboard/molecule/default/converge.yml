@@ -1,0 +1,33 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars_files:
+    - vars/test-vars.yml
+  pre_tasks:
+    - name: Create mock HA config directory
+      ansible.builtin.file:
+        path: "{{ ha_config_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create mock HA configuration.yaml with Lovelace block
+      ansible.builtin.copy:
+        content: |
+          # BEGIN ANSIBLE MANAGED — Lovelace dashboards
+          lovelace:
+            mode: yaml
+            dashboards:
+              monitoring:
+                mode: yaml
+                filename: dashboards/monitoring.yaml
+                title: Homelab Monitor
+                icon: mdi:server-network
+                show_in_sidebar: true
+          # END ANSIBLE MANAGED — Lovelace dashboards
+        dest: "{{ ha_config_dir }}/configuration.yaml"
+        mode: "0644"
+  tasks:
+    - name: Include dashboard role tasks
+      ansible.builtin.include_tasks:
+        file: ../../tasks/main.yml

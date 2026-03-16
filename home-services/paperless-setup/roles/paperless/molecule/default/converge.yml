@@ -59,5 +59,28 @@
         name: docker
         state: started
         enabled: true
+    - name: Pre-create secrets directory for password lookup
+      ansible.builtin.file:
+        path: /opt/paperless/secrets
+        state: directory
+        mode: "0700"
+        owner: root
+        group: root
+    - name: Pre-create db_password file for password lookup
+      ansible.builtin.copy:
+        content: "testdbpassword"
+        dest: /opt/paperless/secrets/db_password
+        mode: "0600"
+        owner: root
+        group: root
+        force: false
+    - name: Pre-create secret_key file for password lookup
+      ansible.builtin.copy:
+        content: "testsecretkey"
+        dest: /opt/paperless/secrets/secret_key
+        mode: "0600"
+        owner: root
+        group: root
+        force: false
   roles:
     - role: paperless

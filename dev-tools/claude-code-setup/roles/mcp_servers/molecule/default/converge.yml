@@ -14,7 +14,7 @@
             mcp)
               case "$2" in
                 list)
-                  echo ""
+                  echo "mock claude mcp list: no servers configured"
                   ;;
                 add)
                   echo "Added MCP server: $5"

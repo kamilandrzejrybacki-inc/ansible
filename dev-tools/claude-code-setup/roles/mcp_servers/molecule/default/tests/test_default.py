@@ -12,4 +12,4 @@ def test_claude_cli_executable(host):
     """Verify mock claude CLI can be executed."""
     result = host.run("claude mcp list")
     assert result.rc == 0
-    assert "mock claude" in result.stdout
+    assert "mock claude mcp list" in result.stdout

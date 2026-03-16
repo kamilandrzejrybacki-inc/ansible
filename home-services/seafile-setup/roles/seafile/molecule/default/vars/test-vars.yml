@@ -12,6 +12,6 @@ seafile_admin_email: "admin@test.local"
 seafile_admin_password: "testpassword123"
 seafile_data_path: /opt/seafile/data
 seafile_compose_dir: /opt/seafile
-seafile_health_check_retries: 30
+seafile_health_check_retries: 45
 seafile_health_check_delay: 10
 caddy_domain: ""

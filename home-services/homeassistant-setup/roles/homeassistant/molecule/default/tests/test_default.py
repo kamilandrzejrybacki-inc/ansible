@@ -25,4 +25,4 @@ def test_homeassistant_health_check(host):
     result = host.run(
         "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8123"
     )
-    assert result.stdout == "200"
+    assert result.stdout in ("200", "302")

@@ -28,3 +28,15 @@ verifier:
   name: testinfra
   options:
     v: true
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

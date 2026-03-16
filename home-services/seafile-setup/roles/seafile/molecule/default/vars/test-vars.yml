@@ -1,7 +1,7 @@
 ---
 ansible_user: root
 seafile_container_name: seafile
-seafile_image: "seafileltd/seafile-mc:11.0"
+seafile_image: "seafileltd/seafile-mc:13.0-latest"
 seafile_port: 8080
 seafile_db_container_name: seafile-db
 seafile_db_image: "mariadb:10.11"

@@ -4,6 +4,8 @@
   become: true
   vars_files:
     - vars/test-vars.yml
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
   pre_tasks:
     - name: Install pipx and python3-pip
       ansible.builtin.apt:

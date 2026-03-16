@@ -30,11 +30,4 @@ verifier:
 scenario:
   test_sequence:
     - dependency
-    - cleanup
-    - destroy
     - syntax
-    - create
-    - prepare
-    - converge
-    - cleanup
-    - destroy

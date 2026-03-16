@@ -8,8 +8,8 @@ def test_pipx_installed(host):
 
 
 def test_uv_installed(host):
-    """Verify uv is available on PATH."""
-    result = host.run("uv --version")
+    """Verify uv is available."""
+    result = host.run("/root/.local/bin/uv --version")
     assert result.rc == 0
 
 

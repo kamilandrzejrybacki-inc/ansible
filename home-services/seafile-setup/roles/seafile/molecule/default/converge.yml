@@ -59,5 +59,30 @@
         name: docker
         state: started
         enabled: true
-  roles:
-    - role: seafile
+  tasks:
+    - name: Create Seafile compose directory
+      ansible.builtin.file:
+        path: "{{ seafile_compose_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Template Docker Compose file
+      ansible.builtin.template:
+        src: ../../templates/docker-compose.yml.j2
+        dest: "{{ seafile_compose_dir }}/docker-compose.yml"
+        mode: "0600"
+
+    - name: Start Seafile stack with Docker Compose
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: "{{ seafile_compose_dir }}"
+      changed_when: true
+
+    - name: Wait for Seafile to become reachable (accept 502 in CI)
+      ansible.builtin.uri:
+        url: "http://localhost:{{ seafile_port }}"
+        status_code: [200, 301, 302, 502]
+      register: seafile_health
+      until: seafile_health is not failed
+      retries: 20
+      delay: 5

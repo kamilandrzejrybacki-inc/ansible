@@ -9,7 +9,7 @@ def test_seafile_container_running(host):
 
 def test_seafile_port_listening(host):
     """Verify Seafile is listening on port 8080."""
-    socket = host.socket("tcp://0.0.0.0:8080")
+    socket = host.socket("tcp://127.0.0.1:8080")
     assert socket.is_listening
 
 

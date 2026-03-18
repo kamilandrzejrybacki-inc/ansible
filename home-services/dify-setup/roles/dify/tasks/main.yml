@@ -1,0 +1,96 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Clone Dify repository
+  ansible.builtin.git:
+    repo: "{{ dify_repo_url }}"
+    dest: "{{ dify_install_dir }}"
+    version: "{{ dify_repo_branch }}"
+    force: false
+  register: git_clone
+
+- name: Generate secret key for session encryption
+  ansible.builtin.command:
+    cmd: "openssl rand -base64 42"
+  register: secret_key_result
+  changed_when: false
+  no_log: true
+
+- name: Set secret key fact
+  ansible.builtin.set_fact:
+    dify_secret_key: "{{ secret_key_result.stdout }}"
+  no_log: true
+
+- name: Generate plugin daemon key
+  ansible.builtin.command:
+    cmd: "openssl rand -base64 42"
+  register: plugin_daemon_key_result
+  changed_when: false
+  no_log: true
+
+- name: Set plugin daemon key fact
+  ansible.builtin.set_fact:
+    dify_plugin_daemon_key: "{{ plugin_daemon_key_result.stdout }}"
+  no_log: true
+
+- name: Generate inner API key
+  ansible.builtin.command:
+    cmd: "openssl rand -base64 42"
+  register: inner_api_key_result
+  changed_when: false
+  no_log: true
+
+- name: Set inner API key fact
+  ansible.builtin.set_fact:
+    dify_inner_api_key: "{{ inner_api_key_result.stdout }}"
+  no_log: true
+
+- name: Write .env file from template
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ dify_install_dir }}/docker/.env"
+    mode: "0600"
+  no_log: true
+  notify: Restart dify services
+
+- name: Start Dify services with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ dify_install_dir }}/docker"
+    state: present
+  register: compose_result
+
+- name: Wait for Dify web UI to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ dify_http_port }}"
+    status_code: [200, 302]
+  register: dify_health
+  until: dify_health is not failed
+  retries: "{{ dify_health_check_retries }}"
+  delay: "{{ dify_health_check_delay }}"
+
+- name: Display Dify access information
+  ansible.builtin.debug:
+    msg: |
+      Dify is running!
+
+      Web UI             : http://{{ inventory_hostname }}:{{ dify_http_port }}
+      Installation dir   : {{ dify_install_dir }}
+      Vector store       : {{ dify_vector_store }}
+      Database           : PostgreSQL (internal container)
+
+      First launch:
+        1. Open the URL above in your browser.
+        2. Create your admin account.
+        3. Go to Settings > Model Providers to add your LLM API keys.
+        4. Create a Knowledge Base under the Knowledge tab – upload docs or connect data sources.
+        5. Build an agent/workflow that references your Knowledge Base.
+
+      Useful commands:
+        cd {{ dify_install_dir }}/docker
+        docker compose logs -f          # follow logs
+        docker compose ps               # list services
+        docker compose down              # stop all services
+        docker compose pull && docker compose up -d  # upgrade

@@ -1,0 +1,70 @@
+---
+# Dify Setup Playbook
+# Deploys Dify – the open-source LLM application platform – via Docker Compose.
+#
+# Usage:
+#   ansible-playbook home-services/dify-setup/setup.yml
+
+# Play 1: Gather connection details and build dynamic inventory
+- name: Gather connection details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host
+      prompt: "Target host IP/hostname (enter 'localhost' for this machine)"
+      default: "localhost"
+      private: false
+
+    - name: target_user
+      prompt: "SSH user for the target (ignored if localhost)"
+      default: ""
+      private: false
+
+    - name: vector_store
+      prompt: |
+
+        Choose vector store backend:
+          1) weaviate   – Default, general-purpose (recommended)
+          2) qdrant     – High-performance, gRPC support
+          3) pgvector   – PostgreSQL extension, no extra service
+          4) chroma     – Lightweight, simple
+        Enter vector store name
+      default: "weaviate"
+      private: false
+
+    - name: dify_init_password
+      prompt: "Dify admin password (max 30 chars, leave empty for auto)"
+      default: ""
+      private: true
+
+  tasks:
+    - name: Add target to dynamic inventory (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: dify_targets
+        ansible_connection: ssh
+        ansible_user: "{{ target_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        dify_vector_store: "{{ vector_store }}"
+        dify_init_password: "{{ dify_init_password }}"
+      when: target_host != 'localhost'
+
+    - name: Add target to dynamic inventory (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: dify_targets
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+        dify_vector_store: "{{ vector_store }}"
+        dify_init_password: "{{ dify_init_password }}"
+      when: target_host == 'localhost'
+
+# Play 2: Provision Dify
+- name: Provision Dify
+  hosts: dify_targets
+  gather_facts: true
+  become: true
+  roles:
+    - prerequisites
+    - dify

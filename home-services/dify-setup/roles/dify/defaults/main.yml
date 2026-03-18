@@ -1,0 +1,28 @@
+---
+# Dify repository
+dify_repo_url: "https://github.com/langgenius/dify.git"
+dify_repo_branch: "main"
+dify_install_dir: "/opt/dify"
+
+# Version pinning (from docker-compose.yaml defaults)
+dify_api_image_tag: "1.13.2"
+dify_web_image_tag: "1.13.2"
+
+# Vector store: weaviate, qdrant, pgvector, chroma
+dify_vector_store: "weaviate"
+
+# Database credentials
+dify_db_password: "difyai123456"
+dify_redis_password: "difyai123456"
+
+# Admin password (empty = Dify auto-generates)
+dify_init_password: ""
+
+# Nginx / exposure
+dify_http_port: 80
+dify_https_port: 443
+dify_nginx_https_enabled: false
+
+# Health-check settings
+dify_health_check_retries: 24
+dify_health_check_delay: 10

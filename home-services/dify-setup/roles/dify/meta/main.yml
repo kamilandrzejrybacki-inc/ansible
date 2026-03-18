@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: dify
+  author: kamilrybacki
+  description: Clone and deploy Dify LLM platform via Docker Compose
+  min_ansible_version: "2.10"
+dependencies: []

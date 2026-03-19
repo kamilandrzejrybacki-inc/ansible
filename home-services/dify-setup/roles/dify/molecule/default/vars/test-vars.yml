@@ -1,0 +1,15 @@
+---
+dify_repo_url: "https://github.com/langgenius/dify.git"
+dify_repo_branch: "main"
+dify_install_dir: "/opt/dify"
+dify_api_image_tag: "1.13.2"
+dify_web_image_tag: "1.13.2"
+dify_vector_store: "weaviate"
+dify_db_password: "test-password"
+dify_redis_password: "test-password"
+dify_init_password: "testadmin123"
+dify_http_port: 80
+dify_https_port: 443
+dify_nginx_https_enabled: false
+dify_health_check_retries: 24
+dify_health_check_delay: 10

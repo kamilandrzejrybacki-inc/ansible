@@ -1,0 +1,128 @@
+---
+# Included per-cluster from main.yml
+
+# --- Control-plane VM ---
+- name: "{{ _cluster.name }} | Clone control-plane VM"
+  ansible.builtin.command: >-
+    qm clone {{ cloudinit_template_vmid }} {{ _cluster.vmid_offset }}
+    --name {{ _cluster.name }}-cp
+    --full true
+    --storage {{ cloudinit_storage }}
+  args:
+    creates: "/etc/pve/qemu-server/{{ _cluster.vmid_offset }}.conf"
+
+- name: "{{ _cluster.name }} | Configure control-plane resources"
+  ansible.builtin.command: >-
+    qm set {{ _cluster.vmid_offset }}
+    --cores {{ _cluster.controlplane.cores }}
+    --memory {{ _cluster.controlplane.memory }}
+    --ipconfig0 ip={{ _cluster.controlplane.ip }}/{{ _cluster.network_cidr.split('/')[1] }},gw={{ _cluster.gateway }}
+    --nameserver {{ _cluster.gateway }}
+
+- name: "{{ _cluster.name }} | Resize control-plane disk"
+  ansible.builtin.command: >-
+    qm disk resize {{ _cluster.vmid_offset }} scsi0 {{ _cluster.controlplane.disk_size }}
+  when: _cluster.controlplane.disk_size != cloudinit_disk_size
+
+- name: "{{ _cluster.name }} | Start control-plane VM"
+  ansible.builtin.command: qm start {{ _cluster.vmid_offset }}
+  register: _cp_start
+  changed_when: _cp_start.rc == 0
+  failed_when: _cp_start.rc != 0 and 'already running' not in _cp_start.stderr
+
+# --- Worker VMs ---
+- name: "{{ _cluster.name }} | Clone worker VMs"
+  ansible.builtin.command: >-
+    qm clone {{ cloudinit_template_vmid }} {{ _cluster.vmid_offset + idx + 1 }}
+    --name {{ _cluster.name }}-worker-{{ idx + 1 }}
+    --full true
+    --storage {{ cloudinit_storage }}
+  args:
+    creates: "/etc/pve/qemu-server/{{ _cluster.vmid_offset + idx + 1 }}.conf"
+  loop: "{{ range(_cluster.workers.count) | list }}"
+  loop_control:
+    index_var: idx
+    label: "worker-{{ idx + 1 }}"
+
+- name: "{{ _cluster.name }} | Configure worker resources"
+  ansible.builtin.command: >-
+    qm set {{ _cluster.vmid_offset + idx + 1 }}
+    --cores {{ _cluster.workers.cores }}
+    --memory {{ _cluster.workers.memory }}
+    --ipconfig0 ip={{ _cluster.workers.ips[idx] }}/{{ _cluster.network_cidr.split('/')[1] }},gw={{ _cluster.gateway }}
+    --nameserver {{ _cluster.gateway }}
+  loop: "{{ range(_cluster.workers.count) | list }}"
+  loop_control:
+    index_var: idx
+    label: "worker-{{ idx + 1 }}"
+
+- name: "{{ _cluster.name }} | Resize worker disks"
+  ansible.builtin.command: >-
+    qm disk resize {{ _cluster.vmid_offset + idx + 1 }} scsi0 {{ _cluster.workers.disk_size }}
+  loop: "{{ range(_cluster.workers.count) | list }}"
+  loop_control:
+    index_var: idx
+    label: "worker-{{ idx + 1 }}"
+  when: _cluster.workers.disk_size != cloudinit_disk_size
+
+- name: "{{ _cluster.name }} | Start worker VMs"
+  ansible.builtin.command: qm start {{ _cluster.vmid_offset + idx + 1 }}
+  register: _worker_start
+  changed_when: _worker_start.rc == 0
+  failed_when: _worker_start.rc != 0 and 'already running' not in _worker_start.stderr
+  loop: "{{ range(_cluster.workers.count) | list }}"
+  loop_control:
+    index_var: idx
+    label: "worker-{{ idx + 1 }}"
+
+# --- Wait for SSH and register in-memory inventory ---
+- name: "{{ _cluster.name }} | Wait for control-plane SSH"
+  ansible.builtin.wait_for:
+    host: "{{ _cluster.controlplane.ip }}"
+    port: 22
+    timeout: "{{ vm_ssh_wait_timeout }}"
+
+- name: "{{ _cluster.name }} | Wait for worker SSH"
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: 22
+    timeout: "{{ vm_ssh_wait_timeout }}"
+  loop: "{{ _cluster.workers.ips[:_cluster.workers.count] }}"
+
+- name: "{{ _cluster.name }} | Add control-plane to inventory"
+  ansible.builtin.add_host:
+    name: "{{ _cluster.name }}-cp"
+    ansible_host: "{{ _cluster.controlplane.ip }}"
+    ansible_user: "{{ vm_ssh_user }}"
+    ansible_become: true
+    groups:
+      - k8s_nodes
+      - k8s_controlplane
+      - "cluster_{{ _cluster.name | replace('-', '_') }}"
+      - "cluster_{{ _cluster.name | replace('-', '_') }}_cp"
+    cluster_name: "{{ _cluster.name }}"
+    k8s_pod_network_cidr: "{{ k8s_pod_network_cidr }}"
+    k8s_service_cidr: "{{ k8s_service_cidr }}"
+    k8s_version: "{{ k8s_version }}"
+    cni_plugin: "{{ cni_plugin }}"
+    calico_version: "{{ calico_version }}"
+    containerd_version: "{{ containerd_version }}"
+
+- name: "{{ _cluster.name }} | Add workers to inventory"
+  ansible.builtin.add_host:
+    name: "{{ _cluster.name }}-worker-{{ idx + 1 }}"
+    ansible_host: "{{ _cluster.workers.ips[idx] }}"
+    ansible_user: "{{ vm_ssh_user }}"
+    ansible_become: true
+    groups:
+      - k8s_nodes
+      - k8s_workers
+      - "cluster_{{ _cluster.name | replace('-', '_') }}"
+      - "cluster_{{ _cluster.name | replace('-', '_') }}_workers"
+    cluster_name: "{{ _cluster.name }}"
+    k8s_version: "{{ k8s_version }}"
+    containerd_version: "{{ containerd_version }}"
+  loop: "{{ range(_cluster.workers.count) | list }}"
+  loop_control:
+    index_var: idx
+    label: "worker-{{ idx + 1 }}"

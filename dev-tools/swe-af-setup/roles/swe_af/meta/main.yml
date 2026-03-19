@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: swe_af
+  author: kamilrybacki
+  description: Clone, configure, and deploy SWE-AF via Docker Compose
+  min_ansible_version: "2.10"
+dependencies: []

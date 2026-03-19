@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: litellm
+  author: kamilrybacki
+  description: Deploy LiteLLM – OpenAI-compatible proxy pooling multiple free-tier LLM providers
+  min_ansible_version: "2.10"
+dependencies: []

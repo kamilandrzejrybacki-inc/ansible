@@ -1,0 +1,74 @@
+# LiteLLM Proxy configuration – managed by Ansible
+# Pools multiple free-tier LLM providers behind a single OpenAI-compatible endpoint.
+
+model_list:
+{% if litellm_groq_api_key | default('') | length > 0 %}
+  # --- Groq (free tier) ---
+  - model_name: "default-chat"
+    litellm_params:
+      model: "groq/llama-3.3-70b-versatile"
+      api_key: "{{ litellm_groq_api_key }}"
+    model_info:
+      rpm: {{ litellm_groq_rpm }}
+
+  - model_name: "default-chat"
+    litellm_params:
+      model: "groq/llama-3.1-8b-instant"
+      api_key: "{{ litellm_groq_api_key }}"
+    model_info:
+      rpm: {{ litellm_groq_rpm }}
+{% endif %}
+
+{% if litellm_gemini_api_key | default('') | length > 0 %}
+  # --- Google Gemini (free tier) ---
+  - model_name: "default-chat"
+    litellm_params:
+      model: "gemini/gemini-2.5-flash"
+      api_key: "{{ litellm_gemini_api_key }}"
+    model_info:
+      rpm: {{ litellm_gemini_rpm }}
+
+  # --- Gemini Embedding ---
+  - model_name: "default-embedding"
+    litellm_params:
+      model: "gemini/text-embedding-004"
+      api_key: "{{ litellm_gemini_api_key }}"
+    model_info:
+      rpm: {{ litellm_gemini_rpm }}
+{% endif %}
+
+{% if litellm_openrouter_api_key | default('') | length > 0 %}
+  # --- OpenRouter (free models) ---
+  - model_name: "default-chat"
+    litellm_params:
+      model: "openrouter/deepseek/deepseek-r1:free"
+      api_key: "{{ litellm_openrouter_api_key }}"
+    model_info:
+      rpm: {{ litellm_openrouter_rpm }}
+
+  - model_name: "default-chat"
+    litellm_params:
+      model: "openrouter/qwen/qwen3-coder:free"
+      api_key: "{{ litellm_openrouter_api_key }}"
+    model_info:
+      rpm: {{ litellm_openrouter_rpm }}
+{% endif %}
+
+{% if litellm_cerebras_api_key | default('') | length > 0 %}
+  # --- Cerebras (free tier) ---
+  - model_name: "default-chat"
+    litellm_params:
+      model: "cerebras/llama-3.3-70b"
+      api_key: "{{ litellm_cerebras_api_key }}"
+    model_info:
+      rpm: {{ litellm_cerebras_rpm }}
+{% endif %}
+
+router_settings:
+  routing_strategy: "{{ litellm_routing_strategy }}"
+  num_retries: {{ litellm_num_retries }}
+  cooldown_time: {{ litellm_cooldown_time }}
+  enable_pre_call_checks: true
+
+general_settings:
+  master_key: "{{ litellm_master_key }}"

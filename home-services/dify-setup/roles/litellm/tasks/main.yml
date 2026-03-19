@@ -1,0 +1,87 @@
+---
+- name: Skip LiteLLM deployment
+  ansible.builtin.debug:
+    msg: "LiteLLM is disabled (litellm_enabled=false), skipping."
+  when: not litellm_enabled
+
+- name: Validate that at least one provider key is configured
+  ansible.builtin.assert:
+    that:
+      - >-
+        (litellm_groq_api_key | default('') | length > 0) or
+        (litellm_gemini_api_key | default('') | length > 0) or
+        (litellm_openrouter_api_key | default('') | length > 0) or
+        (litellm_cerebras_api_key | default('') | length > 0)
+    fail_msg: >-
+      LiteLLM requires at least one provider API key.
+      Set one or more of: litellm_groq_api_key, litellm_gemini_api_key,
+      litellm_openrouter_api_key, litellm_cerebras_api_key.
+  when: litellm_enabled
+
+- name: Deploy LiteLLM
+  when: litellm_enabled
+  block:
+    - name: Create LiteLLM install directory
+      ansible.builtin.file:
+        path: "{{ litellm_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write LiteLLM config.yaml
+      ansible.builtin.template:
+        src: config.yaml.j2
+        dest: "{{ litellm_install_dir }}/config.yaml"
+        mode: "0600"
+      no_log: true
+      notify: Restart litellm
+
+    - name: Write LiteLLM docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ litellm_install_dir }}/docker-compose.yml"
+        mode: "0644"
+      notify: Restart litellm
+
+    - name: Start LiteLLM with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ litellm_install_dir }}"
+        state: present
+
+    - name: Wait for LiteLLM to become reachable
+      ansible.builtin.uri:
+        url: "http://localhost:{{ litellm_port }}/health/liveliness"
+        status_code: [200]
+      register: litellm_health
+      until: litellm_health is not failed
+      retries: 12
+      delay: 5
+
+    - name: Display LiteLLM access information
+      ansible.builtin.debug:
+        msg: |
+          LiteLLM proxy is running!
+
+          OpenAI-compatible endpoint : http://{{ inventory_hostname }}:{{ litellm_port }}/v1
+          Config file                : {{ litellm_install_dir }}/config.yaml
+          Routing strategy           : {{ litellm_routing_strategy }}
+
+          Active providers:
+          {% if litellm_groq_api_key | default('') | length > 0 %}
+            - Groq (llama-3.3-70b, llama-3.1-8b)
+          {% endif %}
+          {% if litellm_gemini_api_key | default('') | length > 0 %}
+            - Google Gemini (gemini-2.5-flash, text-embedding-004)
+          {% endif %}
+          {% if litellm_openrouter_api_key | default('') | length > 0 %}
+            - OpenRouter (deepseek-r1:free, qwen3-coder:free)
+          {% endif %}
+          {% if litellm_cerebras_api_key | default('') | length > 0 %}
+            - Cerebras (llama-3.3-70b)
+          {% endif %}
+
+          To use in Dify:
+            1. Go to Settings > Model Providers > OpenAI-API-compatible
+            2. Set API endpoint to: http://{{ inventory_hostname }}:{{ litellm_port }}/v1
+            3. Set API key to: {{ litellm_master_key }}
+            4. Add model name: default-chat (for LLM)
+            5. Add model name: default-embedding (for embeddings, if Gemini key is set)

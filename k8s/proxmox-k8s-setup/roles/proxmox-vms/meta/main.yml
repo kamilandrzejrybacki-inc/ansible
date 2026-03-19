@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  role_name: proxmox-vms
+  description: Clone cloud-init template to create Kubernetes cluster VMs on Proxmox
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+dependencies: []

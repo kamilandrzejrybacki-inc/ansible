@@ -1,0 +1,77 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Clone SWE-AF repository
+  ansible.builtin.git:
+    repo: "{{ swe_af_repo_url }}"
+    dest: "{{ swe_af_install_dir }}"
+    version: "{{ swe_af_repo_branch }}"
+    force: false
+  register: git_clone
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: "python{{ swe_af_python_version }} -m venv {{ swe_af_install_dir }}/.venv"
+    creates: "{{ swe_af_install_dir }}/.venv/bin/activate"
+
+- name: Install SWE-AF Python dependencies
+  ansible.builtin.command:
+    cmd: "{{ swe_af_install_dir }}/.venv/bin/pip install -e '.[dev]'"
+    chdir: "{{ swe_af_install_dir }}"
+  register: pip_install
+  changed_when: "'Successfully installed' in pip_install.stdout"
+
+- name: Write .env file from template
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ swe_af_install_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Start SWE-AF services with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ swe_af_install_dir }}"
+    state: present
+  register: compose_result
+
+- name: Scale agent workers
+  community.docker.docker_compose_v2:
+    project_src: "{{ swe_af_install_dir }}"
+    state: present
+    services:
+      swe-agent:
+        scale: "{{ swe_af_agent_replicas }}"
+  when: swe_af_agent_replicas | int > 1
+
+- name: Wait for AgentField control plane to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ swe_af_agentfield_port }}"
+    status_code: [200, 302]
+  register: af_health
+  until: af_health is not failed
+  retries: "{{ swe_af_health_check_retries }}"
+  delay: "{{ swe_af_health_check_delay }}"
+
+- name: Display SWE-AF access information
+  ansible.builtin.debug:
+    msg: |
+      SWE-AF is running!
+
+      AgentField control plane : http://{{ inventory_hostname }}:{{ swe_af_agentfield_port }}
+      SWE agent node           : http://{{ inventory_hostname }}:{{ swe_af_agent_port }}
+      Installation directory   : {{ swe_af_install_dir }}
+
+      Quick test – submit a build:
+        curl -X POST http://localhost:{{ swe_af_agentfield_port }}/builds \
+          -H 'Content-Type: application/json' \
+          -d '{"goal": "Add hello-world endpoint", "repo_url": "https://github.com/you/repo", "config": {"runtime": "claude_code"}}'
+
+      Useful commands:
+        cd {{ swe_af_install_dir }}
+        docker compose logs -f          # follow logs
+        docker compose ps               # list services
+        docker compose down              # stop all services
+        docker compose up --scale swe-agent=3 -d  # scale workers

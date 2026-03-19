@@ -1,0 +1,15 @@
+---
+# ============================================
+# Clone VMs from cloud-init template for each cluster
+# ============================================
+# Iterates over k8s_clusters and creates control-plane + worker VMs.
+# Each VM gets a static IP via cloud-init configuration.
+# After creation, VMs are added to the in-memory inventory for
+# subsequent plays (k8s-prereqs, k8s-controlplane, k8s-workers).
+
+- name: Provision VMs for each cluster
+  ansible.builtin.include_tasks: create_cluster_vms.yml
+  loop: "{{ k8s_clusters }}"
+  loop_control:
+    loop_var: _cluster
+    label: "{{ _cluster.name }}"

@@ -1,0 +1,19 @@
+---
+# SWE-AF repository
+swe_af_repo_url: "https://github.com/Agent-Field/SWE-AF.git"
+swe_af_repo_branch: "main"
+swe_af_install_dir: "/opt/swe-af"
+
+# Python version used for the local virtualenv
+swe_af_python_version: "3.12"
+
+# Docker Compose project scaling
+swe_af_agent_replicas: 1
+
+# AgentField control plane
+swe_af_agentfield_port: 8080
+swe_af_agent_port: 8003
+
+# Health-check settings
+swe_af_health_check_retries: 12
+swe_af_health_check_delay: 5

@@ -1,0 +1,5 @@
+---
+- name: Restart dify services
+  community.docker.docker_compose_v2:
+    project_src: "{{ dify_install_dir }}/docker"
+    state: restarted

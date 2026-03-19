@@ -1,0 +1,3 @@
+---
+vm_start_timeout: 120
+vm_ssh_wait_timeout: 300

@@ -1,0 +1,54 @@
+---
+# ============================================
+# Lab Network Gateway Configuration
+# ============================================
+
+# --- Network Interfaces ---
+# WAN interface (internet-facing)
+wan_interface: "eth0"
+# LAN interface (lab-facing, connected to nodes via ethernet)
+lan_interface: "eth1"
+
+# --- LAN Addressing ---
+lan_ip: "10.0.10.1"
+lan_netmask: "255.255.255.0"
+lan_cidr: "10.0.10.0/24"
+lan_broadcast: "10.0.10.255"
+
+# --- DHCP Configuration (dnsmasq) ---
+dhcp_range_start: "10.0.10.100"
+dhcp_range_end: "10.0.10.200"
+dhcp_lease_time: "24h"
+
+# Static DHCP leases for known nodes (MAC -> IP mapping)
+# Uncomment and fill in your actual MAC addresses
+dhcp_static_leases: []
+#  - mac: "aa:bb:cc:dd:ee:01"
+#    ip: "10.0.10.11"
+#    hostname: "worker-1"
+#  - mac: "aa:bb:cc:dd:ee:02"
+#    ip: "10.0.10.12"
+#    hostname: "worker-2"
+#  - mac: "aa:bb:cc:dd:ee:03"
+#    ip: "10.0.10.13"
+#    hostname: "worker-3"
+
+# --- DNS Configuration ---
+upstream_dns:
+  - "1.1.1.1"
+  - "8.8.8.8"
+
+# Local domain for lab nodes
+lab_domain: "lab.home"
+
+# --- Network Check Configuration ---
+# External host to verify internet connectivity
+internet_check_host: "1.1.1.1"
+internet_check_domain: "google.com"
+
+# Nodes to check connectivity to (auto-populated from DHCP static leases if empty)
+check_nodes: []
+#  - ip: "10.0.10.11"
+#    name: "worker-1"
+#  - ip: "10.0.10.12"
+#    name: "worker-2"

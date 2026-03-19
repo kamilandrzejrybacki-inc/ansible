@@ -1,0 +1,8 @@
+# Managed by Ansible - Lab Network LAN interface
+network:
+  version: 2
+  ethernets:
+    {{ lan_interface }}:
+      addresses:
+        - {{ lan_ip }}/24
+      mtu: 1500

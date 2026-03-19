@@ -1,0 +1,76 @@
+---
+# ============================================
+# Create a cloud-init VM template on Proxmox
+# ============================================
+# Downloads an Ubuntu cloud image and creates a reusable VM template
+# that all cluster nodes will be cloned from.
+
+- name: Check if template VM already exists
+  ansible.builtin.shell: qm status {{ cloudinit_template_vmid }}
+  register: _template_check
+  changed_when: false
+  failed_when: false
+
+- name: Template creation
+  when: _template_check.rc != 0
+  block:
+    - name: Download Ubuntu cloud image
+      ansible.builtin.get_url:
+        url: "{{ cloudinit_image_url }}"
+        dest: "{{ cloudinit_image_download_dir }}/{{ cloudinit_template_name }}.img"
+        mode: "0644"
+        checksum: "{{ cloudinit_image_checksum | default(omit, true) }}"
+
+    - name: Create the template VM
+      ansible.builtin.command: >-
+        qm create {{ cloudinit_template_vmid }}
+        --name {{ cloudinit_template_name }}
+        --ostype l26
+        --memory {{ cloudinit_memory }}
+        --cores {{ cloudinit_cores }}
+        --net0 virtio,bridge={{ cloudinit_net_bridge }}
+        --scsihw virtio-scsi-single
+        --agent enabled=1
+
+    - name: Import cloud image as disk
+      ansible.builtin.command: >-
+        qm set {{ cloudinit_template_vmid }}
+        --scsi0 {{ cloudinit_storage }}:0,import-from={{ cloudinit_image_download_dir }}/{{ cloudinit_template_name }}.img
+
+    - name: Resize template disk
+      ansible.builtin.command: >-
+        qm disk resize {{ cloudinit_template_vmid }} scsi0 {{ cloudinit_disk_size }}
+
+    - name: Attach cloud-init drive
+      ansible.builtin.command: >-
+        qm set {{ cloudinit_template_vmid }}
+        --ide2 {{ cloudinit_iso_storage }}:cloudinit
+
+    - name: Set boot order to disk
+      ansible.builtin.command: >-
+        qm set {{ cloudinit_template_vmid }}
+        --boot order=scsi0
+        --serial0 socket
+        --vga serial0
+
+    - name: Configure cloud-init defaults
+      ansible.builtin.command: >-
+        qm set {{ cloudinit_template_vmid }}
+        --ciuser {{ vm_ssh_user }}
+        --ipconfig0 ip=dhcp
+
+    - name: Set SSH public key on template
+      ansible.builtin.command: >-
+        qm set {{ cloudinit_template_vmid }}
+        --sshkeys {{ cloudinit_ssh_key_file }}
+      when: cloudinit_ssh_key_file is defined
+
+    - name: Convert VM to template
+      ansible.builtin.command: >-
+        qm template {{ cloudinit_template_vmid }}
+
+- name: Confirm template is available
+  ansible.builtin.shell: qm status {{ cloudinit_template_vmid }}
+  register: _template_status
+  changed_when: false
+  failed_when: "'template' not in _template_status.stdout"

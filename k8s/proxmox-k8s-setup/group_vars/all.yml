@@ -1,0 +1,103 @@
+---
+# ============================================
+# Proxmox Kubernetes Cluster Configuration
+# ============================================
+
+# -- Proxmox connection -------------------------------------------------------
+proxmox_api_host: "192.168.1.100"
+proxmox_api_port: 8006
+proxmox_node: "pve"
+
+# Authentication — set via vars_prompt or extra-vars (never commit secrets)
+# proxmox_api_user: "root@pam"
+# proxmox_api_password: "changeme"
+
+# -- Cloud-init VM template ---------------------------------------------------
+cloudinit_template_vmid: 9000
+cloudinit_template_name: "ubuntu-2404-cloudinit"
+cloudinit_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+cloudinit_image_checksum: ""
+cloudinit_storage: "local-lvm"
+cloudinit_iso_storage: "local"
+cloudinit_disk_size: "32G"
+cloudinit_memory: 2048
+cloudinit_cores: 2
+cloudinit_net_bridge: "vmbr0"
+
+# SSH key for cloud-init (public key content or path)
+# cloudinit_ssh_public_key: "ssh-ed25519 AAAA..."
+
+# -- Cluster definitions ------------------------------------------------------
+# Define one or more clusters. Each cluster gets its own control-plane and
+# worker VMs cloned from the cloud-init template.
+#
+# vmid_offset: starting VM ID for this cluster's nodes
+# The control-plane gets vmid_offset, workers get vmid_offset+1, +2, etc.
+
+k8s_clusters:
+  - name: "k8s-prod"
+    vmid_offset: 200
+    network_cidr: "10.10.10.0/24"
+    gateway: "10.10.10.1"
+    controlplane:
+      ip: "10.10.10.10"
+      cores: 4
+      memory: 8192
+      disk_size: "50G"
+    workers:
+      count: 2
+      cores: 4
+      memory: 8192
+      disk_size: "50G"
+      ips:
+        - "10.10.10.11"
+        - "10.10.10.12"
+
+  # Uncomment to add more clusters:
+  # - name: "k8s-staging"
+  #   vmid_offset: 210
+  #   network_cidr: "10.10.20.0/24"
+  #   gateway: "10.10.20.1"
+  #   controlplane:
+  #     ip: "10.10.20.10"
+  #     cores: 2
+  #     memory: 4096
+  #     disk_size: "40G"
+  #   workers:
+  #     count: 2
+  #     cores: 2
+  #     memory: 4096
+  #     disk_size: "40G"
+  #     ips:
+  #       - "10.10.20.11"
+  #       - "10.10.20.12"
+
+# -- Kubernetes versions ------------------------------------------------------
+k8s_version: "1.32"
+k8s_pod_network_cidr: "10.244.0.0/16"
+k8s_service_cidr: "10.96.0.0/12"
+cni_plugin: "calico"
+calico_version: "v3.29.2"
+
+# -- Containerd ---------------------------------------------------------------
+containerd_version: "1.7.*"
+
+# -- Helm CLI -----------------------------------------------------------------
+helm_version: "v3.16.4"
+
+# -- k9s CLI ------------------------------------------------------------------
+k9s_version: "v0.32.7"
+
+# -- Headlamp -----------------------------------------------------------------
+headlamp_namespace: headlamp
+headlamp_chart_version: "0.25.0"
+headlamp_port: 4466
+headlamp_service_type: ClusterIP
+
+# -- ArgoCD -------------------------------------------------------------------
+argocd_namespace: argocd
+argocd_version: "v2.13.3"
+argocd_port: 8443
+
+# -- SSH user for VMs ---------------------------------------------------------
+vm_ssh_user: "ubuntu"

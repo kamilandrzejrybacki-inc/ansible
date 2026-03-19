@@ -1,0 +1,18 @@
+---
+litellm_enabled: true
+litellm_install_dir: "/opt/litellm"
+litellm_image: "ghcr.io/berriai/litellm:main-stable"
+litellm_port: 4000
+litellm_master_key: "test-litellm-key"
+litellm_routing_strategy: "usage-based-routing-v2"
+litellm_num_retries: 2
+litellm_cooldown_time: 60
+litellm_groq_api_key: "test-groq-key"
+litellm_gemini_api_key: "test-gemini-key"
+litellm_openrouter_api_key: ""
+litellm_cerebras_api_key: ""
+litellm_groq_rpm: 25
+litellm_gemini_rpm: 8
+litellm_openrouter_rpm: 18
+litellm_cerebras_rpm: 25
+litellm_embedding_provider: "gemini"

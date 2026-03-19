@@ -1,0 +1,7 @@
+---
+python_version: "3.12"
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin

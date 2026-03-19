@@ -1,0 +1,75 @@
+---
+# SWE-AF Setup Playbook
+# Deploys the SWE-AF autonomous engineering runtime via Docker Compose.
+#
+# Usage:
+#   ansible-playbook dev-tools/swe-af-setup/setup.yml
+
+# Play 1: Gather connection details and build dynamic inventory
+- name: Gather connection details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host
+      prompt: "Target host IP/hostname (enter 'localhost' for this machine)"
+      default: "localhost"
+      private: false
+
+    - name: target_user
+      prompt: "SSH user for the target (ignored if localhost)"
+      default: ""
+      private: false
+
+    - name: ai_provider
+      prompt: |
+
+        Choose AI provider:
+          1) anthropic     – Anthropic API key
+          2) claude_oauth  – Claude Code OAuth token
+          3) openrouter    – OpenRouter + optional OpenAI/Google/Zhipu keys
+        Enter provider name
+      default: "anthropic"
+      private: false
+
+    - name: api_key
+      prompt: "API key for chosen provider (e.g. sk-ant-api03-...)"
+      private: true
+
+    - name: gh_token
+      prompt: "GitHub personal access token for PR workflows (optional, press Enter to skip)"
+      default: ""
+      private: true
+
+  tasks:
+    - name: Add target to dynamic inventory (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: swe_af_targets
+        ansible_connection: ssh
+        ansible_user: "{{ target_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        swe_af_ai_provider: "{{ ai_provider }}"
+        swe_af_api_key: "{{ api_key }}"
+        swe_af_gh_token: "{{ gh_token }}"
+      when: target_host != 'localhost'
+
+    - name: Add target to dynamic inventory (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: swe_af_targets
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+        swe_af_ai_provider: "{{ ai_provider }}"
+        swe_af_api_key: "{{ api_key }}"
+        swe_af_gh_token: "{{ gh_token }}"
+      when: target_host == 'localhost'
+
+# Play 2: Provision SWE-AF
+- name: Provision SWE-AF
+  hosts: swe_af_targets
+  gather_facts: true
+  become: true
+  roles:
+    - prerequisites
+    - swe_af

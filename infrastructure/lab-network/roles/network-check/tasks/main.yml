@@ -78,9 +78,19 @@
     msg: "{{ dhcp_leases.stdout_lines | default(['No active leases']) }}"
 
 # --- 6. Node connectivity ---
+- name: "BUILD | Build node list from static leases"
+  ansible.builtin.set_fact:
+    _lease_nodes: >-
+      {{ dhcp_static_leases | map(attribute='ip')
+         | zip(dhcp_static_leases | map(attribute='hostname'))
+         | map('list')
+         | map('community.general.dict', keys=['ip', 'name'])
+         | list }}
+  when: check_nodes | length == 0 and dhcp_static_leases | length > 0
+
 - name: "BUILD | Compile list of nodes to check"
   ansible.builtin.set_fact:
-    nodes_to_check: "{{ check_nodes if (check_nodes | length > 0) else (dhcp_static_leases | map(attribute='ip') | zip(dhcp_static_leases | map(attribute='hostname')) | map('list') | map('community.general.dict', keys=['ip', 'name']) | list) if (dhcp_static_leases | length > 0) else [] }}"
+    nodes_to_check: "{{ check_nodes if (check_nodes | length > 0) else (_lease_nodes | default([])) }}"
 
 - name: "CHECK | Ping worker nodes from master"
   ansible.builtin.command: "ping -c 3 -W 5 {{ item.ip }}"

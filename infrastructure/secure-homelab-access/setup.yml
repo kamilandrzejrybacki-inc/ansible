@@ -114,6 +114,19 @@
         authelia_default_password_hash: "{{ prompt_authelia_password | password_hash('bcrypt') }}"
       no_log: true
 
+    - name: Ensure temp secrets directory exists (writable by current user)
+      ansible.builtin.file:
+        path: "/tmp/homelab_secrets"
+        state: directory
+        mode: "0700"
+
+    - name: Generate and persist Authelia secrets to temp location
+      ansible.builtin.set_fact:
+        authelia_jwt_secret: "{{ lookup('password', '/tmp/homelab_secrets/jwt_secret chars=ascii_letters,digits length=64') }}"
+        authelia_session_secret: "{{ lookup('password', '/tmp/homelab_secrets/session_secret chars=ascii_letters,digits length=64') }}"
+        authelia_storage_encryption_key: "{{ lookup('password', '/tmp/homelab_secrets/storage_encryption_key chars=ascii_letters,digits length=64') }}"
+      no_log: true
+
     - name: Ensure Authelia secrets directory exists
       ansible.builtin.file:
         path: "{{ authelia_data_dir }}/secrets"
@@ -122,23 +135,23 @@
         owner: root
         group: root
 
-    - name: Generate and persist Authelia secrets (idempotent - written once, reused on re-runs)
-      ansible.builtin.set_fact:
-        authelia_jwt_secret: "{{ lookup('password', authelia_data_dir + '/secrets/jwt_secret chars=ascii_letters,digits length=64') }}"
-        authelia_session_secret: "{{ lookup('password', authelia_data_dir + '/secrets/session_secret chars=ascii_letters,digits length=64') }}"
-        authelia_storage_encryption_key: "{{ lookup('password', authelia_data_dir + '/secrets/storage_encryption_key chars=ascii_letters,digits length=64') }}"
-      no_log: true
-
-    - name: Restrict Authelia secret files to root-only
-      ansible.builtin.file:
-        path: "{{ item }}"
-        mode: "0600"
+    - name: Copy secrets to final location as root
+      ansible.builtin.copy:
+        src: "/tmp/homelab_secrets/{{ item }}"
+        dest: "{{ authelia_data_dir }}/secrets/{{ item }}"
         owner: root
         group: root
+        mode: "0600"
+        remote_src: true
       loop:
-        - "{{ authelia_data_dir }}/secrets/jwt_secret"
-        - "{{ authelia_data_dir }}/secrets/session_secret"
-        - "{{ authelia_data_dir }}/secrets/storage_encryption_key"
+        - jwt_secret
+        - session_secret
+        - storage_encryption_key
+
+    - name: Remove temp secrets directory
+      ansible.builtin.file:
+        path: "/tmp/homelab_secrets"
+        state: absent
 
     - name: Update firewall ports from prompted SSH port
       ansible.builtin.set_fact:

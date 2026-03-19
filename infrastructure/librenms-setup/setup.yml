@@ -1,0 +1,61 @@
+# librenms-setup/setup.yml
+---
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          LibreNMS Network Monitoring Setup
+        ══════════════════════════════════════════════
+
+        [1/6] IP or hostname of the target machine
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/6] SSH user for the target machine"
+      private: false
+
+    - name: librenms_snmp_community
+      prompt: |-
+        [3/6] SNMP community string
+               (used to poll your network devices)
+      default: "public"
+      private: false
+
+    - name: librenms_discovery_networks
+      prompt: |-
+        [4/6] Networks to discover (comma-separated CIDRs)
+               e.g. 192.168.1.0/24,10.0.0.0/24
+      private: false
+
+    - name: librenms_db_password
+      prompt: "[5/6] Database password (will be set on first run)"
+      private: true
+
+    - name: librenms_timezone
+      prompt: "[6/6] Timezone"
+      default: "Europe/Warsaw"
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: librenms_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        librenms_snmp_community: "{{ librenms_snmp_community }}"
+        librenms_discovery_networks: "{{ librenms_discovery_networks }}"
+        librenms_db_password: "{{ librenms_db_password }}"
+        librenms_timezone: "{{ librenms_timezone }}"
+
+- name: Install Docker and deploy LibreNMS
+  hosts: librenms_hosts
+  become: true
+  roles:
+    - docker
+    - librenms

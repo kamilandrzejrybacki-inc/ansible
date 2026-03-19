@@ -1,0 +1,8 @@
+# librenms-setup/roles/docker/meta/main.yml
+---
+galaxy_info:
+  role_name: docker
+  author: kamilrybacki
+  description: Install Docker CE and Docker Compose plugin
+  min_ansible_version: "2.10"
+dependencies: []

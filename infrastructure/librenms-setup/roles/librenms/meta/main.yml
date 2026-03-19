@@ -1,0 +1,9 @@
+# librenms-setup/roles/librenms/meta/main.yml
+---
+galaxy_info:
+  role_name: librenms
+  author: kamilrybacki
+  description: Deploy LibreNMS network monitoring in Docker
+  min_ansible_version: "2.10"
+dependencies:
+  - docker

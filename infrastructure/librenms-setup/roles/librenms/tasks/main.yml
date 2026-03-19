@@ -1,0 +1,81 @@
+# librenms-setup/roles/librenms/tasks/main.yml
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create LibreNMS data directory
+  ansible.builtin.file:
+    path: "{{ librenms_data_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ librenms_data_dir }}/docker-compose.yml"
+    mode: "0640"
+
+- name: Pull LibreNMS images
+  ansible.builtin.command: docker compose pull
+  args:
+    chdir: "{{ librenms_data_dir }}"
+  register: compose_pull
+  changed_when: "'Pull complete' in compose_pull.stdout or compose_pull.rc == 0"
+
+- name: Start LibreNMS stack
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: "{{ librenms_data_dir }}"
+  register: compose_up
+  changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"
+
+- name: Wait for LibreNMS web UI to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ librenms_port }}"
+    status_code: [200, 302]
+  register: librenms_health
+  until: librenms_health is not failed
+  retries: "{{ librenms_health_check_retries }}"
+  delay: "{{ librenms_health_check_delay }}"
+
+- name: Configure SNMP community string
+  ansible.builtin.command: >
+    docker exec librenms_app lnms config:set snmp.community
+    '["{{ librenms_snmp_community }}"]'
+  changed_when: true
+
+- name: Configure discovery networks
+  ansible.builtin.command: >
+    docker exec librenms_app lnms config:set discovery_networks
+    '["{{ librenms_discovery_networks.split(",") | join('\'", "\'') }}"]'
+  changed_when: true
+
+- name: Trigger initial network discovery
+  ansible.builtin.command: docker exec librenms_app lnms discovery:all
+  changed_when: true
+  async: 120
+  poll: 0
+
+- name: Display LibreNMS access information
+  ansible.builtin.debug:
+    msg: |
+      ══════════════════════════════════════════════
+        LibreNMS is running!
+      ══════════════════════════════════════════════
+
+      Web UI  : http://{{ inventory_hostname }}:{{ librenms_port }}
+
+      First login:
+        1. Open the URL above
+        2. Create your admin account
+        3. Go to Devices → Add Device to add hosts manually,
+           or wait for autodiscovery to find devices on:
+           {{ librenms_discovery_networks }}
+
+      Topology maps:
+        Overview → Network Map  (after devices are discovered)
+
+      SNMP community : {{ librenms_snmp_community }}
+      Syslog         : UDP/TCP 514 (configure devices to send here)

@@ -1,0 +1,10 @@
+# librenms-setup/group_vars/all.yml
+---
+librenms_version: "24.10.0"
+librenms_port: 8080
+librenms_data_dir: /opt/librenms
+librenms_container_name: librenms
+librenms_db_root_password: "root_{{ librenms_db_password }}"
+
+librenms_health_check_retries: 20
+librenms_health_check_delay: 10

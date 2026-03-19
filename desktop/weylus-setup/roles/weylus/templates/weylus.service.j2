@@ -1,0 +1,16 @@
+# weylus-setup/roles/weylus/templates/weylus.service.j2
+[Unit]
+Description=Weylus drawing tablet server
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/adb start-server
+ExecStartPre=/usr/bin/adb reverse tcp:{{ weylus_web_port }} tcp:{{ weylus_web_port }}
+ExecStartPre=/usr/bin/adb reverse tcp:{{ weylus_ws_port }} tcp:{{ weylus_ws_port }}
+ExecStart={{ weylus_bin_path }} --web-port {{ weylus_web_port }} --websocket-port {{ weylus_ws_port }} --access-code {{ weylus_access_code }} --no-gui
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

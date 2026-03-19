@@ -1,0 +1,44 @@
+# audiorelay-setup/setup.yml
+---
+- name: AudioRelay USB microphone setup
+  hosts: local
+  vars_prompt:
+    - name: audiorelay_confirm_tethering
+      prompt: |-
+
+        ══════════════════════════════════════════════
+          AudioRelay USB Microphone Setup
+        ══════════════════════════════════════════════
+
+        This playbook sets up AudioRelay on Linux so your
+        Android phone can act as a USB microphone.
+
+        Prerequisites (do these on your phone):
+          1. Install AudioRelay from the Play Store
+          2. Enable USB Tethering:
+             Settings → Connections → Mobile Hotspot
+             and Tethering → USB Tethering
+
+        Have you completed the phone-side setup? [yes/no]
+      default: "yes"
+      private: false
+
+    - name: audiorelay_persist_virtual_mic
+      prompt: |-
+        Persist the virtual microphone across reboots?
+          yes - Add PulseAudio modules to /etc/pulse/default.pa
+          no  - Load modules for this session only
+        Choose [yes/no]
+      default: "yes"
+      private: false
+
+  pre_tasks:
+    - name: Abort if phone setup not confirmed
+      ansible.builtin.fail:
+        msg: >-
+          Please install AudioRelay on your phone and enable
+          USB Tethering before running this playbook.
+      when: audiorelay_confirm_tethering != "yes"
+
+  roles:
+    - audiorelay

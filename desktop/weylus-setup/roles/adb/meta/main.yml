@@ -1,0 +1,8 @@
+# weylus-setup/roles/adb/meta/main.yml
+---
+galaxy_info:
+  role_name: adb
+  author: kamilrybacki
+  description: Install Android Debug Bridge (adb) for USB device communication
+  min_ansible_version: "2.10"
+dependencies: []

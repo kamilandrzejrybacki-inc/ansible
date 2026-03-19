@@ -1,0 +1,7 @@
+# audiorelay-setup/roles/audiorelay/handlers/main.yml
+---
+- name: Restart PulseAudio
+  ansible.builtin.command: pulseaudio -k
+  changed_when: true
+  failed_when: false
+  become: false

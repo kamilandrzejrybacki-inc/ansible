@@ -1,0 +1,12 @@
+# audiorelay-setup/group_vars/all.yml
+---
+# AudioRelay release version
+audiorelay_version: "0.27.5"
+audiorelay_deb_filename: "audiorelay-{{ audiorelay_version }}.deb"
+audiorelay_deb_url: "https://dl.audiorelay.net/setups/linux/{{ audiorelay_deb_filename }}"
+audiorelay_download_dir: "/tmp/audiorelay"
+
+# PulseAudio virtual microphone configuration
+audiorelay_virtual_sink_name: "audiorelay-virtual-mic-sink"
+audiorelay_virtual_source_name: "audiorelay-virtual-mic"
+audiorelay_pulse_config: "/etc/pulse/default.pa"

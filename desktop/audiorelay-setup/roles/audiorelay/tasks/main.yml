@@ -1,0 +1,123 @@
+# audiorelay-setup/roles/audiorelay/tasks/main.yml
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Install PulseAudio dependencies
+  ansible.builtin.apt:
+    name: "{{ audiorelay_packages }}"
+    state: present
+  become: true
+
+# --- AudioRelay installation ---
+
+- name: Check if AudioRelay is already installed
+  ansible.builtin.command: which audiorelay
+  register: audiorelay_check
+  changed_when: false
+  failed_when: false
+
+- name: Create download directory
+  ansible.builtin.file:
+    path: "{{ audiorelay_download_dir }}"
+    state: directory
+    mode: "0755"
+  when: audiorelay_check.rc != 0
+
+- name: Download AudioRelay .deb package
+  ansible.builtin.get_url:
+    url: "{{ audiorelay_deb_url }}"
+    dest: "{{ audiorelay_download_dir }}/{{ audiorelay_deb_filename }}"
+    mode: "0644"
+  when: audiorelay_check.rc != 0
+
+- name: Install AudioRelay .deb package
+  ansible.builtin.apt:
+    deb: "{{ audiorelay_download_dir }}/{{ audiorelay_deb_filename }}"
+    state: present
+  become: true
+  when: audiorelay_check.rc != 0
+
+- name: Remove download directory
+  ansible.builtin.file:
+    path: "{{ audiorelay_download_dir }}"
+    state: absent
+  when: audiorelay_check.rc != 0
+
+# --- PulseAudio virtual microphone ---
+
+- name: Check if virtual sink already loaded
+  ansible.builtin.shell: |
+    set -o pipefail
+    pactl list sinks short | grep -q '{{ audiorelay_virtual_sink_name }}'
+  register: sink_check
+  changed_when: false
+  failed_when: false
+  become: false
+
+- name: Load virtual sink module (session)
+  ansible.builtin.command: >
+    pactl load-module module-null-sink
+    sink_name={{ audiorelay_virtual_sink_name }}
+    sink_properties=device.description=Virtual-Mic-Sink
+  changed_when: true
+  become: false
+  when: sink_check.rc != 0
+
+- name: Check if virtual source already loaded
+  ansible.builtin.shell: |
+    set -o pipefail
+    pactl list sources short | grep -q '{{ audiorelay_virtual_source_name }}'
+  register: source_check
+  changed_when: false
+  failed_when: false
+  become: false
+
+- name: Load virtual source module (session)
+  ansible.builtin.command: >
+    pactl load-module module-remap-source
+    master={{ audiorelay_virtual_sink_name }}.monitor
+    source_name={{ audiorelay_virtual_source_name }}
+    source_properties=device.description=Virtual-Mic
+  changed_when: true
+  become: false
+  when: source_check.rc != 0
+
+# --- Persist across reboots ---
+
+- name: Add virtual sink to PulseAudio default.pa
+  ansible.builtin.lineinfile:
+    path: "{{ audiorelay_pulse_config }}"
+    line: "{{ audiorelay_pulse_module_sink }}"
+    regexp: "module-null-sink.*{{ audiorelay_virtual_sink_name }}"
+    state: present
+  become: true
+  when: audiorelay_persist_virtual_mic == "yes"
+  notify: Restart PulseAudio
+
+- name: Add virtual source to PulseAudio default.pa
+  ansible.builtin.lineinfile:
+    path: "{{ audiorelay_pulse_config }}"
+    line: "{{ audiorelay_pulse_module_source }}"
+    regexp: "module-remap-source.*{{ audiorelay_virtual_source_name }}"
+    state: present
+  become: true
+  when: audiorelay_persist_virtual_mic == "yes"
+  notify: Restart PulseAudio
+
+- name: Display post-setup instructions
+  ansible.builtin.debug:
+    msg: |
+      ══════════════════════════════════════════════
+        AudioRelay setup complete!
+      ══════════════════════════════════════════════
+
+      Next steps:
+        1. Connect your phone via USB and enable USB Tethering
+        2. Open AudioRelay on phone → Server tab → select Microphone
+        3. Open AudioRelay on Linux → Player → select your phone
+        4. Open pavucontrol → Input Devices to verify "Virtual-Mic"
+        5. Set "Virtual-Mic" as the input device in your application

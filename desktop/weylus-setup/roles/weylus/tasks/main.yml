@@ -1,0 +1,154 @@
+# weylus-setup/roles/weylus/tasks/main.yml
+---
+- name: Install Weylus dependencies
+  ansible.builtin.apt:
+    name: "{{ weylus_packages }}"
+    state: present
+  become: true
+
+# --- uinput configuration (required for stylus/touch input) ---
+
+- name: Create uinput group
+  ansible.builtin.group:
+    name: "{{ weylus_uinput_group }}"
+    state: present
+  become: true
+
+- name: Add current user to uinput group
+  ansible.builtin.user:
+    name: "{{ ansible_env.USER }}"
+    groups: "{{ weylus_uinput_group }}"
+    append: true
+  become: true
+
+- name: Create udev rule for uinput device
+  ansible.builtin.copy:
+    dest: "{{ weylus_udev_rule_path }}"
+    content: 'KERNEL=="uinput", GROUP="{{ weylus_uinput_group }}", MODE="0660"'
+    mode: "0644"
+  become: true
+  notify:
+    - Reload udev rules
+    - Trigger udev rules
+
+- name: Flush handlers to apply udev rules now
+  ansible.builtin.meta: flush_handlers
+
+# --- Weylus installation ---
+
+- name: Check if Weylus is already installed
+  ansible.builtin.stat:
+    path: "{{ weylus_bin_path }}"
+  register: weylus_check
+
+- name: Create download directory
+  ansible.builtin.file:
+    path: "{{ weylus_download_dir }}"
+    state: directory
+    mode: "0755"
+  when: not weylus_check.stat.exists
+
+- name: Download Weylus release archive
+  ansible.builtin.get_url:
+    url: "{{ weylus_deb_url }}"
+    dest: "{{ weylus_download_dir }}/linux.zip"
+    mode: "0644"
+  when: not weylus_check.stat.exists
+
+- name: Extract Weylus archive
+  ansible.builtin.unarchive:
+    src: "{{ weylus_download_dir }}/linux.zip"
+    dest: "{{ weylus_download_dir }}"
+    remote_src: true
+  when: not weylus_check.stat.exists
+
+- name: Create Weylus install directory
+  ansible.builtin.file:
+    path: "{{ weylus_install_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+  when: not weylus_check.stat.exists
+
+- name: Find Weylus binary in extracted archive
+  ansible.builtin.find:
+    paths: "{{ weylus_download_dir }}"
+    patterns: "weylus"
+    file_type: file
+    recurse: true
+  register: weylus_binary_find
+  when: not weylus_check.stat.exists
+
+- name: Install Weylus binary
+  ansible.builtin.copy:
+    src: "{{ weylus_binary_find.files[0].path }}"
+    dest: "{{ weylus_bin_path }}"
+    mode: "0755"
+    remote_src: true
+  become: true
+  when:
+    - not weylus_check.stat.exists
+    - weylus_binary_find.files | length > 0
+
+- name: Remove download directory
+  ansible.builtin.file:
+    path: "{{ weylus_download_dir }}"
+    state: absent
+
+# --- adb port forwarding ---
+
+- name: Forward Weylus web port over USB
+  ansible.builtin.command: adb reverse tcp:{{ weylus_web_port }} tcp:{{ weylus_web_port }}
+  changed_when: true
+  become: false
+
+- name: Forward Weylus websocket port over USB
+  ansible.builtin.command: adb reverse tcp:{{ weylus_ws_port }} tcp:{{ weylus_ws_port }}
+  changed_when: true
+  become: false
+
+# --- Optional systemd user service ---
+
+- name: Create systemd user directory
+  ansible.builtin.file:
+    path: "{{ weylus_systemd_dir }}"
+    state: directory
+    mode: "0755"
+  when: weylus_autostart == "yes"
+
+- name: Install Weylus systemd user service
+  ansible.builtin.template:
+    src: weylus.service.j2
+    dest: "{{ weylus_systemd_dir }}/weylus.service"
+    mode: "0644"
+  when: weylus_autostart == "yes"
+  notify: Reload systemd user daemon
+
+- name: Enable Weylus service
+  ansible.builtin.systemd:
+    name: weylus
+    enabled: true
+    scope: user
+  become: false
+  when: weylus_autostart == "yes"
+
+- name: Display post-setup instructions
+  ansible.builtin.debug:
+    msg: |
+      ══════════════════════════════════════════════
+        Weylus drawing tablet setup complete!
+      ══════════════════════════════════════════════
+
+      IMPORTANT: Log out and back in for uinput group
+      membership to take effect.
+
+      To start manually:
+        1. Run: weylus
+        2. Set access code and click Start
+        3. Forward ports: adb reverse tcp:{{ weylus_web_port }} tcp:{{ weylus_web_port }}
+                          adb reverse tcp:{{ weylus_ws_port }} tcp:{{ weylus_ws_port }}
+        4. On phone browser: http://127.0.0.1:{{ weylus_web_port }}
+        5. Enter access code → enable stylus/uinput input
+
+      For S Pen support, ensure uinput is enabled in the
+      Weylus web interface input settings.

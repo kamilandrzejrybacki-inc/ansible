@@ -1,0 +1,5 @@
+# weylus-setup/roles/adb/defaults/main.yml
+---
+adb_packages:
+  - adb
+  - android-sdk-platform-tools-common

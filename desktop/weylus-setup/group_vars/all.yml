@@ -1,0 +1,16 @@
+# weylus-setup/group_vars/all.yml
+---
+# Weylus release version and download settings
+weylus_version: "0.11.4"
+weylus_github_repo: "H-M-H/Weylus"
+weylus_deb_filename: "weylus_{{ weylus_version }}_amd64.deb"
+weylus_deb_url: "https://github.com/{{ weylus_github_repo }}/releases/download/v{{ weylus_version }}/linux.zip"
+weylus_download_dir: "/tmp/weylus"
+
+# Weylus server defaults
+weylus_web_port: 1701
+weylus_ws_port: 9001
+
+# uinput group for stylus/touch input
+weylus_uinput_group: "uinput"
+weylus_udev_rule_path: "/etc/udev/rules.d/99-uinput.rules"

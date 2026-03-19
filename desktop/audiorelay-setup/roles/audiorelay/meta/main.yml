@@ -1,0 +1,8 @@
+# audiorelay-setup/roles/audiorelay/meta/main.yml
+---
+galaxy_info:
+  role_name: audiorelay
+  author: kamilrybacki
+  description: Install AudioRelay and configure PulseAudio virtual microphone for Android USB audio
+  min_ansible_version: "2.10"
+dependencies: []

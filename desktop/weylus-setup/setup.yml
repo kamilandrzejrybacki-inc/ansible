@@ -1,0 +1,54 @@
+# weylus-setup/setup.yml
+---
+- name: Weylus USB drawing tablet setup
+  hosts: local
+  vars_prompt:
+    - name: weylus_confirm_phone_setup
+      prompt: |-
+
+        ══════════════════════════════════════════════
+          Weylus USB Drawing Tablet Setup
+        ══════════════════════════════════════════════
+
+        This playbook sets up Weylus + adb so your
+        Android phone can act as a USB drawing tablet
+        with stylus/S Pen support.
+
+        Prerequisites (do these on your phone):
+          1. Enable Developer Options:
+             Settings → About Phone → tap Build Number 7x
+          2. Enable USB Debugging:
+             Settings → Developer Options → USB Debugging
+          3. Connect phone via USB and authorize the PC
+             when prompted on the phone screen
+
+        Have you completed the phone-side setup? [yes/no]
+      default: "yes"
+      private: false
+
+    - name: weylus_access_code
+      prompt: |-
+        Set an access code for the Weylus web interface
+        (used when connecting from the phone browser)
+      private: true
+
+    - name: weylus_autostart
+      prompt: |-
+        Create a systemd user service to start Weylus on login?
+          yes - Auto-start Weylus and adb port forwarding
+          no  - Manual start only
+        Choose [yes/no]
+      default: "no"
+      private: false
+
+  pre_tasks:
+    - name: Abort if phone setup not confirmed
+      ansible.builtin.fail:
+        msg: >-
+          Please enable USB Debugging on your phone and
+          authorize this PC before running this playbook.
+      when: weylus_confirm_phone_setup != "yes"
+
+  roles:
+    - adb
+    - weylus

@@ -1,0 +1,8 @@
+# weylus-setup/roles/weylus/meta/main.yml
+---
+galaxy_info:
+  role_name: weylus
+  author: kamilrybacki
+  description: Install Weylus and configure uinput for Android USB drawing tablet with stylus support
+  min_ansible_version: "2.10"
+dependencies: []

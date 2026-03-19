@@ -1,0 +1,20 @@
+# weylus-setup/roles/weylus/defaults/main.yml
+---
+weylus_packages:
+  - unzip
+  - libx11-dev
+  - libxext-dev
+  - libxft-dev
+  - libxinerama-dev
+  - libxcursor-dev
+  - libxrender-dev
+  - libxfixes-dev
+  - libxtst-dev
+  - libpango1.0-dev
+  - libgl1-mesa-dev
+  - libglu1-mesa-dev
+
+weylus_install_dir: "/opt/weylus"
+weylus_bin_path: "/usr/local/bin/weylus"
+
+weylus_systemd_dir: "{{ ansible_env.HOME }}/.config/systemd/user"

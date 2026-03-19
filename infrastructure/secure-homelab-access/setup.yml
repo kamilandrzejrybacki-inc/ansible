@@ -170,8 +170,8 @@
           export AUTHELIA_JWT_SECRET="{{ authelia_jwt_secret }}"
           export AUTHELIA_SESSION_SECRET="{{ authelia_session_secret }}"
           export AUTHELIA_STORAGE_KEY="{{ authelia_storage_encryption_key }}"
-        dest: "{{ ansible_env.HOME }}/.homelab-credentials"
-        owner: "{{ ansible_env.USER }}"
+        dest: "{{ lookup('env', 'HOME') }}/.homelab-credentials"
+        owner: "{{ lookup('env', 'USER') }}"
         mode: "0600"
       no_log: true
       become: false

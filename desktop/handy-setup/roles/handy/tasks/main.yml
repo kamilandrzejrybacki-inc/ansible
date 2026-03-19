@@ -27,7 +27,7 @@
   when: handy_display_server == "wayland"
 
 - name: Check if Handy is already installed
-  ansible.builtin.command: which handy
+  ansible.builtin.command: which handy.real
   register: handy_check
   changed_when: false
   failed_when: false
@@ -81,16 +81,6 @@
     - handy_check.rc != 0
     - handy_install_method == "appimage"
 
-- name: Create symlink for AppImage in PATH
-  ansible.builtin.file:
-    src: "{{ handy_appimage_dir }}/{{ handy_appimage_filename }}"
-    dest: /usr/local/bin/handy
-    state: link
-  become: true
-  when:
-    - handy_check.rc != 0
-    - handy_install_method == "appimage"
-
 # --- Cleanup ---
 
 - name: Remove download directory
@@ -98,6 +88,27 @@
     path: "{{ handy_download_dir }}"
     state: absent
   when: handy_check.rc != 0
+
+# --- Wrapper: shadow /usr/bin/handy so settings are always patched ---
+
+- name: Check if real Handy binary exists
+  ansible.builtin.stat:
+    path: "{{ handy_real_binary }}"
+  register: handy_real_stat
+
+- name: Rename Handy binary to handy.real (one-time)
+  ansible.builtin.command: mv /usr/bin/handy "{{ handy_real_binary }}"
+  become: true
+  when:
+    - not handy_real_stat.stat.exists
+    - handy_install_method == "deb"
+
+- name: Install Handy settings wrapper
+  ansible.builtin.template:
+    src: handy-wrapper.sh.j2
+    dest: "{{ handy_wrapper_path }}"
+    mode: "0755"
+  become: true
 
 # --- Model predownload ---
 
@@ -170,13 +181,6 @@
 
 # --- Desktop shortcut ---
 
-- name: Resolve Handy executable path
-  ansible.builtin.set_fact:
-    handy_exec_path: >-
-      {{ (handy_install_method == 'appimage')
-         | ternary(handy_appimage_dir ~ '/' ~ handy_appimage_filename, '/usr/bin/handy') }}
-  when: handy_shortcut == "yes"
-
 - name: Ensure applications directory exists
   ansible.builtin.file:
     path: "{{ ansible_env.HOME }}/.local/share/applications"
@@ -192,7 +196,7 @@
       [Desktop Entry]
       Name=Handy
       Comment=Speech-to-text dictation
-      Exec={{ handy_exec_path | trim }}
+      Exec={{ handy_wrapper_path }}
       Terminal=false
       Type=Application
       Categories=Utility;Audio;Accessibility;
@@ -216,3 +220,17 @@
   when:
     - handy_autostart == "yes"
     - handy_shortcut == "yes"
+
+- name: Display post-setup instructions
+  ansible.builtin.debug:
+    msg: |
+      ══════════════════════════════════════════════
+        Handy setup complete!
+      ══════════════════════════════════════════════
+
+      Shortcut : {{ handy_shortcut_key }}
+      Model    : {{ handy_model }}
+      Mic      : {{ handy_microphone if handy_microphone else 'system default' }}
+
+      Hold the shortcut to record, release to transcribe.
+      The overlay bar appears at the bottom while recording.

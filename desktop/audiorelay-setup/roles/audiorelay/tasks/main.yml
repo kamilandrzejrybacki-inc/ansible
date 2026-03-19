@@ -70,7 +70,7 @@
 - name: Check if virtual source already loaded
   ansible.builtin.shell: |
     set -o pipefail
-    pactl list sources short | grep -q '{{ audiorelay_virtual_source_name }}'
+    pactl list sources short | grep -qw '{{ audiorelay_virtual_source_name }}'
   register: source_check
   changed_when: false
   failed_when: false
@@ -86,7 +86,18 @@
   become: false
   when: source_check.rc != 0
 
-# --- Persist across reboots ---
+# --- Detect audio server ---
+
+- name: Detect if PipeWire is the active audio server
+  ansible.builtin.shell: |
+    set -o pipefail
+    pactl info | grep -q "PipeWire"
+  register: pipewire_check
+  changed_when: false
+  failed_when: false
+  become: false
+
+# --- Persist across reboots (PulseAudio) ---
 
 - name: Add virtual sink to PulseAudio default.pa
   ansible.builtin.lineinfile:
@@ -95,7 +106,9 @@
     regexp: "module-null-sink.*{{ audiorelay_virtual_sink_name }}"
     state: present
   become: true
-  when: audiorelay_persist_virtual_mic == "yes"
+  when:
+    - audiorelay_persist_virtual_mic == "yes"
+    - pipewire_check.rc != 0
   notify: Restart PulseAudio
 
 - name: Add virtual source to PulseAudio default.pa
@@ -105,8 +118,31 @@
     regexp: "module-remap-source.*{{ audiorelay_virtual_source_name }}"
     state: present
   become: true
-  when: audiorelay_persist_virtual_mic == "yes"
+  when:
+    - audiorelay_persist_virtual_mic == "yes"
+    - pipewire_check.rc != 0
   notify: Restart PulseAudio
+
+# --- Persist across reboots (PipeWire / WirePlumber) ---
+
+- name: Create WirePlumber user config directory
+  ansible.builtin.file:
+    path: "{{ audiorelay_wireplumber_config_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - audiorelay_persist_virtual_mic == "yes"
+    - pipewire_check.rc == 0
+
+- name: Install WirePlumber AudioRelay routing rule
+  ansible.builtin.template:
+    src: 51-audiorelay-routing.conf.j2
+    dest: "{{ audiorelay_wireplumber_config_dir }}/51-audiorelay-routing.conf"
+    mode: "0644"
+  when:
+    - audiorelay_persist_virtual_mic == "yes"
+    - pipewire_check.rc == 0
+  notify: Restart WirePlumber
 
 - name: Display post-setup instructions
   ansible.builtin.debug:

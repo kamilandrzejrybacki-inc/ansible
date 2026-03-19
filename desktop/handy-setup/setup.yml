@@ -5,6 +5,11 @@
   vars_prompt:
     - name: handy_install_method
       prompt: |-
+
+        ══════════════════════════════════════════════
+          Handy Speech-to-Text Setup
+        ══════════════════════════════════════════════
+
         Installation method
           deb      - Debian package (recommended for Ubuntu/Debian)
           appimage - Portable AppImage binary
@@ -23,8 +28,8 @@
 
     - name: handy_model
       prompt: |-
-        Predownload a speech recognition model
-          none           - Skip model download (download later from Handy UI)
+        Speech recognition model
+          none           - Skip (select later from Handy UI)
           whisper-small  - Whisper Small  (~487 MB, fast, lower accuracy)
           whisper-medium - Whisper Medium (~492 MB, balanced)
           whisper-turbo  - Whisper Turbo  (~1.6 GB, fast + accurate, needs GPU)
@@ -33,6 +38,14 @@
           parakeet-v3    - Parakeet V3    (~478 MB, CPU-only, auto language detection)
         Choose model name
       default: "none"
+      private: false
+
+    - name: handy_shortcut_key
+      prompt: |-
+        Transcription hotkey (hold to record, release to transcribe)
+        Examples: ctrl+space, super+grave, ctrl+shift+r
+        Choose shortcut
+      default: "ctrl+space"
       private: false
 
     - name: handy_shortcut
@@ -44,6 +57,37 @@
       prompt: "Start Handy automatically on login? [yes/no]"
       default: "no"
       private: false
+
+  pre_tasks:
+    - name: Gather available audio input sources
+      ansible.builtin.shell: |
+        set -o pipefail
+        pactl list sources short \
+          | awk '{print NR". "$2}' \
+          | grep -v '\.monitor$'
+      register: handy_audio_sources
+      changed_when: false
+      failed_when: false
+      become: false
+
+    - name: Display available microphone sources
+      ansible.builtin.debug:
+        msg: |
+          ──────────────────────────────────────────────
+          Available microphone sources:
+          {{ handy_audio_sources.stdout }}
+
+          (tip: run  pactl list sources short  for details)
+          ──────────────────────────────────────────────
+
+    - name: Prompt for microphone source
+      ansible.builtin.pause:
+        prompt: "Enter the microphone source name to use (or leave blank to use system default)"
+      register: handy_mic_prompt
+
+    - name: Set microphone variable
+      ansible.builtin.set_fact:
+        handy_microphone: "{{ handy_mic_prompt.user_input | trim }}"
 
   roles:
     - handy

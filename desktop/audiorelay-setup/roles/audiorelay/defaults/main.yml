@@ -1,5 +1,7 @@
 # audiorelay-setup/roles/audiorelay/defaults/main.yml
 ---
+audiorelay_wireplumber_config_dir: "{{ ansible_env.HOME }}/.config/wireplumber/wireplumber.conf.d"
+
 audiorelay_packages:
   - pulseaudio
   - pavucontrol

@@ -5,3 +5,9 @@
   changed_when: true
   failed_when: false
   become: false
+
+- name: Restart WirePlumber
+  ansible.builtin.command: systemctl --user restart wireplumber
+  changed_when: true
+  failed_when: false
+  become: false

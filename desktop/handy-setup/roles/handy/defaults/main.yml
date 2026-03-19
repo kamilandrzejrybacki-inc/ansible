@@ -4,6 +4,7 @@ handy_common_packages:
   - libgtk-layer-shell0
   - libwebkit2gtk-4.1-0
   - wget
+  - inotify-tools
 
 handy_x11_packages:
   - xdotool
@@ -17,36 +18,47 @@ handy_appimage_filename: "Handy_{{ handy_version }}_amd64.AppImage"
 handy_deb_url: "https://github.com/{{ handy_github_repo }}/releases/download/v{{ handy_version }}/{{ handy_deb_filename }}"
 handy_appimage_url: "https://github.com/{{ handy_github_repo }}/releases/download/v{{ handy_version }}/{{ handy_appimage_filename }}"
 
-# Models directory
-handy_models_dir: "{{ ansible_env.HOME }}/.config/com.pais.handy/models"
+# Models directory (Handy stores models here at runtime)
+handy_models_dir: "{{ ansible_env.HOME }}/.local/share/com.pais.handy/models"
 
-# Model catalog — name to URL/filename mapping
+# Model catalog — name to URL/filename/model_id mapping
+# model_id must match the value Handy stores in selected_model in its settings
 handy_model_catalog:
   whisper-small:
     url: "https://blob.handy.computer/ggml-small.bin"
     filename: "ggml-small.bin"
     type: "whisper"
+    model_id: "whisper-small"
   whisper-medium:
     url: "https://blob.handy.computer/whisper-medium-q4_1.bin"
     filename: "whisper-medium-q4_1.bin"
     type: "whisper"
+    model_id: "whisper-medium"
   whisper-turbo:
     url: "https://blob.handy.computer/ggml-large-v3-turbo.bin"
     filename: "ggml-large-v3-turbo.bin"
     type: "whisper"
+    model_id: "whisper-large-v3-turbo"
   whisper-large:
     url: "https://blob.handy.computer/ggml-large-v3-q5_0.bin"
     filename: "ggml-large-v3-q5_0.bin"
     type: "whisper"
+    model_id: "whisper-large-v3"
   parakeet-v2:
-    url: "https://blob.handy.computer/parakeet-tdt-0.6b-v2-int8.tar.gz"
+    url: "https://huggingface.co/smcleod/parakeet-tdt-0.6b-v2-int8/resolve/main/parakeet-tdt-0.6b-v2-int8.tar.gz"
     filename: "parakeet-tdt-0.6b-v2-int8.tar.gz"
     type: "parakeet"
+    model_id: "parakeet-tdt-0.6b-v2"
   parakeet-v3:
     url: "https://blob.handy.computer/parakeet-tdt-0.6b-v3-int8.tar.gz"
     filename: "parakeet-tdt-0.6b-v3-int8.tar.gz"
     type: "parakeet"
+    model_id: "parakeet-tdt-0.6b-v3"
 
 # Desktop shortcut defaults
 handy_desktop_file: "{{ ansible_env.HOME }}/.local/share/applications/handy.desktop"
 handy_autostart_dir: "{{ ansible_env.HOME }}/.config/autostart"
+
+# Wrapper paths
+handy_real_binary: "/usr/bin/handy.real"
+handy_wrapper_path: "/usr/local/bin/handy"

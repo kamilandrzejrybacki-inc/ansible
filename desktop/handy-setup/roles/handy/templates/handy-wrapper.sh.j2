@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Handy wrapper — patches settings on every launch and re-patches whenever
+# Handy overwrites the file (Tauri apps rewrite the whole store on any change).
+
+SETTINGS="$HOME/.local/share/com.pais.handy/settings_store.json"
+
+patch_settings() {
+  HANDY_MIC="{{ handy_microphone }}" \
+  HANDY_SHORTCUT="{{ handy_shortcut_key }}" \
+  HANDY_MODEL="{{ 'none' if handy_model == 'none' else handy_model_catalog[handy_model].model_id }}" \
+  python3 - "$SETTINGS" << 'PYEOF'
+import json, sys, os
+
+path    = sys.argv[1]
+mic     = os.environ['HANDY_MIC']
+shortcut = os.environ['HANDY_SHORTCUT']
+model   = os.environ['HANDY_MODEL']
+
+try:
+    with open(path, 'r') as f:
+        data = json.load(f)
+
+    s = data.setdefault('settings', {})
+
+    # Force persistent fields
+    s['keyboard_implementation'] = 'xdotool'
+    s['typing_tool']             = 'xdotool'
+    s['paste_delay_ms']          = 200
+    s['overlay_position']        = 'bottom'
+
+    if mic:
+        s['selected_microphone'] = mic
+
+    if model and model != 'none':
+        s['selected_model'] = model
+
+    # Patch only current_binding; preserve everything else Handy manages
+    bindings = s.setdefault('bindings', {})
+    transcribe = bindings.setdefault('transcribe', {})
+    if shortcut:
+        transcribe['current_binding'] = shortcut
+
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+
+except Exception:
+    pass
+PYEOF
+}
+
+patch_settings
+
+# Re-patch whenever Handy overwrites its settings
+(
+  while inotifywait -q -e close_write "$SETTINGS" 2>/dev/null; do
+    sleep 0.1
+    patch_settings
+  done
+) &
+WATCHER_PID=$!
+
+exec /usr/bin/handy.real "$@"
+
+kill "$WATCHER_PID" 2>/dev/null

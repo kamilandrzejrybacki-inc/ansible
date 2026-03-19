@@ -1,0 +1,20 @@
+# audiorelay-setup/roles/audiorelay/templates/51-audiorelay-routing.conf.j2
+# WirePlumber rule: route AudioRelay output to the virtual mic sink
+# so it appears as a microphone input rather than playing through speakers.
+wireplumber.settings = {}
+
+wireplumber.rules = [
+  {
+    matches = [
+      {
+        application.process.binary = "AudioRelay"
+      }
+    ]
+    actions = {
+      update-props = {
+        target.object = "{{ audiorelay_virtual_sink_name }}"
+        node.autoconnect = true
+      }
+    }
+  }
+]

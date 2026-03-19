@@ -1,0 +1,3 @@
+---
+kubeconfig_remote_path: "/home/{{ vm_ssh_user }}/.kube/config"
+kubeconfig_local_dir: "{{ playbook_dir }}/kubeconfigs"

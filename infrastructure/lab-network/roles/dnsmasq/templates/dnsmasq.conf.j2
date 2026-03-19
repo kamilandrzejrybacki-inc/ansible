@@ -1,0 +1,42 @@
+# Managed by Ansible - Lab Network DHCP & DNS
+# =============================================
+
+# --- General ---
+domain-needed
+bogus-priv
+no-resolv
+no-poll
+
+# --- Interface ---
+interface={{ lan_interface }}
+bind-interfaces
+listen-address={{ lan_ip }}
+
+# --- Upstream DNS ---
+{% for dns in upstream_dns %}
+server={{ dns }}
+{% endfor %}
+
+# --- Local Domain ---
+local=/{{ lab_domain }}/
+domain={{ lab_domain }}
+expand-hosts
+
+# --- DHCP ---
+dhcp-range={{ dhcp_range_start }},{{ dhcp_range_end }},{{ lan_netmask }},{{ dhcp_lease_time }}
+dhcp-option=option:router,{{ lan_ip }}
+dhcp-option=option:dns-server,{{ lan_ip }}
+dhcp-authoritative
+
+# --- Static Leases ---
+{% for lease in dhcp_static_leases %}
+dhcp-host={{ lease.mac }},{{ lease.ip }},{{ lease.hostname }},infinite
+{% endfor %}
+
+# --- Logging ---
+log-queries
+log-dhcp
+log-facility=/var/log/dnsmasq.log
+
+# --- Performance ---
+cache-size=1000

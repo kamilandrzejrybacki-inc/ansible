@@ -1,0 +1,56 @@
+---
+- name: Install iptables-persistent
+  ansible.builtin.apt:
+    name:
+      - iptables
+      - iptables-persistent
+    state: present
+    update_cache: true
+
+- name: Enable IPv4 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Configure LAN interface with static IP
+  ansible.builtin.template:
+    src: lan-netplan.yaml.j2
+    dest: /etc/netplan/60-lab-lan.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Apply netplan
+
+- name: Set up NAT masquerade on WAN interface
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    out_interface: "{{ wan_interface }}"
+    source: "{{ lan_cidr }}"
+    jump: MASQUERADE
+    comment: "LAB NAT - masquerade LAN traffic to WAN"
+  notify: Save iptables rules
+
+- name: Allow forwarding from LAN to WAN
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ lan_interface }}"
+    out_interface: "{{ wan_interface }}"
+    jump: ACCEPT
+    comment: "LAB FWD - allow LAN to WAN"
+  notify: Save iptables rules
+
+- name: Allow established/related return traffic from WAN to LAN
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ wan_interface }}"
+    out_interface: "{{ lan_interface }}"
+    ctstate:
+      - ESTABLISHED
+      - RELATED
+    jump: ACCEPT
+    comment: "LAB FWD - allow return traffic WAN to LAN"
+  notify: Save iptables rules

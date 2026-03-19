@@ -1,0 +1,8 @@
+---
+wan_interface: "eth0"
+lan_interface: "eth1"
+lan_ip: "10.0.10.1"
+internet_check_host: "1.1.1.1"
+internet_check_domain: "google.com"
+check_nodes: []
+dhcp_static_leases: []

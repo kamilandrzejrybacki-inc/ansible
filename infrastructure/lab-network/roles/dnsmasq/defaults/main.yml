@@ -1,0 +1,12 @@
+---
+lan_interface: "eth1"
+lan_ip: "10.0.10.1"
+lan_cidr: "10.0.10.0/24"
+dhcp_range_start: "10.0.10.100"
+dhcp_range_end: "10.0.10.200"
+dhcp_lease_time: "24h"
+dhcp_static_leases: []
+upstream_dns:
+  - "1.1.1.1"
+  - "8.8.8.8"
+lab_domain: "lab.home"

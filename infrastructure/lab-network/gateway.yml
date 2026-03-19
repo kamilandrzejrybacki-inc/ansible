@@ -1,0 +1,55 @@
+---
+# ============================================
+# Lab Network Gateway Playbook
+# ============================================
+#
+# Sets up the master node as a network gateway for the home lab:
+#   - Static IP on LAN interface
+#   - IP forwarding + NAT (internet sharing)
+#   - DHCP + DNS via dnsmasq
+#   - Network health checks
+#
+# Usage:
+#   Setup:  ansible-playbook -i inventory/hosts.ini gateway.yml
+#   Check:  ansible-playbook -i inventory/hosts.ini gateway.yml --tags check
+#
+# All tasks are idempotent - safe to run repeatedly.
+# ============================================
+
+- name: Configure lab network gateway
+  hosts: masternode
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - wan_interface is defined
+          - lan_interface is defined
+          - lan_ip is defined
+          - dhcp_range_start is defined
+          - dhcp_range_end is defined
+        fail_msg: "Required network variables are missing. Check group_vars/all.yml"
+
+    - name: Display deployment plan
+      ansible.builtin.debug:
+        msg:
+          - "======= LAB NETWORK GATEWAY SETUP ======="
+          - "WAN interface: {{ wan_interface }} (internet uplink)"
+          - "LAN interface: {{ lan_interface }} (lab nodes)"
+          - "LAN IP:        {{ lan_ip }}"
+          - "LAN subnet:    {{ lan_cidr }}"
+          - "DHCP range:    {{ dhcp_range_start }} - {{ dhcp_range_end }}"
+          - "DNS upstream:  {{ upstream_dns | join(', ') }}"
+          - "Lab domain:    {{ lab_domain }}"
+          - "Static leases: {{ dhcp_static_leases | length }}"
+          - "=========================================="
+
+  roles:
+    - role: gateway
+      tags: [setup, gateway]
+    - role: dnsmasq
+      tags: [setup, dhcp, dns]
+    - role: network-check
+      tags: [check]

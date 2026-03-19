@@ -1,0 +1,6 @@
+---
+wan_interface: "eth0"
+lan_interface: "eth1"
+lan_ip: "10.0.10.1"
+lan_netmask: "255.255.255.0"
+lan_cidr: "10.0.10.0/24"

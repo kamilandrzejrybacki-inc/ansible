@@ -1,0 +1,127 @@
+---
+# ============================================
+# Network Health Check - Run on master node
+# ============================================
+
+# --- 1. Interface status ---
+- name: "CHECK | Verify WAN interface ({{ wan_interface }}) is UP"
+  ansible.builtin.command: "ip link show {{ wan_interface }}"
+  register: wan_link
+  changed_when: false
+  failed_when: "'state UP' not in wan_link.stdout"
+
+- name: "CHECK | Verify LAN interface ({{ lan_interface }}) is UP"
+  ansible.builtin.command: "ip link show {{ lan_interface }}"
+  register: lan_link
+  changed_when: false
+  failed_when: "'state UP' not in lan_link.stdout"
+
+- name: "CHECK | Show interface link speeds"
+  ansible.builtin.command: "ethtool {{ item }}"
+  loop:
+    - "{{ wan_interface }}"
+    - "{{ lan_interface }}"
+  register: link_speeds
+  changed_when: false
+  failed_when: false
+
+- name: "REPORT | Interface link speeds"
+  ansible.builtin.debug:
+    msg: "{{ item.item }}: {{ item.stdout_lines | select('match', '.*Speed:.*') | list | first | default('Speed: unknown') | trim }}"
+  loop: "{{ link_speeds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# --- 2. IP forwarding ---
+- name: "CHECK | Verify IP forwarding is enabled"
+  ansible.builtin.command: "sysctl net.ipv4.ip_forward"
+  register: ip_forward
+  changed_when: false
+  failed_when: "'= 1' not in ip_forward.stdout"
+
+# --- 3. NAT rules ---
+- name: "CHECK | Verify NAT masquerade rule exists"
+  ansible.builtin.command: "iptables -t nat -L POSTROUTING -v -n"
+  register: nat_rules
+  changed_when: false
+  failed_when: "'MASQUERADE' not in nat_rules.stdout"
+
+# --- 4. Master internet connectivity ---
+- name: "CHECK | Master can reach internet (ping {{ internet_check_host }})"
+  ansible.builtin.command: "ping -c 3 -W 5 {{ internet_check_host }}"
+  register: internet_ping
+  changed_when: false
+  failed_when: internet_ping.rc != 0
+
+- name: "CHECK | Master can resolve DNS ({{ internet_check_domain }})"
+  ansible.builtin.command: "host {{ internet_check_domain }}"
+  register: dns_resolve
+  changed_when: false
+  failed_when: dns_resolve.rc != 0
+
+# --- 5. DHCP service ---
+- name: "CHECK | dnsmasq service is running"
+  ansible.builtin.systemd:
+    name: dnsmasq
+  register: dnsmasq_status
+  changed_when: false
+  failed_when: dnsmasq_status.status.ActiveState != "active"
+
+- name: "CHECK | List active DHCP leases"
+  ansible.builtin.command: "cat /var/lib/misc/dnsmasq.leases"
+  register: dhcp_leases
+  changed_when: false
+  failed_when: false
+
+- name: "REPORT | Active DHCP leases"
+  ansible.builtin.debug:
+    msg: "{{ dhcp_leases.stdout_lines | default(['No active leases']) }}"
+
+# --- 6. Node connectivity ---
+- name: "BUILD | Compile list of nodes to check"
+  ansible.builtin.set_fact:
+    nodes_to_check: "{{ check_nodes if (check_nodes | length > 0) else (dhcp_static_leases | map(attribute='ip') | zip(dhcp_static_leases | map(attribute='hostname')) | map('list') | map('community.general.dict', keys=['ip', 'name']) | list) if (dhcp_static_leases | length > 0) else [] }}"
+
+- name: "CHECK | Ping worker nodes from master"
+  ansible.builtin.command: "ping -c 3 -W 5 {{ item.ip }}"
+  loop: "{{ nodes_to_check }}"
+  loop_control:
+    label: "{{ item.name | default(item.ip) }} ({{ item.ip }})"
+  register: node_pings
+  changed_when: false
+  failed_when: false
+  when: nodes_to_check | length > 0
+
+- name: "REPORT | Node connectivity results"
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.name | default(item.item.ip) }} ({{ item.item.ip }}):
+      {{ 'REACHABLE' if item.rc == 0 else 'UNREACHABLE' }}
+  loop: "{{ node_pings.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default(item.item.ip) }}"
+  when: node_pings.results is defined and node_pings.results | length > 0
+
+- name: "REPORT | No nodes configured for connectivity check"
+  ansible.builtin.debug:
+    msg: >-
+      No nodes configured for connectivity checks.
+      Add entries to 'check_nodes' or 'dhcp_static_leases' in group_vars/all.yml
+      to enable node ping checks.
+  when: nodes_to_check | length == 0
+
+# --- 7. Summary ---
+- name: "REPORT | Network health summary"
+  ansible.builtin.debug:
+    msg:
+      - "========== NETWORK HEALTH SUMMARY =========="
+      - "WAN interface ({{ wan_interface }}): UP"
+      - "LAN interface ({{ lan_interface }}): UP"
+      - "IP forwarding: ENABLED"
+      - "NAT masquerade: ACTIVE"
+      - "Internet connectivity: OK"
+      - "DNS resolution: OK"
+      - "DHCP service: RUNNING"
+      - "Active leases: {{ dhcp_leases.stdout_lines | default([]) | length }}"
+      - "Nodes checked: {{ nodes_to_check | length }}"
+      - "============================================="

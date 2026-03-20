@@ -82,7 +82,7 @@
 		transport http {
 			tls_insecure_skip_verify
 		}
-		header_up Host {upstream_hostport}
+		header_up Host {{ subdomain_cockpit }}.{{ domain }}
 		header_up X-Forwarded-Proto https
 		header_down -WWW-Authenticate
 	}

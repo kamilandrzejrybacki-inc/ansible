@@ -101,8 +101,16 @@
   environment:
     TUNNEL_ORIGIN_CERT: "{{ cloudflared_credentials_dir }}/cert.pem"
   register: _cf_dns_route
-  changed_when: "'Already exists' not in _cf_dns_route.stderr"
-  failed_when: _cf_dns_route.rc != 0 and 'Already exists' not in _cf_dns_route.stderr
+  changed_when: _cf_dns_route.rc == 0
+  failed_when: false
+
+- name: Warn if DNS route has a conflicting record
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Could not create CNAME for {{ domain }} — a conflicting A/AAAA record already exists.
+      Go to your Cloudflare DNS dashboard, delete the existing A/AAAA record for {{ domain }},
+      then re-run the playbook with --tags cloudflared.
+  when: _cf_dns_route.rc != 0 and 'already exists' in _cf_dns_route.stderr
 
 - name: Route wildcard DNS to tunnel
   ansible.builtin.command: >
@@ -110,8 +118,16 @@
   environment:
     TUNNEL_ORIGIN_CERT: "{{ cloudflared_credentials_dir }}/cert.pem"
   register: _cf_dns_wildcard
-  changed_when: "'Already exists' not in _cf_dns_wildcard.stderr"
-  failed_when: _cf_dns_wildcard.rc != 0 and 'Already exists' not in _cf_dns_wildcard.stderr
+  changed_when: _cf_dns_wildcard.rc == 0
+  failed_when: false
+
+- name: Warn if wildcard DNS route has a conflicting record
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Could not create CNAME for *.{{ domain }} — a conflicting A/AAAA record already exists.
+      Go to your Cloudflare DNS dashboard, delete the existing A/AAAA record for *.{{ domain }},
+      then re-run the playbook with --tags cloudflared.
+  when: _cf_dns_wildcard.rc != 0 and 'already exists' in _cf_dns_wildcard.stderr
 
 # ---------------------------------------------------------------------------
 # Deploy config and systemd service

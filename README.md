@@ -188,6 +188,10 @@ Deploys [Paperless-ngx](https://docs.paperless-ngx.com/) for paperless document 
 - **Stack:** Paperless-ngx (v2.14.7), PostgreSQL 16.6, Redis 7.4
 - **Web UI:** port 8000
 - **Features:** automatic OCR on document ingestion, full-text search, tag/correspondent management
+- **Document storage:** Docker volume (default) or custom path for NAS/external storage
+- **Secrets:** `db_password` and `secret_key` are auto-generated on first run and stored in `~/.homelab-secrets/paperless/` on the controller
+- **Secure homelab integration (auto-detected):** Cloudflare Tunnel DNS route, Caddy reverse-proxy block, Pi-hole local DNS record, and Homepage dashboard entry. Falls back to `/etc/hosts` otherwise.
+- **Bind address:** automatically set to `0.0.0.0` for remote deployments and `127.0.0.1` for localhost.
 
 ### home-services/n8n-setup
 
@@ -213,7 +217,11 @@ Deploys [Vaultwarden](https://github.com/dani-garcia/vaultwarden), a lightweight
 
 - **Image:** `vaultwarden/server:1.32.7`
 - **Web UI:** port 8080
-- **Configures:** admin token, invitation-only or admin-controlled registration
+- **Configures:** admin token (pass a pre-hashed argon2id string — generate with `openssl rand -base64 48` then hash via `python3 -c "from argon2 import PasswordHasher; ph = PasswordHasher(time_cost=2, memory_cost=65536, parallelism=1); print(ph.hash('<token>'))"`), invitation-only registration
+- **SMTP email (optional):** wizard prompts for provider selection — supports Gmail, Outlook, Zoho, Fastmail, SendGrid, Mailgun, AWS SES, or custom host/port. For Gmail, use an [App Password](https://myaccount.google.com/apppasswords) (requires 2-Step Verification).
+- **Domain:** automatically set from `~/.homelab-setup-vars.yml` when homelab is configured; `config.json` is patched on every run to keep it in sync.
+- **Secure homelab integration (auto-detected):** Cloudflare Tunnel DNS route, Caddy reverse-proxy block (no Authelia — Bitwarden clients require direct API access), Pi-hole local DNS record, and Homepage dashboard entry. Falls back to `/etc/hosts` otherwise.
+- **Bind address:** automatically set to `0.0.0.0` for remote deployments and `127.0.0.1` for localhost.
 
 ### home-services/kuma-setup
 

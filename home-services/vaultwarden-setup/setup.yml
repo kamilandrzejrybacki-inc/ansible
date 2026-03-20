@@ -37,11 +37,11 @@
           Vaultwarden Setup Wizard
         ══════════════════════════════════════════════
 
-        [1/3] IP or hostname of the target machine
+        [1/7] IP or hostname of the target machine
       private: false
 
     - name: target_ssh_user
-      prompt: "[2/3] SSH user for the target machine"
+      prompt: "[2/7] SSH user for the target machine"
       private: false
 
     - name: vaultwarden_admin_token

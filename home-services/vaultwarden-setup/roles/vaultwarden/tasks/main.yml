@@ -49,6 +49,24 @@
       }}
   no_log: true
 
+- name: Patch config.json domain to match public URL
+  ansible.builtin.shell: |
+    cfg="{{ vaultwarden_data_dir }}/config.json"
+    url="{{ vaultwarden_public_url | default('') }}"
+    [ -z "$url" ] && exit 0
+    [ -f "$cfg" ] || echo '{}' > "$cfg"
+    python3 -c "
+    import json, sys
+    with open('$cfg') as f: c = json.load(f)
+    if c.get('domain') != '$url':
+        c['domain'] = '$url'
+        with open('$cfg', 'w') as f: json.dump(c, f, indent=2)
+        print('CHANGED')
+    "
+  register: _vw_config_patch
+  changed_when: "'CHANGED' in _vw_config_patch.stdout"
+  notify: restart vaultwarden
+
 - name: Wait for Vaultwarden to become reachable
   ansible.builtin.uri:
     url: "http://localhost:{{ vaultwarden_port }}"

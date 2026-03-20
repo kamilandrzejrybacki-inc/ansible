@@ -73,27 +73,38 @@
       when: not _cf_cert_check.stat.exists
 
 # ---------------------------------------------------------------------------
-# Tunnel creation — only needed once, skipped if credentials file exists
+# Resolve tunnel ID — look up by name, create only if it doesn't exist
 # ---------------------------------------------------------------------------
-- name: Check if tunnel credentials file exists
-  ansible.builtin.stat:
-    path: "{{ cloudflared_credentials_dir }}/{{ cf_tunnel_id }}.json"
-  register: _cf_tunnel_creds
+- name: Look up existing tunnel by name
+  ansible.builtin.command: >
+    cloudflared tunnel --origincert {{ cloudflared_credentials_dir }}/cert.pem
+    info {{ cf_tunnel_name }}
+  environment:
+    TUNNEL_ORIGIN_CERT: "{{ cloudflared_credentials_dir }}/cert.pem"
+  register: _cf_tunnel_info
+  changed_when: false
+  failed_when: false
 
-- name: Create tunnel if credentials file is missing
-  when: not _cf_tunnel_creds.stat.exists
-  block:
-    - name: Create Cloudflare tunnel
-      ansible.builtin.command: >
-        cloudflared tunnel create {{ cf_tunnel_name }}
-      environment:
-        TUNNEL_ORIGIN_CERT: "{{ cloudflared_credentials_dir }}/cert.pem"
-      register: _cf_tunnel_create
-      changed_when: true
+- name: Create tunnel if it does not exist yet
+  ansible.builtin.command: >
+    cloudflared tunnel create {{ cf_tunnel_name }}
+  environment:
+    TUNNEL_ORIGIN_CERT: "{{ cloudflared_credentials_dir }}/cert.pem"
+  register: _cf_tunnel_create
+  when: _cf_tunnel_info.rc != 0
+  changed_when: true
 
-    - name: Show tunnel creation output
-      ansible.builtin.debug:
-        msg: "{{ _cf_tunnel_create.stdout_lines }}"
+- name: Resolve tunnel ID from existing or newly created tunnel
+  ansible.builtin.set_fact:
+    cf_tunnel_id: >-
+      {{
+        ((_cf_tunnel_create.stdout if _cf_tunnel_info.rc != 0 else _cf_tunnel_info.stdout)
+         | regex_search('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'))
+      }}
+
+- name: Show resolved tunnel ID
+  ansible.builtin.debug:
+    msg: "Tunnel '{{ cf_tunnel_name }}' → ID: {{ cf_tunnel_id }}"
 
 - name: Route DNS to tunnel
   ansible.builtin.command: >

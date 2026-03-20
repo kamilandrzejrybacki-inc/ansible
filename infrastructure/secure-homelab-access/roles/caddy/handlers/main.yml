@@ -1,5 +1,15 @@
 ---
 - name: reload caddy
-  community.docker.docker_container_exec:
-    container: "{{ caddy_container_name }}"
-    command: caddy reload --config /etc/caddy/Caddyfile
+  block:
+    - name: Wait for Caddy container to be running
+      community.docker.docker_container_info:
+        name: "{{ caddy_container_name }}"
+      register: _caddy_info
+      until: _caddy_info.container.State.Running | default(false)
+      retries: 15
+      delay: 2
+
+    - name: Reload Caddy config
+      community.docker.docker_container_exec:
+        container: "{{ caddy_container_name }}"
+        command: caddy reload --config /etc/caddy/Caddyfile

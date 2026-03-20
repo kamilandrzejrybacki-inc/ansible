@@ -349,7 +349,7 @@
 
     - role: cloudflared
       tags: [cloudflared, tunnel]
-      when: cf_tunnel_name | default('')
+      when: cf_tunnel_name | default('') != ''
 
     - role: authelia
       tags: [authelia, auth]

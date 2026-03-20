@@ -1,0 +1,57 @@
+# OpenClaw Docker Compose – managed by Ansible
+services:
+  openclaw:
+    image: {{ openclaw_image }}
+    container_name: openclaw
+    ports:
+      - "{{ openclaw_port }}:3000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+{% if openclaw_ollama_enabled %}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # Link to Ollama service on the same Docker network
+    networks:
+      - openclaw-net
+{% endif %}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+{% if openclaw_ollama_enabled %}
+  ollama:
+    image: {{ ollama_image | default('ollama/ollama:latest') }}
+    container_name: ollama
+    ports:
+      - "{{ ollama_port | default(11434) }}:11434"
+    volumes:
+      - {{ ollama_install_dir | default('/opt/ollama') }}/data:/root/.ollama
+{% if ollama_gpu_enabled | default(false) %}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+{% endif %}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - openclaw-net
+
+networks:
+  openclaw-net:
+    driver: bridge
+{% endif %}

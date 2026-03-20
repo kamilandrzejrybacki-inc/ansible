@@ -1,0 +1,36 @@
+# OpenClaw configuration – managed by Ansible
+
+models:
+  providers:
+{% if openclaw_ollama_enabled %}
+    ollama:
+      baseUrl: "{{ openclaw_ollama_base_url }}"
+      apiKey: "ollama-local"
+      api: "ollama"
+      models:
+        - id: "{{ openclaw_ollama_model }}"
+          name: "{{ openclaw_ollama_model }}"
+          contextWindow: {{ openclaw_ollama_context_window }}
+          maxTokens: {{ openclaw_ollama_context_window * 10 }}
+          cost:
+            input: 0
+            output: 0
+      compat:
+        supportsDeveloperRole: {{ openclaw_ollama_supports_developer_role | lower }}
+        supportsReasoningEffort: {{ openclaw_ollama_supports_reasoning_effort | lower }}
+{% endif %}
+{% if openclaw_anthropic_api_key | default('') | length > 0 %}
+    anthropic:
+      apiKey: "{{ openclaw_anthropic_api_key }}"
+      models:
+        - id: "{{ openclaw_anthropic_model }}"
+          name: "{{ openclaw_anthropic_model }}"
+{% endif %}
+
+agents:
+  defaults:
+    model:
+      primary: "{{ openclaw_primary_provider }}/{{ openclaw_ollama_model if openclaw_primary_provider == 'ollama' else openclaw_anthropic_model }}"
+{% if openclaw_fallback_provider | default('') | length > 0 %}
+      fallback: "{{ openclaw_fallback_provider }}/{{ openclaw_ollama_model if openclaw_fallback_provider == 'ollama' else openclaw_anthropic_model }}"
+{% endif %}

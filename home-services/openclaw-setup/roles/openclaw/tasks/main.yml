@@ -1,0 +1,104 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create OpenClaw install directory
+  ansible.builtin.file:
+    path: "{{ openclaw_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create OpenClaw data directory
+  ansible.builtin.file:
+    path: "{{ openclaw_install_dir }}/data"
+    state: directory
+    mode: "0755"
+
+- name: Create Ollama data directory
+  ansible.builtin.file:
+    path: "{{ ollama_install_dir | default('/opt/ollama') }}/data"
+    state: directory
+    mode: "0755"
+  when: openclaw_ollama_enabled
+
+- name: Write OpenClaw config.yaml
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: "{{ openclaw_install_dir }}/config.yaml"
+    mode: "0600"
+  no_log: true
+  notify: Restart openclaw
+
+- name: Write OpenClaw docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ openclaw_install_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Restart openclaw
+
+- name: Start OpenClaw with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ openclaw_install_dir }}"
+    state: present
+
+- name: Wait for Ollama to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ ollama_port | default(11434) }}/api/tags"
+    status_code: [200]
+  register: ollama_health
+  until: ollama_health is not failed
+  retries: 18
+  delay: 10
+  when: openclaw_ollama_enabled
+
+- name: Pull Ollama models for OpenClaw
+  ansible.builtin.command:
+    cmd: "docker exec ollama ollama pull {{ item }}"
+  loop: "{{ ollama_models | default([openclaw_ollama_model]) }}"
+  register: ollama_pull
+  changed_when: "'pulling' in ollama_pull.stdout | default('')"
+  when: openclaw_ollama_enabled
+
+- name: Wait for OpenClaw to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ openclaw_port }}/health"
+    status_code: [200]
+  register: openclaw_health
+  until: openclaw_health is not failed
+  retries: "{{ openclaw_health_check_retries }}"
+  delay: "{{ openclaw_health_check_delay }}"
+
+- name: Display OpenClaw access information
+  ansible.builtin.debug:
+    msg: |
+      OpenClaw is running!
+
+      Web UI           : http://{{ inventory_hostname }}:{{ openclaw_port }}
+      Config file      : {{ openclaw_install_dir }}/config.yaml
+      Data dir         : {{ openclaw_install_dir }}/data
+
+      Providers:
+      {% if openclaw_ollama_enabled %}
+        - Ollama (local, zero-cost)
+            API      : {{ openclaw_ollama_base_url }}
+            Model    : {{ openclaw_ollama_model }}
+            Context  : {{ openclaw_ollama_context_window }} tokens
+      {% endif %}
+      {% if openclaw_anthropic_api_key | default('') | length > 0 %}
+        - Anthropic (cloud)
+            Model    : {{ openclaw_anthropic_model }}
+      {% endif %}
+
+      Primary model : {{ openclaw_primary_provider }}/{{ openclaw_ollama_model if openclaw_primary_provider == 'ollama' else openclaw_anthropic_model }}
+      {% if openclaw_fallback_provider | default('') | length > 0 %}
+      Fallback      : {{ openclaw_fallback_provider }}/{{ openclaw_ollama_model if openclaw_fallback_provider == 'ollama' else openclaw_anthropic_model }}
+      {% endif %}
+
+      Useful commands:
+        cd {{ openclaw_install_dir }}
+        docker compose logs -f          # follow logs
+        docker compose ps               # list services
+        docker compose down              # stop all services
+        docker compose pull && docker compose up -d  # upgrade

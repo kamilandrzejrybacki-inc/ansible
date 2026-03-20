@@ -1,0 +1,33 @@
+---
+# OpenClaw install directory
+openclaw_install_dir: "/opt/openclaw"
+
+# OpenClaw Docker image
+openclaw_image: "ghcr.io/openclaw/openclaw:latest"
+
+# Port exposed on the host (OpenClaw web UI)
+openclaw_port: 3000
+
+# --- Provider: Ollama (local, zero-cost) ---
+openclaw_ollama_enabled: true
+openclaw_ollama_base_url: "http://ollama:11434"
+openclaw_ollama_model: "llama3.1:8b"
+openclaw_ollama_context_window: 65536
+
+# --- Provider: Anthropic (cloud, optional) ---
+openclaw_anthropic_api_key: ""
+openclaw_anthropic_model: "claude-sonnet-4-20250514"
+
+# --- Agent defaults ---
+# primary provider: "ollama" or "anthropic"
+openclaw_primary_provider: "ollama"
+# fallback provider (leave empty to disable)
+openclaw_fallback_provider: ""
+
+# --- Compatibility flags for Ollama ---
+openclaw_ollama_supports_developer_role: false
+openclaw_ollama_supports_reasoning_effort: false
+
+# Health-check settings
+openclaw_health_check_retries: 18
+openclaw_health_check_delay: 10

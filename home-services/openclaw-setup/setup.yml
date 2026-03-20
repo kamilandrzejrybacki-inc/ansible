@@ -1,0 +1,220 @@
+---
+# OpenClaw Setup Playbook
+# Deploys OpenClaw – the open-source AI agent framework – with Ollama as a local LLM provider.
+#
+# Usage:
+#   ansible-playbook home-services/openclaw-setup/setup.yml
+
+# Play 1: Load saved homelab configuration (if available)
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+# Play 2: Gather connection details and build dynamic inventory
+- name: Gather connection details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    openclaw_hostname: "openclaw"
+  vars_prompt:
+    - name: target_host
+      prompt: "Target host IP/hostname (enter 'localhost' for this machine)"
+      default: "localhost"
+      private: false
+
+    - name: target_user
+      prompt: "SSH user for the target (ignored if localhost)"
+      default: ""
+      private: false
+
+    - name: enable_ollama
+      prompt: |
+
+        Deploy Ollama as a local LLM provider? (Zero-cost, fully private)
+          yes – Deploy Ollama alongside OpenClaw (recommended)
+          no  – Skip, configure model providers manually
+        Enable Ollama (yes/no)
+      default: "yes"
+      private: false
+
+    - name: ollama_model
+      prompt: |
+
+        Ollama model to pull (must fit in your GPU/RAM):
+          llama3.1:8b      – 8B params, ~5 GB  (default, good for most tasks)
+          llama3.1:70b     – 70B params, ~40 GB (needs serious hardware)
+          qwen2.5:14b      – 14B params, ~9 GB  (strong coding)
+          deepseek-r1:8b   – 8B params, ~5 GB   (reasoning focused)
+        Enter model tag
+      default: "llama3.1:8b"
+      private: false
+
+    - name: enable_gpu
+      prompt: "Enable NVIDIA GPU passthrough for Ollama? (yes/no)"
+      default: "no"
+      private: false
+
+    - name: primary_provider
+      prompt: |
+
+        Primary LLM provider for OpenClaw agents:
+          ollama    – Local Ollama instance (zero-cost, private)
+          anthropic – Anthropic Claude API (requires API key)
+        Enter provider name
+      default: "ollama"
+      private: false
+
+    - name: anthropic_api_key
+      prompt: "Anthropic API key (leave empty to skip cloud provider)"
+      default: ""
+      private: true
+
+  tasks:
+    - name: Add target to dynamic inventory (remote)
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: openclaw_targets
+        ansible_connection: ssh
+        ansible_user: "{{ target_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        openclaw_ollama_enabled: "{{ enable_ollama | default('yes') | lower in ['yes', 'true', '1'] }}"
+        openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
+        ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        ollama_models: ["{{ ollama_model | default('llama3.1:8b') }}"]
+        openclaw_primary_provider: "{{ primary_provider | default('ollama') }}"
+        openclaw_anthropic_api_key: "{{ anthropic_api_key | default('') }}"
+        openclaw_fallback_provider: >-
+          {{
+            'ollama' if primary_provider | default('ollama') == 'anthropic'
+            else ('anthropic' if anthropic_api_key | default('') | length > 0 else '')
+          }}
+        openclaw_public_url: >-
+          {{
+            'https://' + openclaw_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
+      when: target_host != 'localhost'
+
+    - name: Add target to dynamic inventory (local)
+      ansible.builtin.add_host:
+        name: localhost
+        groups: openclaw_targets
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
+        openclaw_ollama_enabled: "{{ enable_ollama | default('yes') | lower in ['yes', 'true', '1'] }}"
+        openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
+        ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        ollama_models: ["{{ ollama_model | default('llama3.1:8b') }}"]
+        openclaw_primary_provider: "{{ primary_provider | default('ollama') }}"
+        openclaw_anthropic_api_key: "{{ anthropic_api_key | default('') }}"
+        openclaw_fallback_provider: >-
+          {{
+            'ollama' if primary_provider | default('ollama') == 'anthropic'
+            else ('anthropic' if anthropic_api_key | default('') | length > 0 else '')
+          }}
+        openclaw_public_url: >-
+          {{
+            'https://' + openclaw_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
+      when: target_host == 'localhost'
+
+# Play 3: Provision OpenClaw with Ollama
+- name: Provision OpenClaw
+  hosts: openclaw_targets
+  gather_facts: true
+  become: true
+  roles:
+    - prerequisites
+    - openclaw
+
+# Play 4: Integrate with secure homelab
+- name: Integrate OpenClaw with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['target_host'] }}"
+    openclaw_hostname: "openclaw"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for OpenClaw
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ openclaw_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _openclaw_cf_dns
+          changed_when: _openclaw_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add OpenClaw to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} OPENCLAW"
+            unsafe_writes: true
+            block: |
+              http://{{ openclaw_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://{{ _target_host_ip }}:{{ openclaw_port | default(3000) }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for OpenClaw
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ openclaw_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ openclaw_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add OpenClaw to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} OPENCLAW"
+            insertafter: "- Applications:"
+            unsafe_writes: true
+            block: |2
+                  - OpenClaw:
+                      icon: openclaw.png
+                      href: "https://{{ openclaw_hostname }}.{{ saved_domain }}"
+                      description: "AI agent framework (Ollama-powered)"
+
+    - name: Add /etc/hosts fallback when secure homelab is not configured
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ _target_host_ip }} {{ openclaw_hostname }}.home"
+        state: present
+      when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

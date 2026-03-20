@@ -3,5 +3,6 @@
 cloudflared_version: "latest"
 cloudflared_install_dir: "/usr/local/bin"
 cloudflared_config_dir: "/etc/cloudflared"
-cloudflared_credentials_dir: "/root/.cloudflared"
+cloudflared_credentials_dir: "{{ lookup('env', 'HOME') }}/.cloudflared"
+cloudflared_service_user: "{{ lookup('env', 'USER') }}"
 cloudflared_service_name: "cloudflared"

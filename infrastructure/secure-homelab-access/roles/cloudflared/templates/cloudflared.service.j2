@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=root
+User={{ cloudflared_service_user }}
 ExecStart={{ cloudflared_install_dir }}/cloudflared tunnel --config {{ cloudflared_config_dir }}/config.yml run
 Restart=on-failure
 RestartSec=5s

@@ -1,0 +1,14 @@
+# OpenClaw environment – managed by Ansible
+# Sourced by systemd and shell profiles for API key persistence.
+{% if openclaw_nvidia_api_key | default('') | length > 0 %}
+NVIDIA_API_KEY={{ openclaw_nvidia_api_key }}
+{% endif %}
+{% if openclaw_groq_api_key | default('') | length > 0 %}
+GROQ_API_KEY={{ openclaw_groq_api_key }}
+{% endif %}
+{% if openclaw_gemini_api_key | default('') | length > 0 %}
+GEMINI_API_KEY={{ openclaw_gemini_api_key }}
+{% endif %}
+{% if openclaw_deepseek_api_key | default('') | length > 0 %}
+DEEPSEEK_API_KEY={{ openclaw_deepseek_api_key }}
+{% endif %}

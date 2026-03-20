@@ -4,21 +4,36 @@ services:
     image: {{ openclaw_image }}
     container_name: openclaw
     ports:
-      - "{{ openclaw_port }}:3000"
+      - "{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}:18789"
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
+      - ./config.json:/app/config.json:ro
       - ./data:/app/data
+    environment:
+{% if openclaw_nvidia_api_key | default('') | length > 0 %}
+      NVIDIA_API_KEY: "{{ openclaw_nvidia_api_key }}"
+{% endif %}
+{% if openclaw_groq_api_key | default('') | length > 0 %}
+      GROQ_API_KEY: "{{ openclaw_groq_api_key }}"
+{% endif %}
+{% if openclaw_gemini_api_key | default('') | length > 0 %}
+      GEMINI_API_KEY: "{{ openclaw_gemini_api_key }}"
+{% endif %}
+{% if openclaw_deepseek_api_key | default('') | length > 0 %}
+      DEEPSEEK_API_KEY: "{{ openclaw_deepseek_api_key }}"
+{% endif %}
+{% if openclaw_ollama_enabled %}
+      OLLAMA_API_KEY: "ollama-local"
+{% endif %}
 {% if openclaw_ollama_enabled %}
     depends_on:
       ollama:
         condition: service_healthy
-    # Link to Ollama service on the same Docker network
     networks:
       - openclaw-net
 {% endif %}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,13 +41,13 @@ services:
 
 {% if openclaw_ollama_enabled %}
   ollama:
-    image: {{ ollama_image | default('ollama/ollama:latest') }}
+    image: {{ openclaw_ollama_image }}
     container_name: ollama
     ports:
-      - "{{ ollama_port | default(11434) }}:11434"
+      - "{{ openclaw_bind_address }}:11434:11434"
     volumes:
-      - {{ ollama_install_dir | default('/opt/ollama') }}/data:/root/.ollama
-{% if ollama_gpu_enabled | default(false) %}
+      - ./ollama-data:/root/.ollama
+{% if openclaw_ollama_gpu_enabled %}
     deploy:
       resources:
         reservations:

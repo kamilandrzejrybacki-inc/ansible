@@ -5,28 +5,52 @@ openclaw_install_dir: "/opt/openclaw"
 # OpenClaw Docker image
 openclaw_image: "ghcr.io/openclaw/openclaw:latest"
 
-# Port exposed on the host (OpenClaw web UI)
-openclaw_port: 3000
+# Gateway port (loopback only for security)
+openclaw_gateway_port: 18789
 
-# --- Provider: Ollama (local, zero-cost) ---
-openclaw_ollama_enabled: true
+# --- Provider: NVIDIA NIM (free, 6 models) ---
+openclaw_nvidia_api_key: ""
+openclaw_nvidia_rpm: 40
+
+# --- Provider: Groq (free, fast inference) ---
+openclaw_groq_api_key: ""
+openclaw_groq_rpm: 30
+
+# --- Provider: Google Gemini (free tier, 1500 req/day) ---
+openclaw_gemini_api_key: ""
+openclaw_gemini_rpm: 15
+
+# --- Provider: DeepSeek (paid, cheap) ---
+openclaw_deepseek_api_key: ""
+openclaw_deepseek_rpm: 60
+
+# --- Provider: Ollama (local, zero-cost, fully private) ---
+openclaw_ollama_enabled: false
 openclaw_ollama_base_url: "http://ollama:11434"
 openclaw_ollama_model: "llama3.1:8b"
 openclaw_ollama_context_window: 65536
+openclaw_ollama_gpu_enabled: false
 
-# --- Provider: Anthropic (cloud, optional) ---
-openclaw_anthropic_api_key: ""
-openclaw_anthropic_model: "claude-sonnet-4-20250514"
+# Docker image for Ollama sidecar
+openclaw_ollama_image: "ollama/ollama:latest"
 
-# --- Agent defaults ---
-# primary provider: "ollama" or "anthropic"
-openclaw_primary_provider: "ollama"
-# fallback provider (leave empty to disable)
-openclaw_fallback_provider: ""
+# --- Routing defaults ---
+# Primary model for simple tasks
+openclaw_primary_model: "nvidia/kimi-k2.5"
 
-# --- Compatibility flags for Ollama ---
-openclaw_ollama_supports_developer_role: false
-openclaw_ollama_supports_reasoning_effort: false
+# Heartbeat model (lightweight, every 30m)
+openclaw_heartbeat_model: "groq/llama-3.3-70b-versatile"
+openclaw_heartbeat_interval: 1800
+
+# Complex task model (paid)
+openclaw_complex_model: "deepseek/deepseek-chat"
+
+# Deep thinking model (paid, reasoning)
+openclaw_thinking_model: "deepseek/deepseek-reasoner"
+
+# --- Security ---
+openclaw_bind_address: "127.0.0.1"
+openclaw_allow_tailscale: true
 
 # Health-check settings
 openclaw_health_check_retries: 18

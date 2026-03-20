@@ -1,6 +1,10 @@
 ---
 # OpenClaw Setup Playbook
-# Deploys OpenClaw – the open-source AI agent framework – with Ollama as a local LLM provider.
+# Deploys OpenClaw with 4 cloud providers + optional Ollama local provider.
+# Complexity-tiered routing: 90%+ traffic on free models, ~$0-5/month.
+#
+# Providers: NVIDIA NIM (free), Groq (free), Google Gemini (free),
+#            DeepSeek (paid), Ollama (local, optional)
 #
 # Usage:
 #   ansible-playbook home-services/openclaw-setup/setup.yml
@@ -39,20 +43,48 @@
       default: ""
       private: false
 
+    - name: nvidia_api_key
+      prompt: |
+
+        === Free providers ===
+        NVIDIA NIM API key (free at build.nvidia.com — 6 models including Kimi K2.5, GLM-5, MiniMax M2.5)
+        Leave empty to skip
+      default: ""
+      private: true
+
+    - name: groq_api_key
+      prompt: "Groq API key (free at console.groq.com — fast Llama + Whisper audio, leave empty to skip)"
+      default: ""
+      private: true
+
+    - name: gemini_api_key
+      prompt: "Google Gemini API key (free at aistudio.google.dev — 1500 req/day, 1M context, leave empty to skip)"
+      default: ""
+      private: true
+
+    - name: deepseek_api_key
+      prompt: |
+
+        === Paid provider ===
+        DeepSeek API key (paid at platform.deepseek.com — $0.27-$2.20/1M tokens, leave empty to skip)
+      default: ""
+      private: true
+
     - name: enable_ollama
       prompt: |
 
-        Deploy Ollama as a local LLM provider? (Zero-cost, fully private)
-          yes – Deploy Ollama alongside OpenClaw (recommended)
-          no  – Skip, configure model providers manually
+        === Local provider ===
+        Deploy Ollama as a local LLM provider? (Zero-cost, fully private, no API key needed)
+          yes – Deploy Ollama sidecar alongside OpenClaw
+          no  – Cloud providers only
         Enable Ollama (yes/no)
-      default: "yes"
+      default: "no"
       private: false
 
     - name: ollama_model
       prompt: |
 
-        Ollama model to pull (must fit in your GPU/RAM):
+        Ollama model to pull (ignored if Ollama is disabled):
           llama3.1:8b      – 8B params, ~5 GB  (default, good for most tasks)
           llama3.1:70b     – 70B params, ~40 GB (needs serious hardware)
           qwen2.5:14b      – 14B params, ~9 GB  (strong coding)
@@ -62,26 +94,25 @@
       private: false
 
     - name: enable_gpu
-      prompt: "Enable NVIDIA GPU passthrough for Ollama? (yes/no)"
+      prompt: "Enable NVIDIA GPU passthrough for Ollama? (yes/no, ignored if Ollama disabled)"
       default: "no"
       private: false
 
-    - name: primary_provider
-      prompt: |
-
-        Primary LLM provider for OpenClaw agents:
-          ollama    – Local Ollama instance (zero-cost, private)
-          anthropic – Anthropic Claude API (requires API key)
-        Enter provider name
-      default: "ollama"
-      private: false
-
-    - name: anthropic_api_key
-      prompt: "Anthropic API key (leave empty to skip cloud provider)"
-      default: ""
-      private: true
-
   tasks:
+    - name: Validate at least one provider key is configured
+      ansible.builtin.assert:
+        that:
+          - >-
+            (nvidia_api_key | default('') | length > 0) or
+            (groq_api_key | default('') | length > 0) or
+            (gemini_api_key | default('') | length > 0) or
+            (deepseek_api_key | default('') | length > 0) or
+            (enable_ollama | default('no') | lower in ['yes', 'true', '1'])
+        fail_msg: >-
+          At least one provider must be configured.
+          Provide an API key for NVIDIA NIM, Groq, Gemini, or DeepSeek,
+          or enable Ollama for local inference.
+
     - name: Add target to dynamic inventory (remote)
       ansible.builtin.add_host:
         name: "{{ target_host }}"
@@ -89,16 +120,20 @@
         ansible_connection: ssh
         ansible_user: "{{ target_user }}"
         ansible_python_interpreter: /usr/bin/python3
-        openclaw_ollama_enabled: "{{ enable_ollama | default('yes') | lower in ['yes', 'true', '1'] }}"
+        openclaw_nvidia_api_key: "{{ nvidia_api_key | default('') }}"
+        openclaw_groq_api_key: "{{ groq_api_key | default('') }}"
+        openclaw_gemini_api_key: "{{ gemini_api_key | default('') }}"
+        openclaw_deepseek_api_key: "{{ deepseek_api_key | default('') }}"
+        openclaw_ollama_enabled: "{{ enable_ollama | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
-        ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
-        ollama_models: ["{{ ollama_model | default('llama3.1:8b') }}"]
-        openclaw_primary_provider: "{{ primary_provider | default('ollama') }}"
-        openclaw_anthropic_api_key: "{{ anthropic_api_key | default('') }}"
-        openclaw_fallback_provider: >-
+        openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        openclaw_primary_model: >-
           {{
-            'ollama' if primary_provider | default('ollama') == 'anthropic'
-            else ('anthropic' if anthropic_api_key | default('') | length > 0 else '')
+            'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
+            else ('groq/llama-3.3-70b-versatile' if groq_api_key | default('') | length > 0
+            else ('google/gemini-2.5-flash' if gemini_api_key | default('') | length > 0
+            else ('deepseek/deepseek-chat' if deepseek_api_key | default('') | length > 0
+            else 'ollama/' + ollama_model | default('llama3.1:8b'))))
           }}
         openclaw_public_url: >-
           {{
@@ -114,16 +149,20 @@
         groups: openclaw_targets
         ansible_connection: local
         ansible_python_interpreter: /usr/bin/python3
-        openclaw_ollama_enabled: "{{ enable_ollama | default('yes') | lower in ['yes', 'true', '1'] }}"
+        openclaw_nvidia_api_key: "{{ nvidia_api_key | default('') }}"
+        openclaw_groq_api_key: "{{ groq_api_key | default('') }}"
+        openclaw_gemini_api_key: "{{ gemini_api_key | default('') }}"
+        openclaw_deepseek_api_key: "{{ deepseek_api_key | default('') }}"
+        openclaw_ollama_enabled: "{{ enable_ollama | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
-        ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
-        ollama_models: ["{{ ollama_model | default('llama3.1:8b') }}"]
-        openclaw_primary_provider: "{{ primary_provider | default('ollama') }}"
-        openclaw_anthropic_api_key: "{{ anthropic_api_key | default('') }}"
-        openclaw_fallback_provider: >-
+        openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        openclaw_primary_model: >-
           {{
-            'ollama' if primary_provider | default('ollama') == 'anthropic'
-            else ('anthropic' if anthropic_api_key | default('') | length > 0 else '')
+            'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
+            else ('groq/llama-3.3-70b-versatile' if groq_api_key | default('') | length > 0
+            else ('google/gemini-2.5-flash' if gemini_api_key | default('') | length > 0
+            else ('deepseek/deepseek-chat' if deepseek_api_key | default('') | length > 0
+            else 'ollama/' + ollama_model | default('llama3.1:8b'))))
           }}
         openclaw_public_url: >-
           {{
@@ -133,7 +172,7 @@
           }}
       when: target_host == 'localhost'
 
-# Play 3: Provision OpenClaw with Ollama
+# Play 3: Provision OpenClaw
 - name: Provision OpenClaw
   hosts: openclaw_targets
   gather_facts: true
@@ -175,7 +214,7 @@
               http://{{ openclaw_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ openclaw_port | default(3000) }}
+                reverse_proxy http://{{ _target_host_ip }}:{{ openclaw_gateway_port | default(18789) }}
               }
           notify: reload caddy
 
@@ -202,7 +241,7 @@
                   - OpenClaw:
                       icon: openclaw.png
                       href: "https://{{ openclaw_hostname }}.{{ saved_domain }}"
-                      description: "AI agent framework (Ollama-powered)"
+                      description: "AI agent framework"
 
     - name: Add /etc/hosts fallback when secure homelab is not configured
       ansible.builtin.lineinfile:

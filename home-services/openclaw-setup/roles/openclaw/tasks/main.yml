@@ -8,25 +8,25 @@
   ansible.builtin.file:
     path: "{{ openclaw_install_dir }}"
     state: directory
-    mode: "0755"
+    mode: "0700"
 
 - name: Create OpenClaw data directory
   ansible.builtin.file:
     path: "{{ openclaw_install_dir }}/data"
     state: directory
-    mode: "0755"
+    mode: "0700"
 
 - name: Create Ollama data directory
   ansible.builtin.file:
-    path: "{{ ollama_install_dir | default('/opt/ollama') }}/data"
+    path: "{{ openclaw_install_dir }}/ollama-data"
     state: directory
     mode: "0755"
   when: openclaw_ollama_enabled
 
-- name: Write OpenClaw config.yaml
+- name: Write OpenClaw config.json
   ansible.builtin.template:
     src: config.yaml.j2
-    dest: "{{ openclaw_install_dir }}/config.yaml"
+    dest: "{{ openclaw_install_dir }}/config.json"
     mode: "0600"
   no_log: true
   notify: Restart openclaw
@@ -38,6 +38,13 @@
     mode: "0644"
   notify: Restart openclaw
 
+- name: Write systemd environment file for API keys
+  ansible.builtin.template:
+    src: openclaw.conf.j2
+    dest: "/etc/openclaw.env"
+    mode: "0600"
+  no_log: true
+
 - name: Start OpenClaw with Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ openclaw_install_dir }}"
@@ -45,7 +52,7 @@
 
 - name: Wait for Ollama to become reachable
   ansible.builtin.uri:
-    url: "http://localhost:{{ ollama_port | default(11434) }}/api/tags"
+    url: "http://{{ openclaw_bind_address }}:11434/api/tags"
     status_code: [200]
   register: ollama_health
   until: ollama_health is not failed
@@ -53,48 +60,114 @@
   delay: 10
   when: openclaw_ollama_enabled
 
-- name: Pull Ollama models for OpenClaw
+- name: Pull Ollama model for OpenClaw
   ansible.builtin.command:
-    cmd: "docker exec ollama ollama pull {{ item }}"
-  loop: "{{ ollama_models | default([openclaw_ollama_model]) }}"
+    cmd: "docker exec ollama ollama pull {{ openclaw_ollama_model }}"
   register: ollama_pull
   changed_when: "'pulling' in ollama_pull.stdout | default('')"
   when: openclaw_ollama_enabled
 
-- name: Wait for OpenClaw to become reachable
+- name: Wait for OpenClaw gateway to become reachable
   ansible.builtin.uri:
-    url: "http://localhost:{{ openclaw_port }}/health"
+    url: "http://{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}/health"
     status_code: [200]
   register: openclaw_health
   until: openclaw_health is not failed
   retries: "{{ openclaw_health_check_retries }}"
   delay: "{{ openclaw_health_check_delay }}"
 
+# --- Security hardening ---
+- name: Configure UFW firewall rules
+  block:
+    - name: Set UFW default deny incoming
+      community.general.ufw:
+        direction: incoming
+        default: deny
+
+    - name: Allow SSH through UFW
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Allow HTTPS through UFW
+      community.general.ufw:
+        rule: allow
+        port: "443"
+        proto: tcp
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+
+- name: Verify gateway is bound to loopback only
+  ansible.builtin.command:
+    cmd: "ss -tlnp sport = :{{ openclaw_gateway_port }}"
+  register: gateway_bind_check
+  changed_when: false
+  failed_when: >-
+    openclaw_bind_address == '127.0.0.1' and
+    '0.0.0.0' in gateway_bind_check.stdout
+
 - name: Display OpenClaw access information
   ansible.builtin.debug:
     msg: |
       OpenClaw is running!
 
-      Web UI           : http://{{ inventory_hostname }}:{{ openclaw_port }}
-      Config file      : {{ openclaw_install_dir }}/config.yaml
+      Gateway          : http://{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}
+      Config file      : {{ openclaw_install_dir }}/config.json
       Data dir         : {{ openclaw_install_dir }}/data
 
-      Providers:
-      {% if openclaw_ollama_enabled %}
-        - Ollama (local, zero-cost)
-            API      : {{ openclaw_ollama_base_url }}
-            Model    : {{ openclaw_ollama_model }}
-            Context  : {{ openclaw_ollama_context_window }} tokens
+      Active providers:
+      {% if openclaw_nvidia_api_key | default('') | length > 0 %}
+        - NVIDIA NIM (free) — Kimi K2.5, GLM-5, GLM-4.7, MiniMax M2.5, Nemotron 70B, Qwen 3.5 VL
       {% endif %}
-      {% if openclaw_anthropic_api_key | default('') | length > 0 %}
-        - Anthropic (cloud)
-            Model    : {{ openclaw_anthropic_model }}
+      {% if openclaw_groq_api_key | default('') | length > 0 %}
+        - Groq (free) — Llama 3.3 70B, Llama 4 Scout 17B, Whisper audio
+      {% endif %}
+      {% if openclaw_gemini_api_key | default('') | length > 0 %}
+        - Google Gemini (free) — Gemini 2.5 Flash (1M context)
+      {% endif %}
+      {% if openclaw_deepseek_api_key | default('') | length > 0 %}
+        - DeepSeek (paid) — Chat V3 ($0.27/1M), Reasoner R1 ($2.20/1M)
+      {% endif %}
+      {% if openclaw_ollama_enabled %}
+        - Ollama (local) — {{ openclaw_ollama_model }}
       {% endif %}
 
-      Primary model : {{ openclaw_primary_provider }}/{{ openclaw_ollama_model if openclaw_primary_provider == 'ollama' else openclaw_anthropic_model }}
-      {% if openclaw_fallback_provider | default('') | length > 0 %}
-      Fallback      : {{ openclaw_fallback_provider }}/{{ openclaw_ollama_model if openclaw_fallback_provider == 'ollama' else openclaw_anthropic_model }}
+      Primary model    : {{ openclaw_primary_model }}
+
+      Routing:
+        Heartbeat      → {{ openclaw_heartbeat_model }} (every {{ openclaw_heartbeat_interval }}s)
+        Simple tasks   → {{ openclaw_primary_model }}
+        Moderate       → fallback chain across free providers
+      {% if openclaw_deepseek_api_key | default('') | length > 0 %}
+        Complex        → {{ openclaw_complex_model }}
+        Deep thinking  → {{ openclaw_thinking_model }}
       {% endif %}
+
+      Quick model switch (/model <alias>):
+      {% if openclaw_nvidia_api_key | default('') | length > 0 %}
+        kimi, glm5, glm47, minimax, nemotron, qwen
+      {% endif %}
+      {% if openclaw_groq_api_key | default('') | length > 0 %}
+        groq-llama, groq-scout
+      {% endif %}
+      {% if openclaw_gemini_api_key | default('') | length > 0 %}
+        gemini-flash
+      {% endif %}
+      {% if openclaw_deepseek_api_key | default('') | length > 0 %}
+        ds, ds-think
+      {% endif %}
+      {% if openclaw_ollama_enabled %}
+        local
+      {% endif %}
+
+      Validate with:
+        openclaw doctor
+        openclaw models list
+
+      Monitor costs:
+        openclaw stats usage --period 7d
 
       Useful commands:
         cd {{ openclaw_install_dir }}

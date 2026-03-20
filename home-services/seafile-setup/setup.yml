@@ -1,6 +1,24 @@
 ---
+# Play 1: Load saved homelab configuration (if available)
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+# Play 2: Gather Seafile configuration
 - name: Gather Seafile configuration
-  hosts: local
+  hosts: localhost
+  connection: local
   gather_facts: false
   vars_prompt:
     - name: seafile_admin_email
@@ -16,8 +34,13 @@
       private: true
 
     - name: caddy_domain
-      prompt: "Domain for HTTPS access (leave empty to skip Caddy and use HTTP only)"
-      default: ""
+      prompt: "Domain for HTTPS access (leave empty to use homelab domain if configured, or HTTP only)"
+      default: >-
+        {{
+          hostvars['localhost']['saved_domain'] | default('')
+          if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+          else ''
+        }}
       private: false
 
   tasks:
@@ -29,10 +52,58 @@
         caddy_domain: "{{ caddy_domain }}"
       no_log: true
 
+# Play 3: Select storage volume and deploy Seafile
 - name: Select storage volume and deploy Seafile
-  hosts: local
+  hosts: localhost
+  connection: local
   become: true
   roles:
     - volume_select
     - seafile
     - caddy
+
+# Play 4: Integrate with secure homelab
+- name: Integrate Seafile with secure homelab (Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Seafile
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ seafile_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _seafile_cf_dns
+          changed_when: _seafile_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Pi-hole local DNS record for Seafile
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ seafile_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ seafile_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add Seafile to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} SEAFILE"
+            insertafter: "- Applications:"
+            unsafe_writes: true
+            block: |2
+                  - Seafile:
+                      icon: seafile.png
+                      href: "https://{{ seafile_hostname }}.{{ saved_domain }}"
+                      description: "File sync and share"

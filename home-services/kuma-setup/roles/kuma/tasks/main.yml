@@ -16,7 +16,7 @@
     state: started
     restart_policy: "{{ kuma_restart_policy }}"
     published_ports:
-      - "127.0.0.1:{{ kuma_port }}:3001"
+      - "{{ kuma_bind_address }}:{{ kuma_port }}:3001"
     volumes:
       - "{{ kuma_volume_name }}:/app/data"
 

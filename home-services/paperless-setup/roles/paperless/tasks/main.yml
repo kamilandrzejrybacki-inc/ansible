@@ -21,29 +21,29 @@
     group: root
   when: paperless_document_path | length > 0
 
-- name: Ensure secrets directory exists
+- name: Ensure local secrets directory exists
   ansible.builtin.file:
-    path: "{{ paperless_data_dir }}/secrets"
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/paperless"
     state: directory
     mode: "0700"
-    owner: root
-    group: root
+  delegate_to: localhost
+  become: false
 
 - name: Generate and persist secrets (idempotent - written once, reused on re-runs)
   ansible.builtin.set_fact:
-    paperless_db_password: "{{ lookup('password', paperless_data_dir + '/secrets/db_password chars=ascii_letters,digits length=64') }}"
-    paperless_secret_key: "{{ lookup('password', paperless_data_dir + '/secrets/secret_key chars=ascii_letters,digits length=64') }}"
+    paperless_db_password: "{{ lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/paperless/db_password chars=ascii_letters,digits length=64') }}"
+    paperless_secret_key: "{{ lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/paperless/secret_key chars=ascii_letters,digits length=64') }}"
   no_log: true
 
-- name: Restrict secret files to root-only
+- name: Restrict local secret files to owner-only
   ansible.builtin.file:
     path: "{{ item }}"
     mode: "0600"
-    owner: root
-    group: root
   loop:
-    - "{{ paperless_data_dir }}/secrets/db_password"
-    - "{{ paperless_data_dir }}/secrets/secret_key"
+    - "{{ lookup('env', 'HOME') }}/.homelab-secrets/paperless/db_password"
+    - "{{ lookup('env', 'HOME') }}/.homelab-secrets/paperless/secret_key"
+  delegate_to: localhost
+  become: false
 
 - name: Template Docker Compose file
   ansible.builtin.template:

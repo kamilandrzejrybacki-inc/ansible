@@ -15,3 +15,4 @@ caddy_image: caddy:2-alpine
 caddy_domain: ""
 
 seafile_compose_dir: /opt/seafile
+seafile_hostname: "seafile"

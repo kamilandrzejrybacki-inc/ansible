@@ -5,7 +5,23 @@
 # Usage:
 #   ansible-playbook home-services/dify-setup/setup.yml
 
-# Play 1: Gather connection details and build dynamic inventory
+# Play 1: Load saved homelab configuration (if available)
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+# Play 2: Gather connection details and build dynamic inventory
 - name: Gather connection details
   hosts: localhost
   connection: local
@@ -89,6 +105,12 @@
         litellm_gemini_api_key: "{{ gemini_api_key | default('') }}"
         litellm_openrouter_api_key: "{{ openrouter_api_key | default('') }}"
         litellm_cerebras_api_key: "{{ cerebras_api_key | default('') }}"
+        dify_public_url: >-
+          {{
+            'https://' + dify_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
       when: target_host != 'localhost'
 
     - name: Add target to dynamic inventory (local)
@@ -105,9 +127,15 @@
         litellm_gemini_api_key: "{{ gemini_api_key | default('') }}"
         litellm_openrouter_api_key: "{{ openrouter_api_key | default('') }}"
         litellm_cerebras_api_key: "{{ cerebras_api_key | default('') }}"
+        dify_public_url: >-
+          {{
+            'https://' + dify_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
       when: target_host == 'localhost'
 
-# Play 2: Provision Dify
+# Play 3: Provision Dify
 - name: Provision Dify
   hosts: dify_targets
   gather_facts: true
@@ -116,3 +144,79 @@
     - prerequisites
     - litellm
     - dify
+
+# Play 4: Integrate with secure homelab
+- name: Integrate Dify with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['target_host'] }}"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Dify
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ dify_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _dify_cf_dns
+          changed_when: _dify_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Dify to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} DIFY"
+            unsafe_writes: true
+            block: |
+              http://{{ dify_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://{{ _target_host_ip }}:{{ dify_http_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for Dify
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ dify_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ dify_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add Dify to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} DIFY"
+            insertafter: "- Applications:"
+            unsafe_writes: true
+            block: |2
+                  - Dify:
+                      icon: dify.png
+                      href: "https://{{ dify_hostname }}.{{ saved_domain }}"
+                      description: "LLM application platform"
+
+    - name: Add /etc/hosts fallback when secure homelab is not configured
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ _target_host_ip }} {{ dify_hostname }}.home"
+        state: present
+      when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

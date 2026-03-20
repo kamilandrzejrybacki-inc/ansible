@@ -16,9 +16,16 @@
     state: started
     restart_policy: "{{ n8n_restart_policy }}"
     published_ports:
-      - "127.0.0.1:{{ n8n_port }}:5678"
+      - "{{ n8n_bind_address }}:{{ n8n_port }}:5678"
     volumes:
       - "{{ n8n_volume_name }}:/home/node/.n8n"
+    env: "{{ _n8n_env | combine(_n8n_public_url_env) }}"
+  vars:
+    _n8n_env:
+      N8N_HOST: "{{ n8n_hostname }}"
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: "{{ 'https' if n8n_public_url | default('') != '' else 'http' }}"
+    _n8n_public_url_env: "{{ {'N8N_EDITOR_BASE_URL': n8n_public_url, 'WEBHOOK_URL': n8n_public_url} if n8n_public_url | default('') != '' else {} }}"
 
 - name: Wait for n8n to become reachable
   ansible.builtin.uri:

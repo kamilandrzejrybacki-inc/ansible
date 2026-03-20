@@ -1,5 +1,35 @@
 # librenms-setup/setup.yml
 ---
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+- name: Load saved configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check if previous setup vars exist
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.librenms-setup-vars.yml"
+      register: _setup_vars_stat
+
+    - name: Load previous setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.librenms-setup-vars.yml"
+      when: _setup_vars_stat.stat.exists
+
 - name: Gather host details
   hosts: localhost
   connection: local
@@ -13,32 +43,36 @@
         ══════════════════════════════════════════════
 
         [1/6] IP or hostname of the target machine
+      default: "{{ hostvars['localhost']['saved_target_host'] | default('') }}"
       private: false
 
     - name: target_ssh_user
       prompt: "[2/6] SSH user for the target machine"
+      default: "{{ hostvars['localhost']['saved_ssh_user'] | default('') }}"
       private: false
 
     - name: librenms_snmp_community
       prompt: |-
         [3/6] SNMP community string
                (used to poll your network devices)
-      default: "public"
+      default: "{{ hostvars['localhost']['saved_snmp_community'] | default('public') }}"
       private: false
 
     - name: librenms_discovery_networks
       prompt: |-
         [4/6] Networks to discover (comma-separated CIDRs)
                e.g. 192.168.1.0/24,10.0.0.0/24
+      default: "{{ hostvars['localhost']['saved_discovery_networks'] | default('') }}"
       private: false
 
     - name: librenms_db_password
       prompt: "[5/6] Database password (will be set on first run)"
+      default: "{{ hostvars['localhost']['saved_db_password'] | default('') }}"
       private: true
 
     - name: librenms_timezone
       prompt: "[6/6] Timezone"
-      default: "Europe/Warsaw"
+      default: "{{ hostvars['localhost']['saved_timezone'] | default('Europe/Warsaw') }}"
       private: false
 
   tasks:
@@ -48,10 +82,26 @@
         groups: librenms_hosts
         ansible_user: "{{ target_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
+        ansible_connection: "{{ 'local' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else 'ssh' }}"
         librenms_snmp_community: "{{ librenms_snmp_community }}"
         librenms_discovery_networks: "{{ librenms_discovery_networks }}"
         librenms_db_password: "{{ librenms_db_password }}"
         librenms_timezone: "{{ librenms_timezone }}"
+
+    - name: Save setup vars for future runs
+      ansible.builtin.copy:
+        content: |
+          # LibreNMS setup vars — loaded automatically as prompt defaults on next run
+          saved_target_host: "{{ target_host_ip }}"
+          saved_ssh_user: "{{ target_ssh_user }}"
+          saved_snmp_community: "{{ librenms_snmp_community }}"
+          saved_discovery_networks: "{{ librenms_discovery_networks }}"
+          saved_db_password: "{{ librenms_db_password }}"
+          saved_timezone: "{{ librenms_timezone }}"
+        dest: "{{ lookup('env', 'HOME') }}/.librenms-setup-vars.yml"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+      no_log: true
 
 - name: Install Docker and deploy LibreNMS
   hosts: librenms_hosts
@@ -59,3 +109,78 @@
   roles:
     - docker
     - librenms
+
+- name: Integrate LibreNMS with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for LibreNMS
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ librenms_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _librenms_cf_dns
+          changed_when: _librenms_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add LibreNMS to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} LIBRENMS"
+            unsafe_writes: true
+            block: |
+              http://{{ librenms_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://{{ _target_host_ip }}:{{ librenms_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for LibreNMS
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ librenms_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ librenms_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add LibreNMS to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} LIBRENMS"
+            insertafter: "- Infrastructure:"
+            unsafe_writes: true
+            block: |2
+                  - LibreNMS:
+                      icon: librenms.png
+                      href: "https://{{ librenms_hostname }}.{{ saved_domain }}"
+                      description: "Network monitoring"
+
+    - name: Add /etc/hosts fallback when secure homelab is not configured
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ _target_host_ip }} {{ librenms_hostname }}.home"
+        state: present
+      when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

@@ -29,7 +29,7 @@ services:
       - db
       - redis
     ports:
-      - "127.0.0.1:{{ paperless_port }}:8000"
+      - "{{ paperless_bind_address }}:{{ paperless_port }}:8000"
     volumes:
       - paperless-data:/usr/src/paperless/data
 {% if paperless_document_path | length > 0 %}
@@ -44,6 +44,9 @@ services:
       PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
       PAPERLESS_ADMIN_USER: "{{ paperless_admin_user }}"
       PAPERLESS_ADMIN_PASSWORD: "{{ paperless_admin_password }}"
+{% if paperless_public_url | length > 0 %}
+      PAPERLESS_URL: "{{ paperless_public_url }}"
+{% endif %}
     networks:
       - paperless-net
 

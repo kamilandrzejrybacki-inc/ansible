@@ -10,6 +10,21 @@
 #     --ask-become-pass
 # =============================================================================
 
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
 - name: Gather host details
   hosts: localhost
   connection: local
@@ -36,6 +51,13 @@
         groups: stirling_hosts
         ansible_user: "{{ target_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
+        stirling_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
+        stirling_public_url: >-
+          {{
+            'https://' + stirling_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
 
 - name: Install Docker and deploy Stirling-PDF
   hosts: stirling_hosts
@@ -43,3 +65,78 @@
   roles:
     - docker
     - stirling
+
+- name: Integrate Stirling-PDF with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Stirling-PDF
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ stirling_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _stirling_cf_dns
+          changed_when: _stirling_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Stirling-PDF to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} STIRLING"
+            unsafe_writes: true
+            block: |
+              http://{{ stirling_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://{{ _target_host_ip }}:{{ stirling_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for Stirling-PDF
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ stirling_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ stirling_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add Stirling-PDF to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} STIRLING"
+            insertafter: "- Applications:"
+            unsafe_writes: true
+            block: |2
+                  - Stirling-PDF:
+                      icon: stirling-pdf.png
+                      href: "https://{{ stirling_hostname }}.{{ saved_domain }}"
+                      description: "PDF toolkit"
+
+    - name: Add /etc/hosts fallback when secure homelab is not configured
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ _target_host_ip }} {{ stirling_hostname }}.home"
+        state: present
+      when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

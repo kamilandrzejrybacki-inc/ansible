@@ -27,3 +27,5 @@ alert_disk_threshold: 85
 #     container_name: n8n
 #
 monitored_services: []
+ha_hostname: "ha"
+ha_public_url: ""

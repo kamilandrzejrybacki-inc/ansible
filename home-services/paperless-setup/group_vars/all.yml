@@ -9,3 +9,6 @@ paperless_postgres_image: "postgres:16.6"
 paperless_restart_policy: unless-stopped
 paperless_health_check_retries: 20
 paperless_health_check_delay: 10
+paperless_hostname: "paperless"
+paperless_bind_address: "127.0.0.1"
+paperless_public_url: ""

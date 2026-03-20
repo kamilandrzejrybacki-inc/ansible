@@ -47,9 +47,10 @@
   changed_when: true
 
 - name: Configure discovery networks
-  ansible.builtin.command: >
-    docker exec librenms_app lnms config:set discovery_networks
-    '["{{ librenms_discovery_networks.split(",") | join('\'", "\'') }}"]'
+  ansible.builtin.shell: |
+    networks=$(echo "{{ librenms_discovery_networks }}" | python3 -c \
+      "import sys,json; nets=[n.strip() for n in sys.stdin.read().split(',')]; print(json.dumps(nets))")
+    docker exec librenms_app lnms config:set nets "$networks"
   changed_when: true
 
 - name: Trigger initial network discovery

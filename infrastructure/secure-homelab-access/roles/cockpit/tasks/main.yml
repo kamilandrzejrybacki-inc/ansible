@@ -5,13 +5,26 @@
     state: present
     update_cache: true
 
-- name: Configure Cockpit to allow unencrypted connections (behind Caddy TLS)
+- name: Ensure hostname is resolvable (prevents sudo warnings)
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^127\\.0\\.1\\.1\\s"
+    line: "127.0.1.1 {{ ansible_hostname }}"
+    state: present
+
+- name: Switch sudo to classic implementation (sudo-rs lacks flags Cockpit needs)
+  ansible.builtin.alternatives:
+    name: sudo
+    path: /usr/bin/sudo.ws
+
+- name: Configure Cockpit for reverse proxy operation
   ansible.builtin.copy:
     dest: /etc/cockpit/cockpit.conf
     content: |
       [WebService]
       AllowUnencrypted={{ cockpit_allow_unencrypted | lower }}
-      Origins=https://cockpit.{{ domain }}
+      Origins=https://{{ subdomain_cockpit }}.{{ domain }}
+      ProtocolHeader=X-Forwarded-Proto
     mode: "0644"
   notify: restart cockpit
 
@@ -20,3 +33,14 @@
     name: cockpit.socket
     state: started
     enabled: true
+
+- name: Allow Cockpit access from Docker network
+  community.general.ufw:
+    rule: allow
+    interface_in: "{{ item }}"
+    to_port: "{{ cockpit_port }}"
+    proto: tcp
+    comment: "Cockpit from Docker (Caddy reverse proxy)"
+  loop:
+    - docker0
+    - "br-{{ docker_network_id }}"

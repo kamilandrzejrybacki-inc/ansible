@@ -1,15 +1,12 @@
 ---
 - name: reload caddy
-  block:
-    - name: Wait for Caddy container to be running
-      community.docker.docker_container_info:
-        name: "{{ caddy_container_name }}"
-      register: _caddy_info
-      until: _caddy_info.container.State.Running | default(false)
-      retries: 15
-      delay: 2
-
-    - name: Reload Caddy config
-      community.docker.docker_container_exec:
-        container: "{{ caddy_container_name }}"
-        command: caddy reload --config /etc/caddy/Caddyfile
+  ansible.builtin.shell: |
+    for i in $(seq 1 15); do
+      status=$(docker inspect --format='{{ "{{" }}.State.Running{{ "}}" }}' {{ caddy_container_name }} 2>/dev/null)
+      [ "$status" = "true" ] && break
+      sleep 2
+    done
+    caddy_pid=$(docker inspect --format='{{ "{{" }}.State.Pid{{ "}}" }}' {{ caddy_container_name }})
+    tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < {{ caddy_data_dir }}/Caddyfile > /dev/null
+    docker exec {{ caddy_container_name }} caddy reload --config /etc/caddy/Caddyfile
+  changed_when: true

@@ -6,3 +6,6 @@ kuma_volume_name: kuma_data
 kuma_restart_policy: unless-stopped
 kuma_health_check_retries: 12
 kuma_health_check_delay: 5
+kuma_hostname: "kuma"
+kuma_bind_address: "127.0.0.1"
+kuma_public_url: ""

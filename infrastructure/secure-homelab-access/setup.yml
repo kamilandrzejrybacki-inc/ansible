@@ -62,6 +62,7 @@
       loop:
         - { num: "1/11", value: "{{ target_host_ip }}" }
         - { num: "2/11", value: "{{ target_ssh_user }}" }
+      tags: [always]
 
     - name: Add target host to dynamic inventory
       ansible.builtin.add_host:
@@ -72,6 +73,7 @@
         ansible_connection: "{{ 'local' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else 'ssh' }}"
         _saved_target_host: "{{ target_host_ip }}"
         _saved_ssh_user: "{{ target_ssh_user }}"
+      tags: [always]
 
 - name: Secure Homelab Remote Access Setup
   hosts: homelab
@@ -174,6 +176,7 @@
         - { num: "7/12",  value: "{{ prompt_wireguard_password }}" }
         - { num: "9/12",  value: "{{ prompt_authelia_password }}" }
         - { num: "11/12", value: "{{ prompt_pihole_password }}" }
+      tags: [always]
 
     - name: Set prompted values as facts
       ansible.builtin.set_fact:
@@ -189,30 +192,13 @@
         cf_tunnel_name: "{{ prompt_cf_tunnel_name }}"
         cf_tunnel_id: "{{ prompt_cf_tunnel_id }}"
       no_log: true
+      tags: [always]
 
     - name: Set Authelia password hash
       ansible.builtin.set_fact:
         authelia_default_password_hash: "{{ prompt_authelia_password | password_hash('bcrypt') }}"
       no_log: true
-
-    - name: Generate Authelia secrets
-      ansible.builtin.shell: |
-        python3 -c "
-        import secrets, string
-        chars = string.ascii_letters + string.digits
-        for _ in range(3):
-            print(''.join(secrets.choice(chars) for _ in range(64)))
-        "
-      register: _authelia_secrets_raw
-      changed_when: false
-      no_log: true
-
-    - name: Set Authelia secrets as facts
-      ansible.builtin.set_fact:
-        authelia_jwt_secret: "{{ _authelia_secrets_raw.stdout_lines[0] }}"
-        authelia_session_secret: "{{ _authelia_secrets_raw.stdout_lines[1] }}"
-        authelia_storage_encryption_key: "{{ _authelia_secrets_raw.stdout_lines[2] }}"
-      no_log: true
+      tags: [always]
 
     - name: Ensure Authelia secrets directory exists
       ansible.builtin.file:
@@ -221,8 +207,29 @@
         mode: "0700"
         owner: root
         group: root
+      tags: [always]
 
-    - name: Write Authelia secrets to final location
+    - name: Check if Authelia secrets already exist
+      ansible.builtin.stat:
+        path: "{{ authelia_data_dir }}/secrets/storage_encryption_key"
+      register: _authelia_secrets_stat
+      tags: [always]
+
+    - name: Generate Authelia secrets (first run only)
+      ansible.builtin.shell: |
+        python3 -c "
+        import secrets, string
+        chars = string.ascii_letters + string.digits
+        for _ in range(3):
+            print(''.join(secrets.choice(chars) for _ in range(64)))
+        "
+      register: _authelia_secrets_raw
+      changed_when: true
+      no_log: true
+      when: not _authelia_secrets_stat.stat.exists
+      tags: [always]
+
+    - name: Write Authelia secrets to final location (first run only)
       ansible.builtin.copy:
         content: "{{ item.value }}"
         dest: "{{ authelia_data_dir }}/secrets/{{ item.key }}"
@@ -230,10 +237,31 @@
         group: root
         mode: "0600"
       loop:
-        - { key: jwt_secret,              value: "{{ authelia_jwt_secret }}" }
-        - { key: session_secret,          value: "{{ authelia_session_secret }}" }
-        - { key: storage_encryption_key,  value: "{{ authelia_storage_encryption_key }}" }
+        - { key: jwt_secret,              value: "{{ _authelia_secrets_raw.stdout_lines[0] }}" }
+        - { key: session_secret,          value: "{{ _authelia_secrets_raw.stdout_lines[1] }}" }
+        - { key: storage_encryption_key,  value: "{{ _authelia_secrets_raw.stdout_lines[2] }}" }
       no_log: true
+      when: not _authelia_secrets_stat.stat.exists
+      tags: [always]
+
+    - name: Load existing Authelia secrets
+      ansible.builtin.slurp:
+        src: "{{ authelia_data_dir }}/secrets/{{ item }}"
+      register: _authelia_secrets_slurp
+      loop:
+        - jwt_secret
+        - session_secret
+        - storage_encryption_key
+      no_log: true
+      tags: [always]
+
+    - name: Set Authelia secrets as facts
+      ansible.builtin.set_fact:
+        authelia_jwt_secret: "{{ _authelia_secrets_slurp.results[0].content | b64decode | trim }}"
+        authelia_session_secret: "{{ _authelia_secrets_slurp.results[1].content | b64decode | trim }}"
+        authelia_storage_encryption_key: "{{ _authelia_secrets_slurp.results[2].content | b64decode | trim }}"
+      no_log: true
+      tags: [always]
 
     - name: Save credentials to file
       ansible.builtin.copy:
@@ -259,6 +287,7 @@
         mode: "0600"
       no_log: true
       become: false
+      tags: [always]
 
     - name: Save setup vars for future runs
       ansible.builtin.copy:
@@ -284,6 +313,7 @@
         mode: "0600"
       no_log: true
       become: false
+      tags: [always]
 
     - name: Update firewall ports from prompted SSH port
       ansible.builtin.set_fact:
@@ -294,6 +324,7 @@
         firewall_allowed_udp_ports:
           - "{{ wireguard_port }}"
           - "53"
+      tags: [always]
 
     - name: Display deployment summary
       ansible.builtin.debug:
@@ -323,10 +354,12 @@
             Cloudflare:   {{ 'enabled (DNS-01 TLS + DDoS protection)' if cloudflare_api_token | default('') else 'disabled (no token provided)' }}
             CF Tunnel:    {{ 'enabled → ' + cf_tunnel_name if cf_tunnel_name | default('') else 'disabled (direct port forwarding)' }}
           ══════════════════════════════════════════════
+      tags: [always]
 
     - name: Confirm deployment
       ansible.builtin.pause:
         prompt: "Press ENTER to deploy, or Ctrl+C to abort"
+      tags: [always]
 
   roles:
     - role: firewall

@@ -38,7 +38,7 @@
       ADMIN_TOKEN: "{{ _vw_hashed_token }}"
       ROCKET_PORT: "80"
     published_ports:
-      - "127.0.0.1:{{ vaultwarden_port }}:80"
+      - "{{ vaultwarden_bind_address }}:{{ vaultwarden_port }}:80"
     volumes:
       - "{{ vaultwarden_data_dir }}:/data"
   no_log: true

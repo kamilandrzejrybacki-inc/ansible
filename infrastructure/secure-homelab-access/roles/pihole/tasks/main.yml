@@ -56,3 +56,9 @@
   until: pihole_health is not failed
   retries: "{{ pihole_health_check_retries }}"
   delay: "{{ pihole_health_check_delay }}"
+
+- name: Remove Pi-hole web password (Authelia handles access control)
+  community.docker.docker_container_exec:
+    container: "{{ pihole_container_name }}"
+    command: pihole -a -p ""
+  changed_when: false

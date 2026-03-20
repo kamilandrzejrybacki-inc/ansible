@@ -20,17 +20,17 @@
   ansible.builtin.file:
     path: "{{ cloudflared_config_dir }}"
     state: directory
-    mode: "0700"
-    owner: root
-    group: root
+    mode: "0750"
+    owner: "{{ cloudflared_service_user }}"
+    group: "{{ cloudflared_service_user }}"
 
 - name: Ensure cloudflared credentials directory exists
   ansible.builtin.file:
     path: "{{ cloudflared_credentials_dir }}"
     state: directory
     mode: "0700"
-    owner: root
-    group: root
+    owner: "{{ cloudflared_service_user }}"
+    group: "{{ cloudflared_service_user }}"
 
 # ---------------------------------------------------------------------------
 # Browser auth step — only needed once, skipped if cert already present
@@ -148,8 +148,8 @@
     src: config.yml.j2
     dest: "{{ cloudflared_config_dir }}/config.yml"
     mode: "0600"
-    owner: root
-    group: root
+    owner: "{{ cloudflared_service_user }}"
+    group: "{{ cloudflared_service_user }}"
   notify: restart cloudflared
 
 - name: Deploy systemd service unit

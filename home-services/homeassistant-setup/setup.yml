@@ -1,5 +1,21 @@
 ---
-# Play 1: Gather connection details and build dynamic inventory
+# Play 1: Load saved homelab configuration (if available)
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+# Play 2: Gather connection details and build dynamic inventory
 - name: Gather connection details
   hosts: localhost
   connection: local
@@ -58,8 +74,14 @@
         ha_port: "{{ ha_port_input }}"
         alert_webhook_url: "{{ webhook_url }}"
         monitored_services: "{{ dynamic_services }}"
+        ha_public_url: >-
+          {{
+            'https://' + ha_hostname + '.' + hostvars['localhost']['saved_domain']
+            if hostvars['localhost']['_homelab_vars_stat'].stat.exists
+            else ''
+          }}
 
-# Play 2: Install Docker and deploy Home Assistant
+# Play 3: Install Docker and deploy Home Assistant
 - name: Deploy Home Assistant
   hosts: ha_hosts
   become: true
@@ -67,14 +89,14 @@
     - docker
     - homeassistant
 
-# Play 3: Install HACS (Home Assistant Community Store)
+# Play 4: Install HACS (Home Assistant Community Store)
 - name: Install HACS
   hosts: ha_hosts
   become: true
   roles:
     - hacs
 
-# Play 4: Configure monitoring, dashboards, and alerts
+# Play 5: Configure monitoring, dashboards, and alerts
 - name: Configure monitoring and alerts
   hosts: ha_hosts
   become: true
@@ -82,3 +104,78 @@
     - monitoring
     - dashboard
     - alerts
+
+# Play 6: Integrate with secure homelab
+- name: Integrate Home Assistant with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['ha_host_ip'] }}"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Home Assistant
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ ha_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _ha_cf_dns
+          changed_when: _ha_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Home Assistant to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} HOMEASSISTANT"
+            unsafe_writes: true
+            block: |
+              http://{{ ha_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                reverse_proxy http://{{ _target_host_ip }}:{{ ha_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for Home Assistant
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ ha_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ ha_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add Home Assistant to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} HOMEASSISTANT"
+            insertafter: "- Applications:"
+            unsafe_writes: true
+            block: |2
+                  - Home Assistant:
+                      icon: home-assistant.png
+                      href: "https://{{ ha_hostname }}.{{ saved_domain }}"
+                      description: "Home automation"
+
+    - name: Add /etc/hosts fallback when secure homelab is not configured
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ _target_host_ip }} {{ ha_hostname }}.home"
+        state: present
+      when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

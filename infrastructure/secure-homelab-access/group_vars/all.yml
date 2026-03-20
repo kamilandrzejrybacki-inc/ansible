@@ -45,7 +45,10 @@ homepage_data_dir: "{{ docker_data_dir }}/homepage"
 pihole_container_name: "pihole"
 pihole_image: "pihole/pihole:2024.07.0"
 pihole_data_dir: "{{ docker_data_dir }}/pihole"
-pihole_web_port: 8053
+pihole_web_port: 8053          # host-mapped port
+pihole_internal_port: 80       # container-internal port (used by Caddy reverse proxy)
+docker_gateway_ip: "172.20.0.1"  # host IP as seen from Docker containers
+docker_network_id: "97ac221017ba"  # first 12 chars of homelab-net ID (for UFW bridge interface)
 pihole_dns_ip: "172.20.0.10"
 pihole_health_check_retries: 12
 pihole_health_check_delay: 5

@@ -16,9 +16,9 @@
     claude mcp add
     --transport http
     -s {{ mcp_scope }}
-    --header "Authorization: Bearer {{ n8n_mcp_token }}"
     {{ mcp_server_name }}
     http://{{ n8n_host_ip }}:{{ n8n_port }}/mcp-server/http
+    --header "Authorization: Bearer {{ n8n_mcp_token }}"
   no_log: true
   when:
     - mcp_server_name not in (existing_mcp.stdout | default(''))

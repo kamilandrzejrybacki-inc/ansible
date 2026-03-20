@@ -6,3 +6,6 @@ vaultwarden_data_dir: /opt/vaultwarden
 vaultwarden_restart_policy: unless-stopped
 vaultwarden_health_check_retries: 12
 vaultwarden_health_check_delay: 5
+vaultwarden_hostname: "vault"
+vaultwarden_bind_address: "127.0.0.1"
+vaultwarden_public_url: ""

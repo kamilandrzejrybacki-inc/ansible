@@ -1,11 +1,19 @@
 {
+{% if not cf_tunnel_name | default('') %}
 	email {{ caddy_email }}
+{% endif %}
 
 	crowdsec {
 		api_url http://{{ crowdsec_container_name }}:{{ crowdsec_lapi_port }}
 		api_key {$CROWDSEC_API_KEY}
 		ticker_interval 15s
 	}
+
+{% if cf_tunnel_name | default('') %}
+	servers {
+		trusted_proxies static private_ranges
+	}
+{% endif %}
 }
 
 # -- Snippets -----------------------------------------------------------------
@@ -36,40 +44,53 @@
 {% endif %}
 
 # -- Services -----------------------------------------------------------------
+# When a Cloudflare Tunnel is active, Cloudflare terminates TLS at the edge
+# and sends plain HTTP to localhost:80. Use http:// prefix so Caddy does not
+# attempt ACME and serves plain HTTP instead of redirecting to HTTPS.
+{% if cf_tunnel_name | default('') %}
+{% set _scheme = 'http://' %}
+{% else %}
+{% set _scheme = '' %}
+{% endif %}
 
 # Authelia portal
-{{ subdomain_auth }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_auth }}.{{ domain }} {
 	import rate_limit
-{% if cloudflare_api_token | default('') %}
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
 	reverse_proxy {{ authelia_container_name }}:9091
 }
 
 # Homepage dashboard
-{{ subdomain_home }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_home }}.{{ domain }} {
 	import rate_limit
-{% if cloudflare_api_token | default('') %}
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
 	import authelia
 	reverse_proxy {{ homepage_container_name }}:3000
 }
 
-# Cockpit system management + terminal
-{{ subdomain_cockpit }}.{{ domain }} {
+# Cockpit system management + terminal (no Authelia — Cockpit uses Linux PAM)
+{{ _scheme }}{{ subdomain_cockpit }}.{{ domain }} {
 	import rate_limit
-{% if cloudflare_api_token | default('') %}
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	import authelia
-	reverse_proxy localhost:{{ cockpit_port }}
+	reverse_proxy https://{{ docker_gateway_ip }}:{{ cockpit_port }} {
+		transport http {
+			tls_insecure_skip_verify
+		}
+		header_up Host {upstream_hostport}
+		header_down -WWW-Authenticate
+	}
 }
 
 # WireGuard admin UI
-{{ subdomain_wireguard }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_wireguard }}.{{ domain }} {
 	import rate_limit
-{% if cloudflare_api_token | default('') %}
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
 	import authelia
@@ -77,11 +98,12 @@
 }
 
 # Pi-hole DNS dashboard
-{{ subdomain_pihole }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_pihole }}.{{ domain }} {
 	import rate_limit
-{% if cloudflare_api_token | default('') %}
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy {{ pihole_container_name }}:{{ pihole_web_port }}
+	redir / /admin/ 302
+	reverse_proxy {{ pihole_container_name }}:{{ pihole_internal_port }}
 }

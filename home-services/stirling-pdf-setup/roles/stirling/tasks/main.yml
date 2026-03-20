@@ -21,7 +21,7 @@
     state: started
     restart_policy: "{{ stirling_restart_policy }}"
     published_ports:
-      - "127.0.0.1:{{ stirling_port }}:8080"
+      - "{{ stirling_bind_address }}:{{ stirling_port }}:8080"
     volumes:
       - "{{ stirling_data_dir }}/configs:/configs"
       - "{{ stirling_data_dir }}/logs:/logs"

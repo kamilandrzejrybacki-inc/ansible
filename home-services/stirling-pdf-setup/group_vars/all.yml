@@ -6,3 +6,6 @@ stirling_data_dir: /opt/stirling-pdf
 stirling_restart_policy: unless-stopped
 stirling_health_check_retries: 12
 stirling_health_check_delay: 5
+stirling_hostname: "pdf"
+stirling_bind_address: "127.0.0.1"
+stirling_public_url: ""

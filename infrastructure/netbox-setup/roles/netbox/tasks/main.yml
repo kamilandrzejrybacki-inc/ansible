@@ -47,6 +47,17 @@
   delegate_to: localhost
   become: false
 
+- name: Write .env file with sensitive credentials
+  ansible.builtin.copy:
+    dest: "{{ netbox_data_dir }}/.env"
+    content: |
+      NETBOX_SUPERUSER_PASSWORD={{ netbox_admin_password }}
+      NETBOX_API_TOKEN={{ netbox_api_token }}
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
 - name: Template Docker Compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2

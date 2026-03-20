@@ -52,18 +52,16 @@
       private: false
 
     - name: netbox_admin_email
-      prompt: "[4/4] Admin email"
+      prompt: "[4/5] Admin email"
       default: "admin@localhost"
       private: false
 
-  tasks:
-    - name: Prompt for admin password
-      ansible.builtin.pause:
-        prompt: "Admin password"
-        echo: false
-      register: _netbox_admin_password_pause
-      no_log: true
+    - name: netbox_admin_password
+      prompt: "[5/5] Admin password"
+      private: true
+      confirm: true
 
+  tasks:
     - name: Add target host to dynamic inventory
       ansible.builtin.add_host:
         name: "{{ target_host_ip }}"
@@ -72,8 +70,9 @@
         ansible_python_interpreter: /usr/bin/python3
         netbox_admin_user: "{{ netbox_admin_user }}"
         netbox_admin_email: "{{ netbox_admin_email }}"
-        netbox_admin_password: "{{ _netbox_admin_password_pause.user_input }}"
+        netbox_admin_password: "{{ netbox_admin_password }}"
         netbox_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
+        saved_domain: "{{ hostvars['localhost']['saved_domain'] | default('') }}"
         netbox_public_url: >-
           {{
             'https://' + netbox_hostname + '.' + hostvars['localhost']['saved_domain']

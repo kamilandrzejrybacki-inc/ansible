@@ -2,7 +2,7 @@
 netbox_image: "netboxcommunity/netbox:v4.2-3.0.2"
 netbox_postgres_image: "postgres:16-alpine"
 netbox_redis_image: "valkey/valkey:8.0-alpine"
-netbox_port: 8080
+netbox_port: 8081
 netbox_data_dir: /opt/netbox
 netbox_container_name: netbox
 netbox_hostname: "netbox"

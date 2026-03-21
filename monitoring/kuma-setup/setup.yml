@@ -1,12 +1,12 @@
 ---
 # =============================================================================
-# Stirling-PDF Setup
+# Uptime Kuma Setup
 # =============================================================================
-# Deploys Stirling-PDF document toolkit on a remote host via Docker.
+# Deploys Uptime Kuma monitoring on a remote host via Docker.
 #
 # Usage:
-#   ansible-playbook home-services/stirling-pdf-setup/setup.yml \
-#     -i home-services/stirling-pdf-setup/inventory/hosts.ini \
+#   ansible-playbook monitoring/kuma-setup/setup.yml \
+#     -i monitoring/kuma-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 
@@ -34,7 +34,7 @@
       prompt: |
 
         ══════════════════════════════════════════════
-          Stirling-PDF Setup Wizard
+          Uptime Kuma Setup Wizard
         ══════════════════════════════════════════════
 
         [1/2] IP or hostname of the target machine
@@ -48,25 +48,25 @@
     - name: Add target host to dynamic inventory
       ansible.builtin.add_host:
         name: "{{ target_host_ip }}"
-        groups: stirling_hosts
+        groups: kuma_hosts
         ansible_user: "{{ target_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
-        stirling_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
-        stirling_public_url: >-
+        kuma_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
+        kuma_public_url: >-
           {{
-            'https://' + stirling_hostname + '.' + hostvars['localhost']['saved_domain']
+            'https://' + kuma_hostname + '.' + hostvars['localhost']['saved_domain']
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
 
-- name: Install Docker and deploy Stirling-PDF
-  hosts: stirling_hosts
+- name: Install Docker and deploy Uptime Kuma
+  hosts: kuma_hosts
   become: true
   roles:
     - docker
-    - stirling
+    - kuma
 
-- name: Integrate Stirling-PDF with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+- name: Integrate Uptime Kuma with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
   hosts: localhost
   connection: local
   become: true
@@ -77,35 +77,35 @@
     - name: Integrate when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
       block:
-        - name: Add Cloudflare Tunnel DNS route for Stirling-PDF
+        - name: Add Cloudflare Tunnel DNS route for Uptime Kuma
           ansible.builtin.command: >
             cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
-            {{ stirling_hostname }}.{{ saved_domain }}
+            {{ kuma_hostname }}.{{ saved_domain }}
           environment:
             TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
-          register: _stirling_cf_dns
-          changed_when: _stirling_cf_dns.rc == 0
+          register: _kuma_cf_dns
+          changed_when: _kuma_cf_dns.rc == 0
           failed_when: false
           become: false
 
-        - name: Add Stirling-PDF to Caddy config
+        - name: Add Uptime Kuma to Caddy config
           ansible.builtin.blockinfile:
             path: /opt/homelab/caddy/Caddyfile
-            marker: "# {mark} STIRLING"
+            marker: "# {mark} KUMA"
             unsafe_writes: true
             block: |
-              http://{{ stirling_hostname }}.{{ saved_domain }} {
+              http://{{ kuma_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ stirling_port }}
+                reverse_proxy http://{{ _target_host_ip }}:{{ kuma_port }}
               }
           notify: reload caddy
 
-        - name: Add Pi-hole local DNS record for Stirling-PDF
+        - name: Add Pi-hole local DNS record for Uptime Kuma
           ansible.builtin.command: >
             docker exec pihole sh -c
-            'grep -qF "{{ stirling_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
-             (echo "{{ ansible_default_ipv4.address }} {{ stirling_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+            'grep -qF "{{ kuma_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ kuma_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
           register: _pihole_dns
           changed_when: "'CHANGED' in _pihole_dns.stdout"
 
@@ -114,22 +114,22 @@
           changed_when: true
           when: _pihole_dns.changed
 
-        - name: Add Stirling-PDF to Homepage services
+        - name: Add Uptime Kuma to Homepage services
           ansible.builtin.blockinfile:
             path: /opt/homelab/homepage/services.yaml
-            marker: "    # {mark} STIRLING"
-            insertafter: "- Applications:"
+            marker: "    # {mark} KUMA"
+            insertafter: "- Infrastructure:"
             unsafe_writes: true
             block: |2
-                  - Stirling-PDF:
-                      icon: stirling-pdf.png
-                      href: "https://{{ stirling_hostname }}.{{ saved_domain }}"
-                      description: "PDF toolkit"
+                  - Uptime Kuma:
+                      icon: uptime-kuma.png
+                      href: "https://{{ kuma_hostname }}.{{ saved_domain }}"
+                      description: "Service uptime monitoring"
 
     - name: Add /etc/hosts fallback when secure homelab is not configured
       ansible.builtin.lineinfile:
         path: /etc/hosts
-        line: "{{ _target_host_ip }} {{ stirling_hostname }}.home"
+        line: "{{ _target_host_ip }} {{ kuma_hostname }}.home"
         state: present
       when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
 

@@ -3,7 +3,7 @@
 # Deploys the SWE-AF autonomous engineering runtime via Docker Compose.
 #
 # Usage:
-#   ansible-playbook dev-tools/swe-af-setup/setup.yml
+#   ansible-playbook ai/swe-af-setup/setup.yml
 
 # Play 0: Check Vault
 - name: Check Vault availability

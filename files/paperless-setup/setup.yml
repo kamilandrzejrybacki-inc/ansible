@@ -5,8 +5,8 @@
 # Deploys Paperless-ngx document management on a remote host via Docker Compose.
 #
 # Usage:
-#   ansible-playbook home-services/paperless-setup/setup.yml \
-#     -i home-services/paperless-setup/inventory/hosts.ini \
+#   ansible-playbook files/paperless-setup/setup.yml \
+#     -i files/paperless-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 

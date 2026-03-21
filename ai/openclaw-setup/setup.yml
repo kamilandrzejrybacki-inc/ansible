@@ -7,7 +7,7 @@
 #            DeepSeek (paid), Ollama (local, optional)
 #
 # Usage:
-#   ansible-playbook home-services/openclaw-setup/setup.yml
+#   ansible-playbook ai/openclaw-setup/setup.yml
 
 # Play 1: Load saved homelab configuration (if available)
 - name: Load saved homelab configuration (if available)

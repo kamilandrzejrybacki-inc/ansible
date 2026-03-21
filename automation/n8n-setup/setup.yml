@@ -1,15 +1,16 @@
 ---
 # =============================================================================
-# Netbox Setup
+# n8n Setup
 # =============================================================================
-# Deploys Netbox (infrastructure documentation & IPAM) on a remote host
-# via Docker Compose, and optionally integrates with the secure homelab stack
-# (Cloudflare Tunnel + Caddy + Pi-hole + Homepage).
+# Deploys n8n workflow automation on a remote host via Docker.
 #
 # Usage:
-#   ansible-playbook infrastructure/netbox-setup/setup.yml \
-#     -i infrastructure/netbox-setup/inventory/hosts.ini \
+#   ansible-playbook automation/n8n-setup/setup.yml \
+#     -i automation/n8n-setup/inventory/hosts.ini \
 #     --ask-become-pass
+#
+# After deployment, retrieve the MCP Access Token from the n8n UI
+# and run the claude-n8n-mcp playbook to connect Claude Code.
 # =============================================================================
 
 - name: Load saved homelab configuration (if available)
@@ -33,65 +34,64 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "netbox"
+        vault_service_name: "n8n"
       when: _vault_available | bool
 
-- name: Gather host details
+- name: Gather n8n host details
   hosts: localhost
   connection: local
   gather_facts: false
   vars_prompt:
-    - name: target_host_ip
+    - name: n8n_host_ip
       prompt: |
 
         ══════════════════════════════════════════════
-          Netbox Setup Wizard
+          n8n Setup Wizard
         ══════════════════════════════════════════════
 
-        [1/4] IP or hostname of the target machine
+        [1/5] IP or hostname of the n8n host machine
       private: false
 
-    - name: target_ssh_user
-      prompt: "[2/4] SSH user for the target machine"
+    - name: n8n_ssh_user
+      prompt: "[2/5] SSH user for the n8n host"
       private: false
 
-    - name: netbox_admin_user
-      prompt: "[3/4] Admin username"
-      default: "admin"
+    - name: n8n_owner_email
+      prompt: "[3/5] Email for the n8n owner account"
       private: false
 
-    - name: netbox_admin_email
-      prompt: "[4/5] Admin email"
-      default: "admin@localhost"
-      private: false
-
-    - name: netbox_admin_password
-      prompt: "[5/5] Admin password"
-      default: "{{ hostvars['localhost']['_vault_secrets']['admin_password'] | default('') }}"
+    - name: n8n_owner_password
+      prompt: "[4/5] Password for the n8n owner account"
+      default: "{{ hostvars['localhost']['_vault_secrets']['owner_password'] | default('') }}"
       private: true
       confirm: true
 
+    - name: n8n_owner_first_name
+      prompt: "[5/5] First name for the n8n owner account"
+      default: "Admin"
+      private: false
+
   tasks:
-    - name: Add target host to dynamic inventory
+    - name: Add n8n host to dynamic inventory
       ansible.builtin.add_host:
-        name: "{{ target_host_ip }}"
-        groups: netbox_hosts
-        ansible_user: "{{ target_ssh_user }}"
+        name: "{{ n8n_host_ip }}"
+        groups: n8n_hosts
+        ansible_user: "{{ n8n_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
-        netbox_admin_user: "{{ netbox_admin_user }}"
-        netbox_admin_email: "{{ netbox_admin_email }}"
-        netbox_admin_password: "{{ netbox_admin_password }}"
-        netbox_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
-        saved_domain: "{{ hostvars['localhost']['saved_domain'] | default('') }}"
-        netbox_public_url: >-
+        n8n_owner_email: "{{ n8n_owner_email }}"
+        n8n_owner_password: "{{ n8n_owner_password }}"
+        n8n_owner_first_name: "{{ n8n_owner_first_name }}"
+        n8n_owner_last_name: "User"
+        n8n_bind_address: "{{ '127.0.0.1' if n8n_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
+        n8n_public_url: >-
           {{
-            'https://' + netbox_hostname + '.' + hostvars['localhost']['saved_domain']
+            'https://' + n8n_hostname + '.' + hostvars['localhost']['saved_domain']
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
       no_log: true
 
-- name: Store Netbox secrets to Vault
+- name: Store n8n secrets to Vault
   hosts: localhost
   connection: local
   gather_facts: false
@@ -99,60 +99,59 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "netbox"
+        vault_service_name: "n8n"
         vault_secrets_data:
-          admin_user: "{{ netbox_admin_user }}"
-          admin_email: "{{ netbox_admin_email }}"
-          admin_password: "{{ netbox_admin_password }}"
+          owner_email: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_email'] | default('') }}"
+          owner_password: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_password'] | default('') }}"
       when: _vault_available | default(false) | bool
 
-- name: Install Docker and deploy Netbox
-  hosts: netbox_hosts
+- name: Install Docker and deploy n8n
+  hosts: n8n_hosts
   become: true
   roles:
     - docker
-    - netbox
+    - n8n
 
-- name: Integrate Netbox with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+- name: Integrate n8n with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
   hosts: localhost
   connection: local
   become: true
   gather_facts: true
   vars:
-    _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
+    _n8n_host_ip: "{{ hostvars['localhost']['n8n_host_ip'] }}"
   tasks:
-    - name: Integrate when secure homelab is configured
+    - name: Integrate n8n when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
       block:
-        - name: Add Cloudflare Tunnel DNS route for Netbox
+        - name: Add Cloudflare Tunnel DNS route for n8n
           ansible.builtin.command: >
             cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
-            {{ netbox_hostname }}.{{ saved_domain }}
+            {{ n8n_hostname }}.{{ saved_domain }}
           environment:
             TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
-          register: _netbox_cf_dns
-          changed_when: _netbox_cf_dns.rc == 0
+          register: _n8n_cf_dns
+          changed_when: _n8n_cf_dns.rc == 0
           failed_when: false
           become: false
 
-        - name: Add Netbox to Caddy config
+        - name: Add n8n to Caddy config
           ansible.builtin.blockinfile:
             path: /opt/homelab/caddy/Caddyfile
-            marker: "# {mark} NETBOX"
+            marker: "# {mark} N8N"
             unsafe_writes: true
             block: |
-              http://{{ netbox_hostname }}.{{ saved_domain }} {
+              http://{{ n8n_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ netbox_port }}
+                reverse_proxy http://{{ _n8n_host_ip }}:{{ n8n_port }}
               }
           notify: reload caddy
 
-        - name: Add Pi-hole local DNS record for Netbox
+        - name: Add Pi-hole local DNS record for n8n
           ansible.builtin.command: >
             docker exec pihole sh -c
-            'grep -qF "{{ netbox_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
-             (echo "{{ ansible_default_ipv4.address }} {{ netbox_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+            'grep -qF "{{ n8n_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ n8n_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
           register: _pihole_dns
           changed_when: "'CHANGED' in _pihole_dns.stdout"
 
@@ -161,22 +160,22 @@
           changed_when: true
           when: _pihole_dns.changed
 
-        - name: Add Netbox to Homepage services
+        - name: Add n8n to Homepage services
           ansible.builtin.blockinfile:
             path: /opt/homelab/homepage/services.yaml
-            marker: "    # {mark} NETBOX"
-            insertafter: "- Infrastructure:"
+            marker: "    # {mark} N8N"
+            insertafter: "- Applications:"
             unsafe_writes: true
             block: |2
-                  - Netbox:
-                      icon: netbox.png
-                      href: "https://{{ netbox_hostname }}.{{ saved_domain }}"
-                      description: "Infrastructure documentation & IPAM"
+                  - n8n:
+                      icon: n8n.png
+                      href: "https://{{ n8n_hostname }}.{{ saved_domain }}"
+                      description: "Workflow automation"
 
     - name: Add /etc/hosts fallback when secure homelab is not configured
       ansible.builtin.lineinfile:
         path: /etc/hosts
-        line: "{{ _target_host_ip }} {{ netbox_hostname }}.home"
+        line: "{{ _n8n_host_ip }} {{ n8n_hostname }}.home"
         state: present
       when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
 

@@ -5,7 +5,7 @@
 # Connects Claude Code to an existing n8n instance via MCP.
 #
 # Prerequisites:
-#   - n8n already running (deploy with home-services/n8n-setup first)
+#   - n8n already running (deploy with automation/n8n-setup first)
 #   - MCP Access Token copied from n8n UI (Settings > Instance-level MCP)
 #   - Claude Code CLI installed on the client machine
 #

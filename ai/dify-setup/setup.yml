@@ -3,7 +3,7 @@
 # Deploys Dify – the open-source LLM application platform – via Docker Compose.
 #
 # Usage:
-#   ansible-playbook home-services/dify-setup/setup.yml
+#   ansible-playbook ai/dify-setup/setup.yml
 
 # Play 1: Load saved homelab configuration (if available)
 - name: Load saved homelab configuration (if available)

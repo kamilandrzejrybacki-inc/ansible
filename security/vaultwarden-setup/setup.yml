@@ -5,8 +5,8 @@
 # Deploys Vaultwarden (self-hosted Bitwarden) on a remote host via Docker.
 #
 # Usage:
-#   ansible-playbook home-services/vaultwarden-setup/setup.yml \
-#     -i home-services/vaultwarden-setup/inventory/hosts.ini \
+#   ansible-playbook security/vaultwarden-setup/setup.yml \
+#     -i security/vaultwarden-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 

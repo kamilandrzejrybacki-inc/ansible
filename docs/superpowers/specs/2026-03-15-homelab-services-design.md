@@ -7,10 +7,10 @@
 
 Add 4 new homelab service playbooks to the Ansible repository:
 
-1. **Pi-hole** — integrated as a new role in `infrastructure/secure-homelab-access`
-2. **Uptime Kuma** — standalone playbook at `home-services/kuma-setup/`
-3. **Vaultwarden** — standalone playbook at `home-services/vaultwarden-setup/`
-4. **Paperless-ngx** — standalone playbook at `home-services/paperless-setup/`
+1. **Pi-hole** — integrated as a new role in `security/secure-homelab-access`
+2. **Uptime Kuma** — standalone playbook at `monitoring/kuma-setup/`
+3. **Vaultwarden** — standalone playbook at `security/vaultwarden-setup/`
+4. **Paperless-ngx** — standalone playbook at `files/paperless-setup/`
 
 ## Design Decisions
 
@@ -22,7 +22,7 @@ Add 4 new homelab service playbooks to the Ansible repository:
 - All playbooks use interactive `vars_prompt` setup wizards consistent with existing playbooks.
 - All standalone playbooks follow the two-play pattern (Play 1 on localhost gathers prompts and builds dynamic inventory via `add_host`, Play 2 deploys to the remote host) — matching the `n8n-setup` pattern.
 
-## 1. Pi-hole — `infrastructure/secure-homelab-access`
+## 1. Pi-hole — `security/secure-homelab-access`
 
 ### New role: `pihole`
 
@@ -96,11 +96,11 @@ roles:
 
 **Dependencies:** `docker` role (already in the playbook)
 
-## 2. Uptime Kuma — `home-services/kuma-setup/`
+## 2. Uptime Kuma — `monitoring/kuma-setup/`
 
 ### Structure
 ```
-home-services/kuma-setup/
+monitoring/kuma-setup/
 ├── setup.yml
 ├── inventory/hosts.ini
 ├── group_vars/all.yml
@@ -138,11 +138,11 @@ kuma_health_check_delay: 5
 
 **Note:** Uptime Kuma handles its own account setup via the web UI on first launch. No API-based account creation needed.
 
-## 3. Vaultwarden — `home-services/vaultwarden-setup/`
+## 3. Vaultwarden — `security/vaultwarden-setup/`
 
 ### Structure
 ```
-home-services/vaultwarden-setup/
+security/vaultwarden-setup/
 ├── setup.yml
 ├── inventory/hosts.ini
 ├── group_vars/all.yml
@@ -185,11 +185,11 @@ vaultwarden_health_check_delay: 5
 6. Health check: wait for web UI
 7. Display access URL and admin panel URL
 
-## 4. Paperless-ngx — `home-services/paperless-setup/`
+## 4. Paperless-ngx — `files/paperless-setup/`
 
 ### Structure
 ```
-home-services/paperless-setup/
+files/paperless-setup/
 ├── setup.yml
 ├── inventory/hosts.ini
 ├── group_vars/all.yml

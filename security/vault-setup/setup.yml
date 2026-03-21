@@ -6,7 +6,7 @@
 # and use it to load/store secrets instead of prompting or using plaintext files.
 #
 # Usage:
-#   ansible-playbook home-services/vault-setup/setup.yml
+#   ansible-playbook security/vault-setup/setup.yml
 
 # Play 1: Load saved homelab configuration (if available)
 - name: Load saved homelab configuration (if available)

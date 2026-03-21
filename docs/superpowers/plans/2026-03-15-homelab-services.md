@@ -4,7 +4,7 @@
 
 **Goal:** Add Pi-hole (integrated into secure-homelab-access), Uptime Kuma, Vaultwarden, and Paperless-ngx playbooks.
 
-**Architecture:** Pi-hole is a new role in the existing `infrastructure/secure-homelab-access` stack (Caddy + Authelia + WireGuard DNS integration). The other 3 are standalone playbooks under `home-services/` following the two-play pattern (localhost prompt → remote deploy via `add_host`).
+**Architecture:** Pi-hole is a new role in the existing `security/secure-homelab-access` stack (Caddy + Authelia + WireGuard DNS integration). The other 3 are standalone playbooks under `home-services/` following the two-play pattern (localhost prompt → remote deploy via `add_host`).
 
 **Tech Stack:** Ansible 2.10+, community.docker collection, Docker containers
 
@@ -17,11 +17,11 @@
 ### Task 1: Add Pi-hole group_vars and role skeleton
 
 **Files:**
-- Modify: `infrastructure/secure-homelab-access/group_vars/all.yml`
-- Create: `infrastructure/secure-homelab-access/roles/pihole/meta/main.yml`
-- Create: `infrastructure/secure-homelab-access/roles/pihole/defaults/main.yml`
-- Create: `infrastructure/secure-homelab-access/roles/pihole/handlers/main.yml`
-- Create: `infrastructure/secure-homelab-access/roles/pihole/tasks/main.yml`
+- Modify: `security/secure-homelab-access/group_vars/all.yml`
+- Create: `security/secure-homelab-access/roles/pihole/meta/main.yml`
+- Create: `security/secure-homelab-access/roles/pihole/defaults/main.yml`
+- Create: `security/secure-homelab-access/roles/pihole/handlers/main.yml`
+- Create: `security/secure-homelab-access/roles/pihole/tasks/main.yml`
 
 - [ ] **Step 1: Add Pi-hole vars to group_vars/all.yml**
 
@@ -148,17 +148,17 @@ pihole_upstream_dns: "1.1.1.1;1.0.0.1"
 - [ ] **Step 6: Commit**
 
 ```bash
-git add infrastructure/secure-homelab-access/group_vars/all.yml \
-      infrastructure/secure-homelab-access/roles/pihole/
+git add security/secure-homelab-access/group_vars/all.yml \
+      security/secure-homelab-access/roles/pihole/
 git commit -m "feat(secure-homelab-access): add pihole role and group_vars"
 ```
 
 ### Task 2: Integrate Pi-hole into setup.yml, Caddy, and Homepage
 
 **Files:**
-- Modify: `infrastructure/secure-homelab-access/setup.yml`
-- Modify: `infrastructure/secure-homelab-access/roles/caddy/templates/Caddyfile.j2`
-- Modify: `infrastructure/secure-homelab-access/roles/homepage/templates/services.yaml.j2`
+- Modify: `security/secure-homelab-access/setup.yml`
+- Modify: `security/secure-homelab-access/roles/caddy/templates/Caddyfile.j2`
+- Modify: `security/secure-homelab-access/roles/homepage/templates/services.yaml.j2`
 
 - [ ] **Step 1: Update setup.yml — renumber prompts [1/8]→[1/9] through [8/8]→[8/9], add [9/9] Pi-hole password prompt**
 
@@ -248,9 +248,9 @@ Add to the Infrastructure section:
 - [ ] **Step 8: Commit**
 
 ```bash
-git add infrastructure/secure-homelab-access/setup.yml \
-      infrastructure/secure-homelab-access/roles/caddy/templates/Caddyfile.j2 \
-      infrastructure/secure-homelab-access/roles/homepage/templates/services.yaml.j2
+git add security/secure-homelab-access/setup.yml \
+      security/secure-homelab-access/roles/caddy/templates/Caddyfile.j2 \
+      security/secure-homelab-access/roles/homepage/templates/services.yaml.j2
 git commit -m "feat(secure-homelab-access): integrate pihole with caddy, homepage, and wireguard DNS"
 ```
 
@@ -261,15 +261,15 @@ git commit -m "feat(secure-homelab-access): integrate pihole with caddy, homepag
 ### Task 3: Create kuma-setup playbook
 
 **Files:**
-- Create: `home-services/kuma-setup/inventory/hosts.ini`
-- Create: `home-services/kuma-setup/group_vars/all.yml`
-- Create: `home-services/kuma-setup/roles/docker/defaults/main.yml`
-- Create: `home-services/kuma-setup/roles/docker/meta/main.yml`
-- Create: `home-services/kuma-setup/roles/docker/tasks/main.yml`
-- Create: `home-services/kuma-setup/roles/kuma/defaults/main.yml`
-- Create: `home-services/kuma-setup/roles/kuma/meta/main.yml`
-- Create: `home-services/kuma-setup/roles/kuma/tasks/main.yml`
-- Create: `home-services/kuma-setup/setup.yml`
+- Create: `monitoring/kuma-setup/inventory/hosts.ini`
+- Create: `monitoring/kuma-setup/group_vars/all.yml`
+- Create: `monitoring/kuma-setup/roles/docker/defaults/main.yml`
+- Create: `monitoring/kuma-setup/roles/docker/meta/main.yml`
+- Create: `monitoring/kuma-setup/roles/docker/tasks/main.yml`
+- Create: `monitoring/kuma-setup/roles/kuma/defaults/main.yml`
+- Create: `monitoring/kuma-setup/roles/kuma/meta/main.yml`
+- Create: `monitoring/kuma-setup/roles/kuma/tasks/main.yml`
+- Create: `monitoring/kuma-setup/setup.yml`
 
 - [ ] **Step 1: Create inventory/hosts.ini**
 
@@ -293,7 +293,7 @@ kuma_health_check_delay: 5
 
 - [ ] **Step 3: Create docker role**
 
-Copy the docker role from `home-services/n8n-setup/roles/docker/` (defaults, meta, tasks — identical pattern).
+Copy the docker role from `automation/n8n-setup/roles/docker/` (defaults, meta, tasks — identical pattern).
 
 - [ ] **Step 4: Create roles/kuma/meta/main.yml**
 
@@ -373,8 +373,8 @@ dependencies:
 # Deploys Uptime Kuma monitoring on a remote host via Docker.
 #
 # Usage:
-#   ansible-playbook home-services/kuma-setup/setup.yml \
-#     -i home-services/kuma-setup/inventory/hosts.ini \
+#   ansible-playbook monitoring/kuma-setup/setup.yml \
+#     -i monitoring/kuma-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 
@@ -416,7 +416,7 @@ dependencies:
 - [ ] **Step 8: Commit**
 
 ```bash
-git add home-services/kuma-setup/
+git add monitoring/kuma-setup/
 git commit -m "feat: add kuma-setup playbook for Uptime Kuma monitoring"
 ```
 
@@ -427,15 +427,15 @@ git commit -m "feat: add kuma-setup playbook for Uptime Kuma monitoring"
 ### Task 4: Create vaultwarden-setup playbook
 
 **Files:**
-- Create: `home-services/vaultwarden-setup/inventory/hosts.ini`
-- Create: `home-services/vaultwarden-setup/group_vars/all.yml`
-- Create: `home-services/vaultwarden-setup/roles/docker/defaults/main.yml`
-- Create: `home-services/vaultwarden-setup/roles/docker/meta/main.yml`
-- Create: `home-services/vaultwarden-setup/roles/docker/tasks/main.yml`
-- Create: `home-services/vaultwarden-setup/roles/vaultwarden/defaults/main.yml`
-- Create: `home-services/vaultwarden-setup/roles/vaultwarden/meta/main.yml`
-- Create: `home-services/vaultwarden-setup/roles/vaultwarden/tasks/main.yml`
-- Create: `home-services/vaultwarden-setup/setup.yml`
+- Create: `security/vaultwarden-setup/inventory/hosts.ini`
+- Create: `security/vaultwarden-setup/group_vars/all.yml`
+- Create: `security/vaultwarden-setup/roles/docker/defaults/main.yml`
+- Create: `security/vaultwarden-setup/roles/docker/meta/main.yml`
+- Create: `security/vaultwarden-setup/roles/docker/tasks/main.yml`
+- Create: `security/vaultwarden-setup/roles/vaultwarden/defaults/main.yml`
+- Create: `security/vaultwarden-setup/roles/vaultwarden/meta/main.yml`
+- Create: `security/vaultwarden-setup/roles/vaultwarden/tasks/main.yml`
+- Create: `security/vaultwarden-setup/setup.yml`
 
 - [ ] **Step 1: Create inventory/hosts.ini**
 
@@ -459,7 +459,7 @@ vaultwarden_health_check_delay: 5
 
 - [ ] **Step 3: Create docker role**
 
-Copy the docker role from `home-services/n8n-setup/roles/docker/` (identical pattern).
+Copy the docker role from `automation/n8n-setup/roles/docker/` (identical pattern).
 
 - [ ] **Step 4: Create roles/vaultwarden/meta/main.yml**
 
@@ -560,8 +560,8 @@ dependencies:
 # Deploys Vaultwarden (self-hosted Bitwarden) on a remote host via Docker.
 #
 # Usage:
-#   ansible-playbook home-services/vaultwarden-setup/setup.yml \
-#     -i home-services/vaultwarden-setup/inventory/hosts.ini \
+#   ansible-playbook security/vaultwarden-setup/setup.yml \
+#     -i security/vaultwarden-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 
@@ -610,7 +610,7 @@ dependencies:
 - [ ] **Step 8: Commit**
 
 ```bash
-git add home-services/vaultwarden-setup/
+git add security/vaultwarden-setup/
 git commit -m "feat: add vaultwarden-setup playbook for self-hosted password manager"
 ```
 
@@ -621,16 +621,16 @@ git commit -m "feat: add vaultwarden-setup playbook for self-hosted password man
 ### Task 5: Create paperless-setup playbook
 
 **Files:**
-- Create: `home-services/paperless-setup/inventory/hosts.ini`
-- Create: `home-services/paperless-setup/group_vars/all.yml`
-- Create: `home-services/paperless-setup/roles/docker/defaults/main.yml`
-- Create: `home-services/paperless-setup/roles/docker/meta/main.yml`
-- Create: `home-services/paperless-setup/roles/docker/tasks/main.yml`
-- Create: `home-services/paperless-setup/roles/paperless/defaults/main.yml`
-- Create: `home-services/paperless-setup/roles/paperless/meta/main.yml`
-- Create: `home-services/paperless-setup/roles/paperless/tasks/main.yml`
-- Create: `home-services/paperless-setup/roles/paperless/templates/docker-compose.yml.j2`
-- Create: `home-services/paperless-setup/setup.yml`
+- Create: `files/paperless-setup/inventory/hosts.ini`
+- Create: `files/paperless-setup/group_vars/all.yml`
+- Create: `files/paperless-setup/roles/docker/defaults/main.yml`
+- Create: `files/paperless-setup/roles/docker/meta/main.yml`
+- Create: `files/paperless-setup/roles/docker/tasks/main.yml`
+- Create: `files/paperless-setup/roles/paperless/defaults/main.yml`
+- Create: `files/paperless-setup/roles/paperless/meta/main.yml`
+- Create: `files/paperless-setup/roles/paperless/tasks/main.yml`
+- Create: `files/paperless-setup/roles/paperless/templates/docker-compose.yml.j2`
+- Create: `files/paperless-setup/setup.yml`
 
 - [ ] **Step 1: Create inventory/hosts.ini**
 
@@ -657,7 +657,7 @@ paperless_health_check_delay: 10
 
 - [ ] **Step 3: Create docker role**
 
-Copy the docker role from `home-services/n8n-setup/roles/docker/` (identical pattern).
+Copy the docker role from `automation/n8n-setup/roles/docker/` (identical pattern).
 
 - [ ] **Step 4: Create roles/paperless/meta/main.yml**
 
@@ -819,8 +819,8 @@ networks:
 # Deploys Paperless-ngx document management on a remote host via Docker Compose.
 #
 # Usage:
-#   ansible-playbook home-services/paperless-setup/setup.yml \
-#     -i home-services/paperless-setup/inventory/hosts.ini \
+#   ansible-playbook files/paperless-setup/setup.yml \
+#     -i files/paperless-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 
@@ -881,7 +881,7 @@ networks:
 - [ ] **Step 9: Commit**
 
 ```bash
-git add home-services/paperless-setup/
+git add files/paperless-setup/
 git commit -m "feat: add paperless-setup playbook for document management"
 ```
 
@@ -899,15 +899,15 @@ git commit -m "feat: add paperless-setup playbook for document management"
 In the `home-services/` table, add:
 
 ```markdown
-| [`home-services/kuma-setup/`](./home-services/kuma-setup/) | Uptime Kuma monitoring — Docker, health checks, status pages |
-| [`home-services/vaultwarden-setup/`](./home-services/vaultwarden-setup/) | Vaultwarden password manager — Docker, admin-only registration |
-| [`home-services/paperless-setup/`](./home-services/paperless-setup/) | Paperless-ngx document management — Docker Compose, Redis, PostgreSQL |
+| [`monitoring/kuma-setup/`](./monitoring/kuma-setup/) | Uptime Kuma monitoring — Docker, health checks, status pages |
+| [`security/vaultwarden-setup/`](./security/vaultwarden-setup/) | Vaultwarden password manager — Docker, admin-only registration |
+| [`files/paperless-setup/`](./files/paperless-setup/) | Paperless-ngx document management — Docker Compose, Redis, PostgreSQL |
 ```
 
 In the `infrastructure/` table description for `secure-homelab-access`, update to mention Pi-hole:
 
 ```markdown
-| [`infrastructure/secure-homelab-access/`](./infrastructure/secure-homelab-access/) | Secure homelab remote access — WireGuard, Authelia, Caddy, Pi-hole, fail2ban, Cockpit |
+| [`security/secure-homelab-access/`](./security/secure-homelab-access/) | Secure homelab remote access — WireGuard, Authelia, Caddy, Pi-hole, fail2ban, Cockpit |
 ```
 
 - [ ] **Step 2: Commit and push**

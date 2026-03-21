@@ -141,7 +141,29 @@
   vars:
     _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
     _caddy_proxy_host: "{{ docker_gateway_ip | default('172.20.0.1') if _target_host_ip in ['localhost', '127.0.0.1', '::1'] else _target_host_ip }}"
+    _librenms_api_token: "{{ hostvars[hostvars['localhost']['target_host_ip']]['librenms_grafana_api_token'] | default('') }}"
   tasks:
+    - name: Save LibreNMS Grafana token to shared homelab vars
+      ansible.builtin.lineinfile:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+        regexp: "^saved_librenms_api_token:"
+        line: "saved_librenms_api_token: \"{{ _librenms_api_token }}\""
+        create: false
+      when: _librenms_api_token | length > 0
+      no_log: true
+      become: false
+
+    - name: Save LibreNMS host and port to shared homelab vars
+      ansible.builtin.lineinfile:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+        regexp: "^{{ item.key }}:"
+        line: "{{ item.key }}: \"{{ item.value }}\""
+        create: false
+      loop:
+        - { key: saved_librenms_scrape_host, value: "{{ _target_host_ip }}" }
+        - { key: saved_librenms_scrape_port, value: "{{ librenms_port }}" }
+      become: false
+
     - name: Integrate when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
       block:

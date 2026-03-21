@@ -59,6 +59,30 @@ loki.source.docker "containers" {
   }
 }
 
+{% if librenms_api_token | default('') %}
+// ── LibreNMS metrics ─────────────────────────────────────────────────────────
+prometheus.scrape "librenms" {
+  targets = [{"__address__" = "{{ librenms_scrape_host }}:{{ librenms_scrape_port }}"}]
+  metrics_path    = "/metrics"
+  bearer_token    = "{{ librenms_api_token }}"
+  forward_to      = [prometheus.relabel.librenms_labels.receiver]
+  scrape_interval = "60s"
+}
+
+prometheus.relabel "librenms_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "librenms"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "{{ librenms_scrape_host }}"
+  }
+}
+{% endif %}
+
 // ── Remote write endpoints ────────────────────────────────────────────────────
 prometheus.remote_write "mimir" {
   endpoint {

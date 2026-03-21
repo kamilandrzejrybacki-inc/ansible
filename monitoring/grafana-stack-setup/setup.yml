@@ -74,6 +74,9 @@
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
+        librenms_api_token: "{{ hostvars['localhost']['saved_librenms_api_token'] | default('') }}"
+        librenms_scrape_host: "{{ hostvars['localhost']['saved_librenms_scrape_host'] | default('') }}"
+        librenms_scrape_port: "{{ hostvars['localhost']['saved_librenms_scrape_port'] | default('8080') }}"
 
 - name: Install Docker and deploy Grafana stack
   hosts: grafana_stack_hosts

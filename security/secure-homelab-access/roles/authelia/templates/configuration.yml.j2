@@ -59,8 +59,18 @@ identity_validation:
     jwt_secret: "{{ authelia_jwt_secret }}"
 
 notifier:
+{% if authelia_smtp_password | default('') %}
+  smtp:
+    address: "smtp://{{ authelia_smtp_host | default('smtp.gmail.com') }}:{{ authelia_smtp_port | default(587) }}"
+    username: "{{ authelia_smtp_username }}"
+    password: "{{ authelia_smtp_password }}"
+    sender: "Authelia <{{ authelia_smtp_username }}>"
+    subject: "[Authelia] {title}"
+    startup_check_address: "{{ authelia_smtp_username }}"
+{% else %}
   filesystem:
     filename: "/config/notification.txt"
+{% endif %}
 
 regulation:
   max_retries: 3

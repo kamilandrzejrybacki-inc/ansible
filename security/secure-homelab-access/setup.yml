@@ -166,11 +166,24 @@
 
     - name: prompt_cf_tunnel_id
       prompt: |
-        [14/14] Cloudflare Tunnel ID (leave blank if creating a new tunnel)
+        [14/16] Cloudflare Tunnel ID (leave blank if creating a new tunnel)
                If you already ran 'cloudflared tunnel create', paste the UUID here.
                Otherwise leave blank — the playbook will create it for you.
       default: "{{ hostvars['localhost']['saved_cf_tunnel_id'] | default('') }}"
       private: false
+
+    # -- Authelia SMTP notifier --
+    - name: prompt_authelia_smtp_username
+      prompt: |
+        [15/16] SMTP username for Authelia notifications (leave blank to use filesystem notifier)
+               e.g. youraddress@gmail.com  (use a Gmail App Password for Gmail)
+      default: "{{ hostvars['localhost']['saved_authelia_smtp_username'] | default('') }}"
+      private: false
+
+    - name: prompt_authelia_smtp_password
+      prompt: "[16/16] SMTP password / app password (leave blank to skip)"
+      default: "{{ hostvars['localhost']['saved_authelia_smtp_password'] | default('') }}"
+      private: true
 
   pre_tasks:
     - name: Validate required prompts are not empty
@@ -200,6 +213,8 @@
         cloudflare_api_token: "{{ prompt_cloudflare_token }}"
         cf_tunnel_name: "{{ prompt_cf_tunnel_name }}"
         cf_tunnel_id: "{{ prompt_cf_tunnel_id }}"
+        authelia_smtp_username: "{{ prompt_authelia_smtp_username }}"
+        authelia_smtp_password: "{{ prompt_authelia_smtp_password }}"
       no_log: true
       tags: [always]
 
@@ -429,6 +444,8 @@
           saved_authelia_oidc_client_secret_grafana: "{{ authelia_oidc_client_secret_grafana | default('') }}"
           saved_authelia_oidc_client_secret_outline: "{{ authelia_oidc_client_secret_outline | default('') }}"
           saved_authelia_oidc_client_secret_vaultwarden: "{{ authelia_oidc_client_secret_vaultwarden | default('') }}"
+          saved_authelia_smtp_username: "{{ authelia_smtp_username | default('') }}"
+          saved_authelia_smtp_password: "{{ authelia_smtp_password | default('') }}"
         dest: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
         owner: "{{ lookup('env', 'USER') }}"
         mode: "0600"

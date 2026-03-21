@@ -34,3 +34,5 @@ limits:
   max_global_series_per_user: 0
   ingestion_rate: 100000
   ingestion_burst_size: 200000
+  # Accept samples up to 1 hour out of order (handles Alloy restarts gracefully)
+  out_of_order_time_window: 1h

@@ -128,6 +128,39 @@
   when: vault_init_data is defined
   no_log: true
 
+- name: Install vault-unseal systemd service for automatic unseal on restart
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vault-unseal.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Auto-unseal HashiCorp Vault after container start
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/bin/sleep 10
+      ExecStart=/bin/bash -c '\
+        KEYS=$(python3 -c "import json; d=json.load(open(\"{{ vault_keys_file }}\")); [print(k) for k in d[\"unseal_keys_b64\"][:2]]"); \
+        for key in $KEYS; do \
+          docker exec -e VAULT_ADDR=http://127.0.0.1:{{ vault_port }} vault vault operator unseal "$key" >/dev/null 2>&1 || true; \
+        done'
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  when: vault_auto_unseal | bool
+
+- name: Enable vault-unseal service
+  ansible.builtin.systemd:
+    name: vault-unseal
+    enabled: true
+    daemon_reload: true
+  when: vault_auto_unseal | bool
+
 - name: Wait for Vault to become ready after unseal
   ansible.builtin.uri:
     url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/sys/health"

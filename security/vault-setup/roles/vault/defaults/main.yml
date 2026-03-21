@@ -5,9 +5,9 @@ vault_install_dir: "/opt/vault"
 # Docker image
 vault_image: "hashicorp/vault:1.17"
 
-# Vault listener port (loopback only by default)
+# Vault listener port — bind to all interfaces so Caddy can reach it from Docker
 vault_port: 8200
-vault_bind_address: "127.0.0.1"
+vault_bind_address: "0.0.0.0"
 
 # Vault storage backend: "file" (simple) or "raft" (HA-capable)
 vault_storage_backend: "file"

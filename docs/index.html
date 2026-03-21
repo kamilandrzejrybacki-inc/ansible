@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homelab Ansible Playbooks</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --text-dim: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --orange: #d29922; --red: #f85149; --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 2rem 0; text-align: center; }
+  .header h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+  .header p { color: var(--text-dim); font-size: 1.1rem; }
+
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 0; position: sticky; top: 0; z-index: 100; }
+  .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+  .nav a { padding: 0.35rem 0.85rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); transition: all 0.15s; }
+  .nav a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .category { margin-bottom: 3rem; }
+  .category-title { font-size: 1.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 0.5rem; }
+  .cat-icon { font-size: 1.3rem; }
+
+  .service { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1.25rem; overflow: hidden; }
+  .service-header { padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  .service-header:hover { background: rgba(88,166,255,0.04); }
+  .service-name { font-size: 1.15rem; font-weight: 600; }
+  .service-desc { color: var(--text-dim); font-size: 0.9rem; margin-left: 0.5rem; font-weight: 400; }
+  .chevron { color: var(--text-dim); transition: transform 0.2s; font-size: 1.2rem; }
+  .service.open .chevron { transform: rotate(90deg); }
+  .service-body { display: none; padding: 0 1.25rem 1.25rem; }
+  .service.open .service-body { display: block; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
+  .info-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.85rem 1rem; }
+  .info-card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.5rem; }
+  .info-card ul { list-style: none; }
+  .info-card li { padding: 0.15rem 0; font-size: 0.9rem; }
+  .info-card li code { background: rgba(88,166,255,0.1); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
+
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+  .badge-port { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-vault { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .badge-image { background: rgba(210,153,34,0.15); color: var(--orange); }
+
+  .vault-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 3rem; }
+  .vault-section h2 { margin-bottom: 0.75rem; }
+  .vault-section p { color: var(--text-dim); margin-bottom: 0.5rem; }
+  .vault-path-list { columns: 2; column-gap: 2rem; list-style: none; }
+  .vault-path-list li { padding: 0.25rem 0; font-size: 0.9rem; }
+  .vault-path-list li code { background: rgba(188,140,255,0.1); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85rem; color: var(--purple); }
+
+  .quick-start { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 3rem; }
+  .quick-start h2 { margin-bottom: 0.75rem; }
+  .quick-start pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+  .quick-start code { color: var(--green); }
+
+  .footer { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.85rem; border-top: 1px solid var(--border); }
+
+  @media (max-width: 600px) {
+    .info-grid { grid-template-columns: 1fr; }
+    .vault-path-list { columns: 1; }
+    .service-desc { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Homelab Ansible Playbooks</h1>
+  <p>Self-hosted services deployed and managed with Ansible</p>
+</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#quick-start">Quick Start</a>
+    <a href="#ai">AI</a>
+    <a href="#automation">Automation</a>
+    <a href="#monitoring">Monitoring</a>
+    <a href="#files">Files &amp; Storage</a>
+    <a href="#security">Security</a>
+    <a href="#dev-tools">Dev Tools</a>
+    <a href="#vault">Vault Integration</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- Quick Start -->
+<section id="quick-start" class="quick-start">
+  <h2>Quick Start</h2>
+  <pre><code># Clone the repository
+git clone https://github.com/kamilrybacki/ansible.git && cd ansible
+
+# Install dependencies
+pip install -r requirements-test.txt
+ansible-galaxy collection install -r requirements.yml
+
+# Run any playbook
+ansible-playbook ai/dify-setup/setup.yml
+
+# Optional: Set up Vault first for centralized secrets
+ansible-playbook security/vault-setup/setup.yml</code></pre>
+</section>
+
+<!-- AI -->
+<section id="ai" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#129302;</span> AI</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Dify</span><span class="service-desc">LLM application platform with multi-provider routing</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">langgenius/dify:v1.13.2</span></li>
+            <li><span class="badge badge-image">ghcr.io/berriai/litellm:main-stable</span></li>
+            <li>PostgreSQL, Redis, Vector Store (configurable)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">80</span> HTTP</li>
+            <li><span class="badge badge-port">443</span> HTTPS</li>
+            <li><span class="badge badge-port">4000</span> LiteLLM (loopback)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/dify</span></li>
+            <li>litellm_key, groq_api_key, gemini_api_key</li>
+            <li>openrouter_api_key, cerebras_api_key</li>
+            <li>dify_init_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Vector store: weaviate (default), qdrant, pgvector, chroma</li>
+            <li>LiteLLM routing: usage-based-routing-v2</li>
+            <li>Rate limits: Groq 25, Gemini 8, OpenRouter 18, Cerebras 25 RPM</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">OpenClaw</span><span class="service-desc">Multi-provider AI agent framework with free-tier routing</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">ghcr.io/openclaw/openclaw:latest</span></li>
+            <li><span class="badge badge-image">ollama/ollama:latest</span> (optional)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">18789</span> Gateway (loopback)</li>
+            <li><span class="badge badge-port">11434</span> Ollama (optional, loopback)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/openclaw</span></li>
+            <li>nvidia_api_key, groq_api_key</li>
+            <li>gemini_api_key, deepseek_api_key</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Providers: NVIDIA NIM (free), Groq (free), Gemini (free), DeepSeek (paid)</li>
+            <li>Optional Ollama with GPU passthrough</li>
+            <li>Models: llama3.1, qwen2.5, deepseek-r1</li>
+            <li>Rate limits: NVIDIA 40, Groq 30, Gemini 15, DeepSeek 60 RPM</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">SWE-AF</span><span class="service-desc">Autonomous software engineering runtime</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Stack</h4>
+          <ul>
+            <li>Repository: github.com/Agent-Field/SWE-AF</li>
+            <li>Python 3.12, Docker Compose</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">8080</span> Control plane</li>
+            <li><span class="badge badge-port">8003</span> Agent service</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/swe-af</span></li>
+            <li>api_key, gh_token</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>AI providers: Anthropic, Claude OAuth, OpenRouter</li>
+            <li>Scalable agent replicas</li>
+            <li>GitHub PR workflow support</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Automation -->
+<section id="automation" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#9881;</span> Automation</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">n8n</span><span class="service-desc">Workflow automation and business process management</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">docker.n8n.io/n8nio/n8n:latest</span></li>
+            <li>PostgreSQL, Redis</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">5678</span> Web UI</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/n8n</span></li>
+            <li>owner_email, owner_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>MCP (Model Context Protocol) integration</li>
+            <li>Bind: 127.0.0.1 (local) or 0.0.0.0 (remote)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Claude Code MCP</span><span class="service-desc">Claude Code &#x2194; n8n MCP bridge</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Details</h4>
+          <ul>
+            <li>Client-only setup (no containers)</li>
+            <li>Connects Claude Code CLI to n8n via MCP protocol</li>
+            <li>Requires n8n already running</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Variables</h4>
+          <ul>
+            <li>n8n_host_ip, n8n_mcp_token</li>
+            <li>claude_host_ip (default: localhost)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Monitoring -->
+<section id="monitoring" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#128200;</span> Monitoring</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Uptime Kuma</span><span class="service-desc">Service uptime monitoring and status page</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul><li><span class="badge badge-image">louislam/uptime-kuma:1.23.16</span></li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">3001</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Data directory: /opt/kuma</li>
+            <li>Bind: 127.0.0.1 (local) or 0.0.0.0 (remote)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">LibreNMS</span><span class="service-desc">Network monitoring and visualization</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">librenms/librenms:26.3.1</span></li>
+            <li><span class="badge badge-image">mariadb:10.11</span></li>
+            <li><span class="badge badge-image">redis:7-alpine</span></li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">8080</span> Web UI</li>
+            <li><span class="badge badge-port">514</span> Syslog (TCP+UDP)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/librenms</span></li>
+            <li>snmp_community, db_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Multi-container: app, dispatcher, syslog</li>
+            <li>SNMP polling for device discovery</li>
+            <li>Configurable discovery networks (CIDR)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Netbox</span><span class="service-desc">Infrastructure documentation and IPAM</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">netboxcommunity/netbox:v4.2-3.0.2</span></li>
+            <li><span class="badge badge-image">postgres:16-alpine</span></li>
+            <li><span class="badge badge-image">valkey/valkey:8.0-alpine</span></li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8081</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/netbox</span></li>
+            <li>admin_user, admin_email, admin_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Multi-container: netbox, worker, housekeeping</li>
+            <li>PostgreSQL + Valkey caching</li>
+            <li>Timezone: Europe/Warsaw</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Home Assistant</span><span class="service-desc">Home automation platform with monitoring</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul><li><span class="badge badge-image">ghcr.io/home-assistant/home-assistant:stable</span></li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8123</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>HACS pre-installed</li>
+            <li>BambuLab printer integration</li>
+            <li>Dynamic service monitoring (HTTP, ping)</li>
+            <li>Alert thresholds: CPU 90%, Disk 85%</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">BambuLab</span><span class="service-desc">3D printer integration for Home Assistant</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Details</h4>
+          <ul>
+            <li>Integrates with existing Home Assistant</li>
+            <li>Print alert webhooks (completion/error)</li>
+            <li>Custom dashboard and automations</li>
+            <li>Entity prefix configurable (default: x1c)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Files -->
+<section id="files" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#128193;</span> Files &amp; Storage</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Paperless-ngx</span><span class="service-desc">Document management and OCR</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">ghcr.io/paperless-ngx/paperless-ngx:2.14.7</span></li>
+            <li><span class="badge badge-image">postgres:16.6</span></li>
+            <li><span class="badge badge-image">redis:7.4</span></li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8000</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/paperless</span></li>
+            <li>admin_user, admin_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>OCR document scanning</li>
+            <li>Optional custom document path (NAS/external)</li>
+            <li>PostgreSQL + Redis backend</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Seafile</span><span class="service-desc">File sync, share, and collaboration</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul>
+            <li><span class="badge badge-image">seafileltd/seafile-mc:11.0</span></li>
+            <li><span class="badge badge-image">mariadb:10.11</span></li>
+            <li><span class="badge badge-image">memcached:1.6-alpine</span></li>
+            <li><span class="badge badge-image">caddy:2-alpine</span> (optional)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8080</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/seafile</span></li>
+            <li>admin_email, admin_password, db_root_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>MariaDB + Memcached</li>
+            <li>Optional Let's Encrypt HTTPS via Caddy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Stirling-PDF</span><span class="service-desc">PDF toolkit with transformation operations</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul><li><span class="badge badge-image">frooodle/s-pdf:0.36.5</span></li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8080</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Stateless PDF operations</li>
+            <li>No database required</li>
+            <li>Data directory: /opt/stirling-pdf</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Security -->
+<section id="security" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#128274;</span> Security</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Secure Homelab Access</span><span class="service-desc">WireGuard + Caddy + Authelia 2FA + Pi-hole + Homepage</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Stack</h4>
+          <ul>
+            <li>WireGuard VPN (wg-easy)</li>
+            <li>Caddy reverse proxy (HTTPS)</li>
+            <li>Authelia (2FA/TOTP)</li>
+            <li>Pi-hole (DNS + ad-blocking)</li>
+            <li>CrowdSec (rate limiting)</li>
+            <li>Cockpit (system management)</li>
+            <li>Homepage (dashboard)</li>
+            <li>Cloudflared (optional tunnel)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul>
+            <li><span class="badge badge-port">51820/UDP</span> WireGuard</li>
+            <li><span class="badge badge-port">51821</span> WireGuard UI</li>
+            <li><span class="badge badge-port">53</span> Pi-hole DNS (TCP+UDP)</li>
+            <li><span class="badge badge-port">443</span> Caddy HTTPS</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/infrastructure</span></li>
+            <li>wireguard_password, authelia_password</li>
+            <li>pihole_password, cloudflare_token</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>VPN subnet: 10.8.0.0/24</li>
+            <li>Docker network: 172.20.0.0/24</li>
+            <li>Auto-generated JWT, session, encryption keys</li>
+            <li>Optional Cloudflare DNS-01 wildcard certs</li>
+            <li>Optional Cloudflare Tunnel (zero-trust)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">HashiCorp Vault</span><span class="service-desc">Centralized secrets management for all services</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul><li><span class="badge badge-image">hashicorp/vault:latest</span></li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8200</span> Vault API</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>Storage: file (default) or raft (HA)</li>
+            <li>Auto-unseal (recommended for homelab)</li>
+            <li>KV v2 secrets engine</li>
+            <li>Auto-seeds paths for all services</li>
+            <li>Generates ~/.vault-ansible.yml</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Vaultwarden</span><span class="service-desc">Self-hosted Bitwarden password manager</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Docker Images</h4>
+          <ul><li><span class="badge badge-image">vaultwarden/server:1.32.7</span></li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Ports</h4>
+          <ul><li><span class="badge badge-port">8080</span> Web UI</li></ul>
+        </div>
+        <div class="info-card">
+          <h4>Vault Secrets</h4>
+          <ul>
+            <li><span class="badge badge-vault">secret/homelab/vaultwarden</span></li>
+            <li>admin_token, smtp_password</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Configuration</h4>
+          <ul>
+            <li>SQLite database (embedded)</li>
+            <li>Admin panel at /admin</li>
+            <li>SMTP: gmail, outlook, zoho, fastmail, sendgrid, mailgun, ses, custom</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Dev Tools -->
+<section id="dev-tools" class="category">
+  <h2 class="category-title"><span class="cat-icon">&#128736;</span> Dev Tools</h2>
+
+  <div class="service" onclick="this.classList.toggle('open')">
+    <div class="service-header">
+      <div><span class="service-name">Claude Code</span><span class="service-desc">Anthropic's CLI for Claude with MCP support</span></div>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="service-body">
+      <div class="info-grid">
+        <div class="info-card">
+          <h4>Details</h4>
+          <ul>
+            <li>Client-side CLI installation (no containers)</li>
+            <li>MCP server support</li>
+            <li>Plugins and extensions framework</li>
+            <li>Serena integration</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Roles</h4>
+          <ul>
+            <li>claude_cli, claude_config</li>
+            <li>plugins, serena</li>
+            <li>mcp_servers, commands</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Vault Integration -->
+<section id="vault" class="vault-section">
+  <h2>Vault Integration</h2>
+  <p>All playbooks optionally integrate with HashiCorp Vault for centralized secret management. When Vault is available (<code>~/.vault-ansible.yml</code> exists), secrets are automatically loaded before prompts and stored after setup.</p>
+  <p style="margin-bottom: 1rem;">Vault paths (KV v2 at <code>secret/homelab/&lt;service&gt;</code>):</p>
+  <ul class="vault-path-list">
+    <li><code>secret/homelab/dify</code> &mdash; Dify</li>
+    <li><code>secret/homelab/openclaw</code> &mdash; OpenClaw</li>
+    <li><code>secret/homelab/swe-af</code> &mdash; SWE-AF</li>
+    <li><code>secret/homelab/n8n</code> &mdash; n8n</li>
+    <li><code>secret/homelab/paperless</code> &mdash; Paperless-ngx</li>
+    <li><code>secret/homelab/seafile</code> &mdash; Seafile</li>
+    <li><code>secret/homelab/infrastructure</code> &mdash; Secure Homelab Access</li>
+    <li><code>secret/homelab/vaultwarden</code> &mdash; Vaultwarden</li>
+    <li><code>secret/homelab/librenms</code> &mdash; LibreNMS</li>
+    <li><code>secret/homelab/netbox</code> &mdash; Netbox</li>
+  </ul>
+</section>
+
+</div>
+
+<div class="footer">
+  <p>Generated from <a href="https://github.com/kamilrybacki/ansible">kamilrybacki/ansible</a></p>
+</div>
+
+</body>
+</html>

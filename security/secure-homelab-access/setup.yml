@@ -299,7 +299,7 @@
         python3 -c "
         import secrets, string
         chars = string.ascii_letters + string.digits
-        for _ in range(3):
+        for _ in range(4):
             print(''.join(secrets.choice(chars) for _ in range(64)))
         "
       register: _oidc_secrets_raw
@@ -319,6 +319,7 @@
         - { key: oidc_hmac_secret,               value: "{{ _oidc_secrets_raw.stdout_lines[0] }}" }
         - { key: oidc_client_secret_grafana,      value: "{{ _oidc_secrets_raw.stdout_lines[1] }}" }
         - { key: oidc_client_secret_outline,      value: "{{ _oidc_secrets_raw.stdout_lines[2] }}" }
+        - { key: oidc_client_secret_vault,        value: "{{ _oidc_secrets_raw.stdout_lines[3] }}" }
       no_log: true
       when: not _oidc_secrets_stat.stat.exists
       tags: [always]
@@ -346,14 +347,16 @@
         - oidc_hmac_secret
         - oidc_client_secret_grafana
         - oidc_client_secret_outline
+        - oidc_client_secret_vault
       no_log: true
       tags: [always]
 
     - name: Set OIDC plaintext secrets as facts
       ansible.builtin.set_fact:
-        authelia_oidc_hmac_secret:          "{{ _oidc_secrets_slurp.results[0].content | b64decode | trim }}"
+        authelia_oidc_hmac_secret:           "{{ _oidc_secrets_slurp.results[0].content | b64decode | trim }}"
         authelia_oidc_client_secret_grafana: "{{ _oidc_secrets_slurp.results[1].content | b64decode | trim }}"
         authelia_oidc_client_secret_outline: "{{ _oidc_secrets_slurp.results[2].content | b64decode | trim }}"
+        authelia_oidc_client_secret_vault:   "{{ _oidc_secrets_slurp.results[3].content | b64decode | trim }}"
       no_log: true
       tags: [always]
 
@@ -365,6 +368,7 @@
       loop:
         - { key: grafana, secret: "{{ authelia_oidc_client_secret_grafana }}" }
         - { key: outline, secret: "{{ authelia_oidc_client_secret_outline }}" }
+        - { key: vault,   secret: "{{ authelia_oidc_client_secret_vault }}" }
       changed_when: false
       no_log: true
       tags: [always]
@@ -373,6 +377,7 @@
       ansible.builtin.set_fact:
         authelia_oidc_client_secret_grafana_hash: "{{ _oidc_hashes.results[0].stdout | trim }}"
         authelia_oidc_client_secret_outline_hash: "{{ _oidc_hashes.results[1].stdout | trim }}"
+        authelia_oidc_client_secret_vault_hash:   "{{ _oidc_hashes.results[2].stdout | trim }}"
       no_log: true
       tags: [always]
 
@@ -437,6 +442,7 @@
           saved_authelia_oidc_hmac_secret: "{{ authelia_oidc_hmac_secret | default('') }}"
           saved_authelia_oidc_client_secret_grafana: "{{ authelia_oidc_client_secret_grafana | default('') }}"
           saved_authelia_oidc_client_secret_outline: "{{ authelia_oidc_client_secret_outline | default('') }}"
+          saved_authelia_oidc_client_secret_vault: "{{ authelia_oidc_client_secret_vault | default('') }}"
           saved_authelia_smtp_username: "{{ authelia_smtp_username | default('') }}"
           saved_authelia_smtp_password: "{{ authelia_smtp_password | default('') }}"
         dest: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"

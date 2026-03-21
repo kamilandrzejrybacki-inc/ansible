@@ -1,12 +1,13 @@
 ---
 # =============================================================================
-# Stirling-PDF Setup
+# Grafana Stack Setup
 # =============================================================================
-# Deploys Stirling-PDF document toolkit on a remote host via Docker.
+# Deploys Grafana + Loki + Mimir + local Grafana Alloy agent as a Docker
+# Compose stack on a remote host.
 #
 # Usage:
-#   ansible-playbook files/stirling-pdf-setup/setup.yml \
-#     -i files/stirling-pdf-setup/inventory/hosts.ini \
+#   ansible-playbook monitoring/grafana-stack-setup/setup.yml \
+#     -i monitoring/grafana-stack-setup/inventory/hosts.ini \
 #     --ask-become-pass
 # =============================================================================
 
@@ -34,80 +35,85 @@
       prompt: |
 
         ══════════════════════════════════════════════
-          Stirling-PDF Setup Wizard
+          Grafana Stack Setup Wizard
         ══════════════════════════════════════════════
 
-        [1/2] IP or hostname of the target machine
+        [1/3] IP or hostname of the target machine
       private: false
 
     - name: target_ssh_user
-      prompt: "[2/2] SSH user for the target machine"
+      prompt: "[2/3] SSH user for the target machine"
       private: false
+
+    - name: grafana_admin_password
+      prompt: "[3/3] Grafana admin password"
+      private: true
+      confirm: true
 
   tasks:
     - name: Add target host to dynamic inventory
       ansible.builtin.add_host:
         name: "{{ target_host_ip }}"
-        groups: stirling_hosts
+        groups: grafana_stack_hosts
         ansible_user: "{{ target_ssh_user }}"
+        ansible_connection: "{{ 'local' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else 'ssh' }}"
         ansible_python_interpreter: /usr/bin/python3
-        stirling_bind_address: "{{ '127.0.0.1' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
-        stirling_public_url: >-
+        grafana_bind_address: "0.0.0.0"
+        grafana_admin_password: "{{ grafana_admin_password }}"
+        grafana_public_url: >-
           {{
-            'https://' + stirling_hostname + '.' + hostvars['localhost']['saved_domain']
+            'https://' + grafana_hostname + '.' + hostvars['localhost']['saved_domain']
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
 
-- name: Install Docker and deploy Stirling-PDF
-  hosts: stirling_hosts
+- name: Install Docker and deploy Grafana stack
+  hosts: grafana_stack_hosts
   become: true
   roles:
     - docker
-    - stirling
+    - grafana-stack
 
-- name: Integrate Stirling-PDF with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+- name: Integrate Grafana with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
   hosts: localhost
   connection: local
   become: true
   gather_facts: true
   vars:
     _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
-    _caddy_proxy_host: "{{ docker_gateway_ip | default('172.20.0.1') if _target_host_ip in ['localhost', '127.0.0.1', '::1'] else _target_host_ip }}"
   tasks:
     - name: Integrate when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
       block:
-        - name: Add Cloudflare Tunnel DNS route for Stirling-PDF
+        - name: Add Cloudflare Tunnel DNS route for Grafana
           ansible.builtin.command: >
             cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
-            {{ stirling_hostname }}.{{ saved_domain }}
+            {{ grafana_hostname }}.{{ saved_domain }}
           environment:
             TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
-          register: _stirling_cf_dns
-          changed_when: _stirling_cf_dns.rc == 0
+          register: _grafana_cf_dns
+          changed_when: _grafana_cf_dns.rc == 0
           failed_when: false
           become: false
 
-        - name: Add Stirling-PDF to Caddy config
+        - name: Add Grafana to Caddy config
           ansible.builtin.blockinfile:
             path: /opt/homelab/caddy/Caddyfile
-            marker: "# {mark} STIRLING"
+            marker: "# {mark} GRAFANA"
             unsafe_writes: true
             block: |
-              http://{{ stirling_hostname }}.{{ saved_domain }} {
+              http://{{ grafana_hostname }}.{{ saved_domain }} {
                 import rate_limit
-                import proxy_headers
                 import authelia
-                reverse_proxy http://{{ _caddy_proxy_host }}:{{ stirling_port }}
+                reverse_proxy http://{{ docker_gateway_ip | default('172.20.0.1') }}:{{ grafana_port }}
               }
           notify: reload caddy
 
-        - name: Add Pi-hole local DNS record for Stirling-PDF
+        - name: Add Pi-hole local DNS record for Grafana
           ansible.builtin.command: >
             docker exec pihole sh -c
-            'grep -qF "{{ stirling_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
-             (echo "{{ ansible_default_ipv4.address }} {{ stirling_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+            'grep -qF "{{ grafana_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ grafana_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
           register: _pihole_dns
           changed_when: "'CHANGED' in _pihole_dns.stdout"
 
@@ -116,22 +122,22 @@
           changed_when: true
           when: _pihole_dns.changed
 
-        - name: Add Stirling-PDF to Homepage services
+        - name: Add Grafana to Homepage services
           ansible.builtin.blockinfile:
             path: /opt/homelab/homepage/services.yaml
-            marker: "    # {mark} STIRLING"
-            insertafter: "- Applications:"
+            marker: "    # {mark} GRAFANA"
+            insertafter: "- Monitoring:"
             unsafe_writes: true
             block: |2
-                  - Stirling-PDF:
-                      icon: stirling-pdf.png
-                      href: "https://{{ stirling_hostname }}.{{ saved_domain }}"
-                      description: "PDF toolkit"
+                  - Grafana:
+                      icon: grafana.png
+                      href: "https://{{ grafana_hostname }}.{{ saved_domain }}"
+                      description: "Metrics, logs & dashboards"
 
     - name: Add /etc/hosts fallback when secure homelab is not configured
       ansible.builtin.lineinfile:
         path: /etc/hosts
-        line: "{{ _target_host_ip }} {{ stirling_hostname }}.home"
+        line: "{{ _target_host_ip }} {{ grafana_hostname }}.home"
         state: present
       when: not hostvars['localhost']['_homelab_vars_stat'].stat.exists
 

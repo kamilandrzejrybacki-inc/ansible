@@ -1,0 +1,57 @@
+---
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - software-properties-common
+      - gpg
+    state: present
+    update_cache: true
+
+- name: Add Grafana GPG key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+
+- name: Add Grafana APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    filename: grafana
+    state: present
+
+- name: Install Grafana Alloy
+  ansible.builtin.apt:
+    name: alloy
+    state: "{{ 'latest' if alloy_version == 'latest' else omit }}"
+    update_cache: true
+
+- name: Create Alloy config directory
+  ansible.builtin.file:
+    path: "{{ alloy_config_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Alloy configuration
+  ansible.builtin.template:
+    src: alloy.river.j2
+    dest: "{{ alloy_config_path }}"
+    mode: "0640"
+    owner: root
+    group: alloy
+  notify: restart alloy
+
+- name: Enable and start Alloy service
+  ansible.builtin.systemd:
+    name: alloy
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      Grafana Alloy installed on {{ inventory_hostname }}
+      Config: {{ alloy_config_path }}
+      Mimir:  http://{{ mimir_host }}:{{ mimir_port }}
+      Loki:   http://{{ loki_host }}:{{ loki_port }}

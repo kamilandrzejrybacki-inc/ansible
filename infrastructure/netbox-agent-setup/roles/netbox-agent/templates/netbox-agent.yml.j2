@@ -1,0 +1,13 @@
+---
+netbox:
+  url: {{ netbox_url }}
+  token: {{ netbox_token }}
+  ssl_verify: {{ netbox_ssl_verify | lower }}
+
+network:
+  ignore_interfaces: "{{ netbox_agent_ignore_interfaces }}"
+  ignore_ips: "{{ netbox_agent_ignore_ips }}"
+
+system:
+  allowed_sites:
+    - {{ netbox_agent_site }}

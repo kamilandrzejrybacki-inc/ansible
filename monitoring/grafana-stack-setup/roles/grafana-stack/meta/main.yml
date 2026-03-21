@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: grafana-stack
+  author: kamilrybacki
+  description: Deploy Grafana + Loki + Mimir + Alloy monitoring stack in Docker
+  min_ansible_version: "2.10"
+dependencies:
+  - docker

@@ -1,0 +1,21 @@
+---
+grafana_image: "grafana/grafana:11.4.0"
+grafana_port: 3000
+grafana_hostname: "grafana"
+grafana_bind_address: "127.0.0.1"
+grafana_public_url: ""
+grafana_restart_policy: unless-stopped
+grafana_data_dir: /opt/grafana-stack
+grafana_admin_user: admin
+grafana_admin_password: ""
+grafana_health_check_retries: 20
+grafana_health_check_delay: 10
+grafana_timezone: "Europe/Warsaw"
+
+loki_image: "grafana/loki:3.3.2"
+loki_port: 3100
+
+mimir_image: "grafana/mimir:2.14.0"
+mimir_port: 9009
+
+alloy_image: "grafana/alloy:v1.5.1"

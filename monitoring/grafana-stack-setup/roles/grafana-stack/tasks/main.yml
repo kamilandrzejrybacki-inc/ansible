@@ -1,0 +1,115 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Grafana stack data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ grafana_data_dir }}"
+    - "{{ grafana_data_dir }}/grafana"
+    - "{{ grafana_data_dir }}/loki"
+    - "{{ grafana_data_dir }}/loki/data"
+    - "{{ grafana_data_dir }}/mimir"
+    - "{{ grafana_data_dir }}/mimir/data"
+    - "{{ grafana_data_dir }}/alloy"
+    - "{{ grafana_data_dir }}/provisioning/datasources"
+
+- name: Allow Loki from LAN (10.0.0.0/8)
+  community.general.ufw:
+    rule: allow
+    port: "{{ loki_port }}"
+    proto: tcp
+    src: 10.0.0.0/8
+    comment: "Loki for Grafana Alloy agents"
+
+- name: Allow Loki from LAN (192.168.0.0/16)
+  community.general.ufw:
+    rule: allow
+    port: "{{ loki_port }}"
+    proto: tcp
+    src: 192.168.0.0/16
+    comment: "Loki for Grafana Alloy agents"
+
+- name: Allow Mimir from LAN (10.0.0.0/8)
+  community.general.ufw:
+    rule: allow
+    port: "{{ mimir_port }}"
+    proto: tcp
+    src: 10.0.0.0/8
+    comment: "Mimir for Grafana Alloy agents"
+
+- name: Allow Mimir from LAN (192.168.0.0/16)
+  community.general.ufw:
+    rule: allow
+    port: "{{ mimir_port }}"
+    proto: tcp
+    src: 192.168.0.0/16
+    comment: "Mimir for Grafana Alloy agents"
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ grafana_data_dir }}/docker-compose.yml"
+    mode: "0640"
+
+- name: Template Loki configuration
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: "{{ grafana_data_dir }}/loki/loki.yml"
+    mode: "0644"
+
+- name: Template Mimir configuration
+  ansible.builtin.template:
+    src: mimir.yml.j2
+    dest: "{{ grafana_data_dir }}/mimir/mimir.yml"
+    mode: "0644"
+
+- name: Template Alloy configuration
+  ansible.builtin.template:
+    src: alloy.river.j2
+    dest: "{{ grafana_data_dir }}/alloy/config.alloy"
+    mode: "0644"
+
+- name: Template Grafana datasources provisioning
+  ansible.builtin.template:
+    src: provisioning/datasources.yml.j2
+    dest: "{{ grafana_data_dir }}/provisioning/datasources/datasources.yml"
+    mode: "0644"
+
+- name: Deploy Grafana stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ grafana_data_dir }}"
+    state: present
+
+- name: Wait for Grafana to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ grafana_port }}"
+    status_code: [200, 302]
+  register: grafana_health
+  until: grafana_health is not failed
+  retries: "{{ grafana_health_check_retries }}"
+  delay: "{{ grafana_health_check_delay }}"
+
+- name: Display Grafana stack access information
+  ansible.builtin.debug:
+    msg: |
+      Grafana stack is running at http://{{ inventory_hostname }}:{{ grafana_port }}
+
+      Components:
+        Grafana   → http://{{ inventory_hostname }}:{{ grafana_port }}
+        Loki      → http://{{ inventory_hostname }}:{{ loki_port }}
+        Mimir     → http://{{ inventory_hostname }}:{{ mimir_port }}
+        Alloy     → collecting host & container metrics/logs
+
+      Admin credentials:
+        User:     {{ grafana_admin_user }}
+        Password: (as provided during setup)
+
+      Remote agents can push to:
+        Loki:  http://{{ inventory_hostname }}:{{ loki_port }}/loki/api/v1/push
+        Mimir: http://{{ inventory_hostname }}:{{ mimir_port }}/api/v1/push

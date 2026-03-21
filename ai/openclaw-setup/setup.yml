@@ -215,6 +215,7 @@
   gather_facts: true
   vars:
     _target_host_ip: "{{ hostvars['localhost']['target_host'] }}"
+    _caddy_proxy_host: "{{ docker_gateway_ip | default('172.20.0.1') if _target_host_ip in ['localhost', '127.0.0.1', '::1'] else _target_host_ip }}"
     openclaw_hostname: "openclaw"
   tasks:
     - name: Integrate when secure homelab is configured
@@ -240,7 +241,7 @@
               http://{{ openclaw_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ openclaw_gateway_port | default(18789) }}
+                reverse_proxy http://{{ _caddy_proxy_host }}:{{ openclaw_gateway_port | default(18789) }}
               }
           notify: reload caddy
 

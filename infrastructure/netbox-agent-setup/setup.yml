@@ -1,0 +1,112 @@
+---
+# =============================================================================
+# NetBox Agent Setup
+# =============================================================================
+# Installs netbox-agent on one or more hosts so each machine registers itself
+# as a live device in NetBox (hardware, interfaces, IPs).  A systemd timer
+# re-runs the agent every 15 minutes to keep NetBox up to date.
+#
+# The NetBox API token is read automatically from:
+#   ~/.homelab-secrets/netbox/api_token
+#
+# Usage:
+#   ansible-playbook infrastructure/netbox-agent-setup/setup.yml \
+#     -i infrastructure/netbox-agent-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Load saved configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check if previous setup vars exist
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.netbox-agent-setup-vars.yml"
+      register: _setup_vars_stat
+
+    - name: Load previous setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.netbox-agent-setup-vars.yml"
+      when: _setup_vars_stat.stat.exists
+
+    - name: Read NetBox API token from secrets file
+      ansible.builtin.slurp:
+        src: "{{ lookup('env', 'HOME') }}/.homelab-secrets/netbox/api_token"
+      register: _netbox_token_file
+      ignore_errors: true
+
+    - name: Set NetBox token fact
+      ansible.builtin.set_fact:
+        _netbox_token_from_file: "{{ _netbox_token_file.content | b64decode | trim }}"
+      when: _netbox_token_file is not failed
+      no_log: true
+
+- name: Gather target details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_hosts
+      prompt: |
+
+        ══════════════════════════════════════════════
+          NetBox Agent Setup
+        ══════════════════════════════════════════════
+
+        [1/4] IP addresses of target machines
+              (comma-separated, e.g. 10.0.0.2,10.0.0.3)
+      default: "{{ hostvars['localhost']['saved_target_hosts'] | default('') }}"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/4] SSH user for target machines"
+      default: "{{ hostvars['localhost']['saved_ssh_user'] | default('') }}"
+      private: false
+
+    - name: netbox_url
+      prompt: "[3/4] NetBox URL (e.g. http://10.0.0.5:8081)"
+      default: "{{ hostvars['localhost']['saved_netbox_url'] | default('') }}"
+      private: false
+
+    - name: netbox_agent_site
+      prompt: "[4/4] Site name to assign devices to in NetBox"
+      default: "{{ hostvars['localhost']['saved_netbox_agent_site'] | default('homelab') }}"
+      private: false
+
+  tasks:
+    - name: Add target hosts to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ item.strip() }}"
+        groups: netbox_agent_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ hostvars['localhost']['_netbox_token_from_file'] | default('') }}"
+        netbox_agent_site: "{{ netbox_agent_site }}"
+      loop: "{{ target_hosts.split(',') }}"
+      no_log: true
+
+    - name: Abort when no API token is available
+      ansible.builtin.fail:
+        msg: >
+          No NetBox API token found at ~/.homelab-secrets/netbox/api_token.
+          Run the netbox-setup playbook first, or create that file manually.
+      when: hostvars['localhost']['_netbox_token_from_file'] is not defined
+
+    - name: Save setup vars for future runs
+      ansible.builtin.copy:
+        content: |
+          saved_target_hosts: "{{ target_hosts }}"
+          saved_ssh_user: "{{ target_ssh_user }}"
+          saved_netbox_url: "{{ netbox_url }}"
+          saved_netbox_agent_site: "{{ netbox_agent_site }}"
+        dest: "{{ lookup('env', 'HOME') }}/.netbox-agent-setup-vars.yml"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+
+- name: Install netbox-agent on target hosts
+  hosts: netbox_agent_hosts
+  become: true
+  roles:
+    - netbox-agent

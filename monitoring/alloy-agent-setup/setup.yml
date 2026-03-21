@@ -1,0 +1,75 @@
+---
+- name: Load saved configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check if previous setup vars exist
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.alloy-agent-setup-vars.yml"
+      register: _setup_vars_stat
+
+    - name: Load previous setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.alloy-agent-setup-vars.yml"
+      when: _setup_vars_stat.stat.exists
+
+- name: Gather target details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_hosts
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Grafana Alloy Agent Setup
+        ══════════════════════════════════════════════
+
+        [1/4] IP addresses of target machines
+              (comma-separated, e.g. 10.0.0.2,10.0.0.3)
+      default: "{{ hostvars['localhost']['saved_target_hosts'] | default('') }}"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/4] SSH user for target machines"
+      default: "{{ hostvars['localhost']['saved_ssh_user'] | default('') }}"
+      private: false
+
+    - name: mimir_host
+      prompt: "[3/4] Mimir host IP (masternode, e.g. 10.0.0.1)"
+      default: "{{ hostvars['localhost']['saved_mimir_host'] | default('') }}"
+      private: false
+
+    - name: loki_host
+      prompt: "[4/4] Loki host IP (masternode, same as Mimir host)"
+      default: "{{ hostvars['localhost']['saved_loki_host'] | default('') }}"
+      private: false
+
+  tasks:
+    - name: Add target hosts to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ item.strip() }}"
+        groups: alloy_agent_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        mimir_host: "{{ mimir_host }}"
+        loki_host: "{{ loki_host }}"
+      loop: "{{ target_hosts.split(',') }}"
+
+    - name: Save setup vars for future runs
+      ansible.builtin.copy:
+        content: |
+          saved_target_hosts: "{{ target_hosts }}"
+          saved_ssh_user: "{{ target_ssh_user }}"
+          saved_mimir_host: "{{ mimir_host }}"
+          saved_loki_host: "{{ loki_host }}"
+        dest: "{{ lookup('env', 'HOME') }}/.alloy-agent-setup-vars.yml"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+
+- name: Install Grafana Alloy on target hosts
+  hosts: alloy_agent_hosts
+  become: true
+  roles:
+    - alloy-agent

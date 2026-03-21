@@ -1,0 +1,78 @@
+---
+- name: Install system dependencies
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+      - python3-dev
+      - libdmidecode
+      - dmidecode
+    state: present
+    update_cache: true
+
+- name: Install netbox-agent via pip
+  ansible.builtin.pip:
+    name: netbox-agent
+    state: "{{ 'latest' if netbox_agent_version == 'latest' else omit }}"
+    version: "{{ netbox_agent_version if netbox_agent_version != 'latest' else omit }}"
+    executable: pip3
+
+- name: Deploy netbox-agent config
+  ansible.builtin.template:
+    src: netbox-agent.yml.j2
+    dest: "{{ netbox_agent_config_path }}"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Create log file with correct permissions
+  ansible.builtin.file:
+    path: "{{ netbox_agent_log_path }}"
+    state: touch
+    mode: "0640"
+    owner: root
+    group: adm
+  changed_when: false
+
+- name: Deploy systemd service unit
+  ansible.builtin.template:
+    src: netbox-agent.service.j2
+    dest: /etc/systemd/system/netbox-agent.service
+    mode: "0644"
+    owner: root
+    group: root
+  notify: reload systemd
+
+- name: Deploy systemd timer unit
+  ansible.builtin.template:
+    src: netbox-agent.timer.j2
+    dest: /etc/systemd/system/netbox-agent.timer
+    mode: "0644"
+    owner: root
+    group: root
+  notify: reload systemd
+
+- name: Flush handlers so systemd is reloaded before enabling timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start netbox-agent timer
+  ansible.builtin.systemd:
+    name: netbox-agent.timer
+    state: started
+    enabled: true
+
+- name: Run netbox-agent immediately (initial population)
+  ansible.builtin.systemd:
+    name: netbox-agent.service
+    state: started
+  register: _initial_run
+  failed_when: false
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      netbox-agent installed on {{ inventory_hostname }}
+      Config:  {{ netbox_agent_config_path }}
+      Log:     {{ netbox_agent_log_path }}
+      Timer:   every {{ netbox_agent_sync_interval_minutes }} minutes
+      NetBox:  {{ netbox_url }}

@@ -181,6 +181,7 @@
   gather_facts: true
   vars:
     _target_host_ip: "{{ hostvars['localhost']['target_host'] }}"
+    _caddy_proxy_host: "{{ docker_gateway_ip | default('172.20.0.1') if _target_host_ip in ['localhost', '127.0.0.1', '::1'] else _target_host_ip }}"
   tasks:
     - name: Integrate when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
@@ -206,7 +207,7 @@
                 import rate_limit
                 import proxy_headers
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ dify_http_port }}
+                reverse_proxy http://{{ _caddy_proxy_host }}:{{ dify_http_port }}
               }
           notify: reload caddy
 

@@ -30,7 +30,7 @@
   connection: local
   gather_facts: false
   vars:
-    vault_hostname: "vault"
+    vault_hostname: "hashi-vault"
   vars_prompt:
     - name: target_host
       prompt: "Target host IP/hostname (enter 'localhost' for this machine)"
@@ -113,7 +113,7 @@
   gather_facts: true
   vars:
     _target_host_ip: "{{ hostvars['localhost']['target_host'] }}"
-    vault_hostname: "vault"
+    vault_hostname: "hashi-vault"
   tasks:
     - name: Integrate when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
@@ -138,7 +138,7 @@
               http://{{ vault_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import authelia
-                reverse_proxy http://{{ _target_host_ip }}:{{ vault_port | default(8200) }}
+                reverse_proxy http://{{ docker_gateway_ip | default('172.20.0.1') }}:{{ vault_port | default(8200) }}
               }
           notify: reload caddy
 

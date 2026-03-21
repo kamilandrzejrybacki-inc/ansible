@@ -1,0 +1,10 @@
+[Unit]
+Description=NetBox Agent — sync host data to NetBox
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/netbox_agent -c {{ netbox_agent_config_path }}
+StandardOutput=append:{{ netbox_agent_log_path }}
+StandardError=append:{{ netbox_agent_log_path }}

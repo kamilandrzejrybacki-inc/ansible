@@ -1,0 +1,52 @@
+// ── Host metrics (node_exporter-compatible) ──────────────────────────────────
+prometheus.exporter.unix "host" {}
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "{{ alloy_scrape_interval }}"
+
+  clustering {
+    enabled = false
+  }
+}
+
+// ── Systemd journal logs ──────────────────────────────────────────────────────
+loki.source.journal "system" {
+  forward_to = [loki.write.loki.receiver]
+  max_age    = "12h"
+
+  labels = {
+    "job"      = "systemd-journal",
+    "instance" = env("HOSTNAME"),
+  }
+}
+
+// ── Docker container logs (only if Docker is running) ────────────────────────
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.write.loki.receiver]
+
+  labels = {
+    "job"      = "docker",
+    "instance" = env("HOSTNAME"),
+  }
+}
+
+// ── Remote write endpoints ────────────────────────────────────────────────────
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://{{ mimir_host }}:{{ mimir_port }}/api/v1/push"
+  }
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://{{ loki_host }}:{{ loki_port }}/loki/api/v1/push"
+  }
+}

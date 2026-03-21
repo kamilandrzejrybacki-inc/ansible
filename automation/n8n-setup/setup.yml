@@ -119,6 +119,7 @@
   gather_facts: true
   vars:
     _n8n_host_ip: "{{ hostvars['localhost']['n8n_host_ip'] }}"
+    _caddy_proxy_host: "{{ docker_gateway_ip | default('172.20.0.1') if _n8n_host_ip in ['localhost', '127.0.0.1', '::1'] else _n8n_host_ip }}"
   tasks:
     - name: Integrate n8n when secure homelab is configured
       when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
@@ -144,7 +145,7 @@
                 import rate_limit
                 import proxy_headers
                 import authelia
-                reverse_proxy http://{{ _n8n_host_ip }}:{{ n8n_port }}
+                reverse_proxy http://{{ _caddy_proxy_host }}:{{ n8n_port }}
               }
           notify: reload caddy
 

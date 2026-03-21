@@ -26,7 +26,10 @@
 }
 
 (rate_limit) {
-	rate_limit {
+	@wan {
+		not remote_ip private_ranges
+	}
+	rate_limit @wan {
 		zone dynamic {
 			key {remote_host}
 			events {{ caddy_rate_limit_requests }}

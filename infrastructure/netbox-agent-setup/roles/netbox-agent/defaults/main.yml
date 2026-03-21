@@ -1,0 +1,10 @@
+---
+netbox_url: ""
+netbox_token: ""
+netbox_ssl_verify: true
+netbox_agent_site: "homelab"
+netbox_agent_config_path: /etc/netbox-agent.yml
+netbox_agent_log_path: /var/log/netbox-agent.log
+netbox_agent_sync_interval_minutes: 15
+netbox_agent_ignore_interfaces: "^(lo|docker|veth|br-|virbr)"
+netbox_agent_ignore_ips: "^(127\\.|169\\.254\\.|::1)"

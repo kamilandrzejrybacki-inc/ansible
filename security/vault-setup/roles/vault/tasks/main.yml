@@ -8,9 +8,20 @@
   ansible.builtin.file:
     path: "{{ vault_install_dir }}/{{ item }}"
     state: directory
-    mode: "0700"
+    mode: "0755"
   loop:
     - ""
+    - data
+    - config
+    - logs
+
+- name: Set Vault directory ownership for container user (UID 100)
+  ansible.builtin.file:
+    path: "{{ vault_install_dir }}/{{ item }}"
+    owner: "100"
+    group: "1000"
+    recurse: true
+  loop:
     - data
     - config
     - logs
@@ -35,20 +46,17 @@
     state: present
 
 - name: Wait for Vault to start (may be sealed or uninitialized)
-  ansible.builtin.command:
-    cmd: >
-      docker exec vault vault status -format=json
+  ansible.builtin.shell: >
+    docker exec vault vault status -format=json 2>/dev/null; true
   register: vault_status_raw
-  until: vault_status_raw.rc in [0, 1, 2]
+  until: vault_status_raw.stdout | default('') | length > 0
   retries: "{{ vault_health_check_retries }}"
   delay: "{{ vault_health_check_delay }}"
   changed_when: false
-  failed_when: false
 
 - name: Parse Vault status
   ansible.builtin.set_fact:
     vault_status: "{{ vault_status_raw.stdout | from_json }}"
-  when: vault_status_raw.stdout | default('') | length > 0
 
 # --- Initialization ---
 - name: Check if Vault needs initialization
@@ -141,16 +149,16 @@
   failed_when: kv_enable.rc != 0 and 'already in use' not in kv_enable.stderr
   no_log: true
 
-- name: Copy Ansible policy to Vault container
-  ansible.builtin.command:
-    cmd: >
-      docker cp {{ vault_install_dir }}/ansible-policy.hcl vault:/tmp/ansible-policy.hcl
-
 - name: Write Ansible automation policy file
   ansible.builtin.template:
     src: ansible-policy.hcl.j2
     dest: "{{ vault_install_dir }}/ansible-policy.hcl"
     mode: "0644"
+
+- name: Copy Ansible policy to Vault container
+  ansible.builtin.command:
+    cmd: >
+      docker cp {{ vault_install_dir }}/ansible-policy.hcl vault:/tmp/ansible-policy.hcl
 
 - name: Apply Ansible policy to Vault
   ansible.builtin.command:

@@ -1,0 +1,6 @@
+---
+alloy_version: "latest"
+alloy_config_path: /etc/alloy/config.alloy
+mimir_port: 9009
+loki_port: 3100
+alloy_scrape_interval: "60s"

@@ -1,0 +1,73 @@
+// ── Host metrics ────────────────────────────────────────────────────────────
+prometheus.exporter.unix "host" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+}
+
+prometheus.relabel "host_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "node"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+}
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.relabel.host_labels.receiver]
+  scrape_interval = "60s"
+}
+
+// ── Docker container metrics ─────────────────────────────────────────────────
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+prometheus.relabel "docker_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+}
+
+prometheus.scrape "docker_metrics" {
+  targets         = discovery.docker.containers.targets
+  forward_to      = [prometheus.relabel.docker_labels.receiver]
+  scrape_interval = "60s"
+}
+
+// ── Docker container logs ─────────────────────────────────────────────────────
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.write.loki.receiver]
+
+  labels = {
+    "job"      = "docker",
+    "instance" = env("HOSTNAME"),
+  }
+}
+
+// ── Remote write endpoints ────────────────────────────────────────────────────
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:{{ mimir_port }}/api/v1/push"
+  }
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:{{ loki_port }}/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,7 @@
+---
+mimir_host: ""
+loki_host: ""
+mimir_port: 9009
+loki_port: 3100
+alloy_config_path: /etc/alloy/config.alloy
+alloy_scrape_interval: "60s"

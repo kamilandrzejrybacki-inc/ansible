@@ -9,7 +9,7 @@ services:
       - "{{ vault_bind_address }}:{{ vault_port }}:8200"
     volumes:
       - ./data:/vault/data
-      - ./config:/vault/config:ro
+      - ./config:/vault/config
       - ./logs:/vault/logs
     environment:
       VAULT_ADDR: "http://127.0.0.1:8200"

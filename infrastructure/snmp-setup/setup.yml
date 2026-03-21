@@ -1,0 +1,134 @@
+---
+- name: Load saved configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check if previous setup vars exist
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.snmp-setup-vars.yml"
+      register: _setup_vars_stat
+
+    - name: Load previous setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.snmp-setup-vars.yml"
+      when: _setup_vars_stat.stat.exists
+
+- name: Gather target details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_hosts
+      prompt: |
+
+        ══════════════════════════════════════════════
+          SNMP Setup for LibreNMS Monitoring
+        ══════════════════════════════════════════════
+
+        [1/3] IP addresses of target machines
+              (comma-separated, e.g. 192.168.0.106,192.168.0.102)
+      default: "{{ hostvars['localhost']['saved_target_hosts'] | default('') }}"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/3] SSH user for target machines"
+      default: "{{ hostvars['localhost']['saved_ssh_user'] | default('') }}"
+      private: false
+
+    - name: snmp_community
+      prompt: "[3/3] SNMP community string (must match LibreNMS config)"
+      default: "{{ hostvars['localhost']['saved_snmp_community'] | default('public') }}"
+      private: false
+
+  tasks:
+    - name: Add target hosts to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ item.strip() }}"
+        groups: snmp_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+        snmp_community: "{{ snmp_community }}"
+      loop: "{{ target_hosts.split(',') }}"
+
+    - name: Save setup vars for future runs
+      ansible.builtin.copy:
+        content: |
+          saved_target_hosts: "{{ target_hosts }}"
+          saved_ssh_user: "{{ target_ssh_user }}"
+          saved_snmp_community: "{{ snmp_community }}"
+        dest: "{{ lookup('env', 'HOME') }}/.snmp-setup-vars.yml"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+      no_log: true
+
+- name: Install and configure SNMP
+  hosts: snmp_hosts
+  become: true
+  tasks:
+    - name: Install SNMP daemon
+      ansible.builtin.apt:
+        name:
+          - snmpd
+          - snmp
+          - libsnmp-dev
+        state: present
+        update_cache: true
+
+    - name: Deploy snmpd config
+      ansible.builtin.copy:
+        dest: /etc/snmp/snmpd.conf
+        mode: "0600"
+        content: |
+          # Basic system info
+          sysLocation    homelab
+          sysContact     admin
+
+          # Allow read-only access from any host — full OID tree (no view restriction)
+          rocommunity {{ snmp_community }} default
+
+          # Disk monitoring — required for LibreNMS disk usage graphs
+          disk /     10%
+          disk /boot 10%
+
+          # Extend scripts for LibreNMS OS/hardware detection
+          extend  .1.3.6.1.4.1.2021.7890.1 distro       /usr/bin/distro
+          extend  .1.3.6.1.4.1.2021.7890.3 hardware     /bin/cat /sys/devices/virtual/dmi/id/product_name
+          extend  .1.3.6.1.4.1.2021.7890.4 manufacturer /bin/cat /sys/devices/virtual/dmi/id/sys_vendor
+
+          # Listen on all interfaces
+          agentaddress udp:0.0.0.0:161,udp6:[::]:161
+      notify: restart snmpd
+
+    - name: Install LibreNMS SNMP extend scripts
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro"
+        dest: /usr/bin/distro
+        mode: "0755"
+      ignore_errors: true
+
+    - name: Allow SNMP through firewall
+      community.general.ufw:
+        rule: allow
+        port: "161"
+        proto: udp
+        comment: "SNMP for LibreNMS"
+
+    - name: Ensure snmpd is started and enabled
+      ansible.builtin.systemd:
+        name: snmpd
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Re-discover device in LibreNMS
+      ansible.builtin.command: >
+        docker exec librenms_app lnms device:discover {{ inventory_hostname }}
+      delegate_to: localhost
+      become: false
+      changed_when: true
+      ignore_errors: true
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "SNMP configured on {{ inventory_hostname }} — LibreNMS will now collect full metrics."

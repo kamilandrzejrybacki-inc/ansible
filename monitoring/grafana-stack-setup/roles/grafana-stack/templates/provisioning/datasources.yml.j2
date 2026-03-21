@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:{{ loki_port }}
+    isDefault: false
+    editable: false
+
+  - name: Mimir
+    type: prometheus
+    access: proxy
+    url: http://mimir:{{ mimir_port }}/prometheus
+    isDefault: true
+    editable: false

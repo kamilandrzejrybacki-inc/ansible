@@ -1,0 +1,63 @@
+services:
+  loki:
+    image: {{ loki_image }}
+    container_name: loki
+    restart: {{ grafana_restart_policy }}
+    user: "0:0"
+    ports:
+      - "0.0.0.0:{{ loki_port }}:3100"
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - ./loki/data:/data/loki
+    command: -config.file=/etc/loki/loki.yml
+
+  mimir:
+    image: {{ mimir_image }}
+    container_name: mimir
+    restart: {{ grafana_restart_policy }}
+    user: "0:0"
+    ports:
+      - "0.0.0.0:{{ mimir_port }}:9009"
+    volumes:
+      - ./mimir/mimir.yml:/etc/mimir/mimir.yml:ro
+      - ./mimir/data:/data/mimir
+    command: -config.file=/etc/mimir/mimir.yml
+
+  grafana:
+    image: {{ grafana_image }}
+    container_name: grafana
+    restart: {{ grafana_restart_policy }}
+    ports:
+      - "{{ grafana_bind_address }}:{{ grafana_port }}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_SERVER_ROOT_URL: "{{ grafana_public_url if grafana_public_url else 'http://localhost:' + grafana_port|string }}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DATE_FORMATS_DEFAULT_TIMEZONE: "{{ grafana_timezone }}"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+      - mimir
+
+  alloy:
+    image: {{ alloy_image }}
+    container_name: alloy
+    restart: {{ grafana_restart_policy }}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    command: run /etc/alloy/config.alloy
+    pid: host
+    privileged: true
+    depends_on:
+      - loki
+      - mimir
+
+volumes:
+  grafana_data:

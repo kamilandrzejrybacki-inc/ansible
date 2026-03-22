@@ -5,7 +5,7 @@
   changed_when: false
   failed_when: false
 
-- name: Register missing MCP servers
+- name: Register missing HTTP MCP servers
   ansible.builtin.command: >-
     claude mcp add
     --transport {{ item.transport }}
@@ -13,7 +13,22 @@
     "{{ item.name }}"
     "{{ item.url }}"
   loop: "{{ claude_mcp_servers }}"
-  when: item.name not in (current_mcp_servers.stdout | default(''))
+  when:
+    - item.name not in (current_mcp_servers.stdout | default(''))
+    - item.transport != 'stdio'
+
+- name: Register missing stdio MCP servers
+  ansible.builtin.command: >-
+    claude mcp add
+    --transport stdio
+    --scope {{ item.scope }}
+    "{{ item.name }}"
+    {{ item.command }}
+    {{ item.args | join(' ') }}
+  loop: "{{ claude_mcp_servers }}"
+  when:
+    - item.name not in (current_mcp_servers.stdout | default(''))
+    - item.transport == 'stdio'
 
 - name: Display MCP post-setup instructions
   ansible.builtin.debug:

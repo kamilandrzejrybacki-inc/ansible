@@ -8,3 +8,13 @@ claude_mcp_servers:
     transport: http
     url: "https://gcal.mcp.claude.com/mcp"
     scope: user
+  - name: "lightpanda"
+    transport: stdio
+    scope: user
+    command: docker
+    args:
+      - exec
+      - -i
+      - lightpanda
+      - /bin/lightpanda
+      - mcp

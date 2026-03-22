@@ -1,0 +1,11 @@
+---
+# Paperless-NGX MCP Server configuration
+paperless_api_url: "http://10.0.0.2:8000"
+paperless_mcp_package: "paperless-mcp"
+
+# Claude Code config
+claude_config_path: "{{ lookup('env', 'HOME') }}/.claude.json"
+
+# Vault
+vault_addr: "http://127.0.0.1:8200"
+vault_paperless_secret_path: "secret/homelab/paperless"

@@ -1,0 +1,70 @@
+---
+# =============================================================================
+# Paperless-NGX MCP Server — Claude Code Integration
+# Registers paperless-mcp (npx) in ~/.claude.json so Claude can search,
+# upload, tag, and manage documents in Paperless-NGX.
+# =============================================================================
+
+- name: Load Vault credentials
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/{{ vault_paperless_secret_path }}"
+    headers:
+      X-Vault-Token: "{{ vault_token }}"
+    return_content: true
+    status_code: [200]
+  register: _vault_paperless
+  no_log: true
+
+- name: Set Paperless API token fact
+  ansible.builtin.set_fact:
+    _paperless_api_token: "{{ _vault_paperless.json.data.data.api_token }}"
+    _paperless_api_url: "{{ _vault_paperless.json.data.data.api_url | default(paperless_api_url) }}"
+  no_log: true
+
+- name: Verify Paperless API is reachable
+  ansible.builtin.uri:
+    url: "{{ _paperless_api_url }}/api/"
+    headers:
+      Authorization: "Token {{ _paperless_api_token }}"
+    status_code: [200]
+  register: _paperless_check
+  failed_when: false
+
+- name: Warn if Paperless API unreachable
+  ansible.builtin.debug:
+    msg: "WARNING: Paperless API at {{ _paperless_api_url }} is not reachable — MCP will be registered but may not work"
+  when: _paperless_check.status is not defined or _paperless_check.status != 200
+
+- name: Read Claude Code config
+  ansible.builtin.slurp:
+    src: "{{ claude_config_path }}"
+  register: _claude_config_raw
+
+- name: Register paperless-mcp in Claude Code
+  ansible.builtin.copy:
+    content: "{{ _claude_config_updated | to_nice_json(indent=2) }}\n"
+    dest: "{{ claude_config_path }}"
+    mode: "0600"
+    backup: true
+  vars:
+    _claude_config: "{{ _claude_config_raw.content | b64decode | from_json }}"
+    _paperless_entry:
+      command: "npx"
+      args:
+        - "-y"
+        - "{{ paperless_mcp_package }}"
+        - "{{ _paperless_api_url }}"
+        - "{{ _paperless_api_token }}"
+    _claude_config_updated: >-
+      {{ _claude_config | combine({'mcpServers': (_claude_config.mcpServers | default({})) | combine({'paperless': _paperless_entry}) }) }}
+  no_log: true
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      Paperless MCP registered in Claude Code.
+
+      API URL: {{ _paperless_api_url }}
+      Package: npx -y {{ paperless_mcp_package }}
+
+      Restart Claude Code for the MCP to load.

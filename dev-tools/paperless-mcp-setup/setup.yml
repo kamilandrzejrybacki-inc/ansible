@@ -1,0 +1,24 @@
+# =============================================================================
+# Paperless-NGX MCP Integration Setup
+# =============================================================================
+# Registers the paperless-mcp server in Claude Code so you can search,
+# upload, tag, and manage Paperless-NGX documents directly from Claude.
+#
+# Prerequisites:
+#   - Paperless-NGX running on lw-s1 (10.0.0.2:8000)
+#   - API token stored in Vault at secret/homelab/paperless
+#   - Vault token in ~/.vault-ansible.yml
+#
+# Usage:
+#   ansible-playbook dev-tools/paperless-mcp-setup/setup.yml \
+#     -i dev-tools/paperless-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Register Paperless-NGX MCP in Claude Code
+  hosts: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'HOME') }}/.vault-ansible.yml"
+  roles:
+    - paperless-mcp

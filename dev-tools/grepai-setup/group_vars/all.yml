@@ -1,0 +1,7 @@
+---
+# Ollama
+ollama_version: "0.18.2"
+ollama_embedding_model: "nomic-embed-text"
+
+# grepai
+grepai_version: "0.35.0"

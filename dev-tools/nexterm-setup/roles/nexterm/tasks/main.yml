@@ -1,0 +1,155 @@
+---
+- name: Create Nexterm data directory
+  ansible.builtin.file:
+    path: "{{ nexterm_data_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Check for existing encryption key
+  ansible.builtin.stat:
+    path: "{{ nexterm_data_dir }}/.encryption_key"
+  register: _key_file
+
+- name: Generate encryption key if not present
+  ansible.builtin.shell:
+    cmd: openssl rand -hex 32 > "{{ nexterm_data_dir }}/.encryption_key"
+    creates: "{{ nexterm_data_dir }}/.encryption_key"
+  when: not _key_file.stat.exists
+
+- name: Restrict permissions on encryption key file
+  ansible.builtin.file:
+    path: "{{ nexterm_data_dir }}/.encryption_key"
+    mode: "0600"
+
+- name: Read encryption key
+  ansible.builtin.slurp:
+    src: "{{ nexterm_data_dir }}/.encryption_key"
+  register: _encryption_key_b64
+
+- name: Pull Nexterm Docker image
+  community.docker.docker_image:
+    name: "{{ nexterm_image }}"
+    source: pull
+
+- name: Start Nexterm container
+  community.docker.docker_container:
+    name: "{{ nexterm_container_name }}"
+    image: "{{ nexterm_image }}"
+    state: started
+    restart_policy: "{{ nexterm_restart_policy }}"
+    published_ports:
+      - "{{ nexterm_bind_address }}:{{ nexterm_port }}:6989"
+    volumes:
+      - "{{ nexterm_data_dir }}:/app/data"
+    dns_servers:
+      - "{{ pihole_dns_ip }}"
+    networks:
+      - name: "{{ docker_network_name }}"
+    env:
+      ENCRYPTION_KEY: "{{ _encryption_key_b64.content | b64decode | trim }}"
+
+- name: Wait for Nexterm to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ nexterm_port }}"
+    status_code: [200, 302]
+  register: _nexterm_health
+  until: _nexterm_health is not failed
+  retries: "{{ nexterm_health_check_retries }}"
+  delay: "{{ nexterm_health_check_delay }}"
+
+# =============================================================================
+# Bootstrap: account, SSH identity, and connections (runs once)
+# =============================================================================
+
+- name: Check for bootstrap sentinel
+  ansible.builtin.stat:
+    path: "{{ nexterm_data_dir }}/.bootstrapped"
+  register: _bootstrap_sentinel
+
+- name: Bootstrap Nexterm
+  when: not _bootstrap_sentinel.stat.exists
+  block:
+    - name: Read SSH private key
+      ansible.builtin.slurp:
+        src: "{{ nexterm_ssh_key_path | expanduser }}"
+      register: _ssh_key_b64
+
+    - name: Register admin account
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nexterm_port }}/api/accounts/register"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ nexterm_admin_username }}"
+          password: "{{ nexterm_admin_password }}"
+          firstName: "{{ nexterm_admin_first_name }}"
+          lastName: "{{ nexterm_admin_last_name }}"
+        status_code: [200, 400]
+      register: _register
+
+    - name: Login and obtain session token
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nexterm_port }}/api/auth/login"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ nexterm_admin_username }}"
+          password: "{{ nexterm_admin_password }}"
+        status_code: 200
+      register: _login
+
+    - name: Set auth token fact
+      ansible.builtin.set_fact:
+        _nexterm_token: "{{ _login.json.token }}"
+
+    - name: Create homelab SSH key identity
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nexterm_port }}/api/identities"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _nexterm_token }}"
+        body_format: json
+        body:
+          name: "homelab-key"
+          type: "ssh"
+          username: "{{ nexterm_connections[0].username }}"
+          sshKey: "{{ _ssh_key_b64.content | b64decode }}"
+        status_code: 200
+      register: _identity
+
+    - name: Create SSH connection for each host
+      ansible.builtin.uri:
+        url: "http://localhost:{{ nexterm_port }}/api/entries"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _nexterm_token }}"
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+          type: "server"
+          identities: ["{{ _identity.json.id | int }}"]
+          config:
+            protocol: "ssh"
+            ip: "{{ item.ip }}"
+            port: "{{ item.port | int }}"
+        status_code: 200
+      loop: "{{ nexterm_connections }}"
+
+    - name: Write bootstrap sentinel
+      ansible.builtin.copy:
+        content: "bootstrapped"
+        dest: "{{ nexterm_data_dir }}/.bootstrapped"
+        mode: "0600"
+
+- name: Display Nexterm access information
+  ansible.builtin.debug:
+    msg: |
+      Nexterm is running.
+
+      URL:  http://localhost:{{ nexterm_port }}
+      User: {{ nexterm_admin_username }}
+
+      Connections pre-configured:
+      {% for c in nexterm_connections %}
+        - {{ c.name }}  →  {{ c.ip }}:{{ c.port }}  ({{ c.username }})
+      {% endfor %}

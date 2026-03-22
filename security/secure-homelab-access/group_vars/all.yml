@@ -36,6 +36,8 @@ authelia_data_dir: "{{ docker_data_dir }}/authelia"
 # -- Cockpit (System Management + Terminal) ------------------------------------
 cockpit_port: 9090
 cockpit_allow_unencrypted: true  # Safe: behind Caddy HTTPS + WireGuard VPN
+cockpit_autologin_user: "kamil-rybacki"
+cockpit_autologin_password: ""   # Set via vars_prompt or ~/.homelab-setup-vars.yml
 
 # -- Homepage (Dashboard) -----------------------------------------------------
 homepage_container_name: "homepage"

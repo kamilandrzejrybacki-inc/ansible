@@ -6,7 +6,6 @@
       [ "$status" = "true" ] && break
       sleep 2
     done
-    caddy_pid=$(docker inspect --format='{{ "{{" }}.State.Pid{{ "}}" }}' {{ caddy_container_name }})
-    tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < {{ caddy_data_dir }}/Caddyfile > /dev/null
+    
     docker exec {{ caddy_container_name }} caddy reload --config /etc/caddy/Caddyfile
   changed_when: true

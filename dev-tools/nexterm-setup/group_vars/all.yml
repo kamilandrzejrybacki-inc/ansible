@@ -1,0 +1,37 @@
+---
+nexterm_container_name: nexterm
+nexterm_image: germannewsmaker/nexterm:latest
+nexterm_port: 6989
+nexterm_bind_address: "127.0.0.1"
+nexterm_data_dir: /opt/homelab/nexterm
+nexterm_restart_policy: unless-stopped
+nexterm_hostname: nexterm
+
+# Homelab network integration
+docker_network_name: homelab-net
+pihole_dns_ip: "172.20.0.10"
+caddy_dns_ip: "172.20.0.3"
+
+# Health check
+nexterm_health_check_retries: 12
+nexterm_health_check_delay: 5
+
+# Bootstrap admin account (created once on first run)
+nexterm_admin_username: admin
+nexterm_admin_password: "changeme"
+nexterm_admin_first_name: Kamil
+nexterm_admin_last_name: Rybacki
+
+# SSH key path to inject as identity
+nexterm_ssh_key_path: "~/.ssh/id_ed25519"
+
+# Connections to pre-configure
+nexterm_connections:
+  - name: lw-main
+    ip: "10.0.0.1"
+    port: 22
+    username: kamil-rybacki
+  - name: lw-s1
+    ip: "10.0.0.2"
+    port: 22
+    username: kamil

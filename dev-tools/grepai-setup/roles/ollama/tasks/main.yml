@@ -1,0 +1,112 @@
+---
+- name: Check if Ollama is already installed
+  ansible.builtin.command: "{{ ollama_bin }} --version"
+  register: _ollama_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Ollama
+  when: _ollama_installed.rc != 0
+  block:
+    - name: Map architecture to Ollama release suffix
+      ansible.builtin.set_fact:
+        _ollama_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'} [ansible_architecture] | default(ansible_architecture) }}"
+
+    - name: Ensure zstd is installed (required to extract Ollama archive)
+      ansible.builtin.apt:
+        name: zstd
+        state: present
+        update_cache: false
+
+    - name: Download Ollama archive
+      ansible.builtin.get_url:
+        url: "https://github.com/ollama/ollama/releases/download/v{{ ollama_version }}/ollama-linux-{{ _ollama_arch }}.tar.zst"
+        dest: "/tmp/ollama-linux-{{ _ollama_arch }}.tar.zst"
+        mode: "0644"
+
+    - name: Extract Ollama archive to /usr/local
+      ansible.builtin.command:
+        cmd: "tar --use-compress-program=zstd -xf /tmp/ollama-linux-{{ _ollama_arch }}.tar.zst --no-same-owner -C /usr/local"
+      changed_when: true
+
+    - name: Ensure Ollama binary is executable
+      ansible.builtin.file:
+        path: "{{ ollama_bin }}"
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Clean up Ollama archive
+      ansible.builtin.file:
+        path: "/tmp/ollama-linux-{{ _ollama_arch }}.tar.zst"
+        state: absent
+
+- name: Create ollama group
+  ansible.builtin.group:
+    name: "{{ ollama_group }}"
+    system: true
+    state: present
+
+- name: Create ollama user
+  ansible.builtin.user:
+    name: "{{ ollama_user }}"
+    group: "{{ ollama_group }}"
+    home: "{{ ollama_home }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: true
+    state: present
+
+- name: Template Ollama systemd service
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart ollama
+
+- name: Flush handlers to reload systemd before enabling service
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Ollama service
+  ansible.builtin.systemd:
+    name: ollama
+    enabled: true
+    state: started
+
+- name: Wait for Ollama API to become reachable
+  ansible.builtin.uri:
+    url: "http://{{ ollama_host }}:{{ ollama_port }}/api/tags"
+    status_code: 200
+  register: _ollama_health
+  until: _ollama_health is not failed
+  retries: "{{ ollama_health_check_retries }}"
+  delay: "{{ ollama_health_check_delay }}"
+
+- name: Check if embedding model is already pulled
+  ansible.builtin.command: "{{ ollama_bin }} list"
+  register: _ollama_models
+  changed_when: false
+  become: false
+
+- name: Pull embedding model
+  ansible.builtin.command: "{{ ollama_bin }} pull {{ ollama_embedding_model }}"
+  when: ollama_embedding_model not in _ollama_models.stdout
+  changed_when: true
+  environment:
+    OLLAMA_HOST: "http://{{ ollama_host }}:{{ ollama_port }}"
+  become: false
+
+- name: Display Ollama status
+  ansible.builtin.debug:
+    msg: |
+      Ollama is running.
+
+      API endpoint:      http://{{ ollama_host }}:{{ ollama_port }}
+      Embedding model:   {{ ollama_embedding_model }}
+
+      List models:  ollama list
+      Run a model:  ollama run llama3.2

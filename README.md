@@ -9,15 +9,15 @@
   <a href="https://github.com/kamilrybacki/ansible/actions/workflows/ci-heavy.yml"><img src="https://github.com/kamilrybacki/ansible/actions/workflows/ci-heavy.yml/badge.svg?branch=main" alt="CI - Heavy"></a>
   <img src="https://img.shields.io/badge/ansible-%3E%3D2.16-EE0000?logo=ansible&logoColor=white" alt="Ansible">
   <img src="https://img.shields.io/badge/molecule-tested-2ECC40?logo=testing-library&logoColor=white" alt="Molecule Tested">
-  <img src="https://img.shields.io/badge/roles-57-blue" alt="Roles">
-  <img src="https://img.shields.io/badge/playbooks-27-blue" alt="Playbooks">
+  <img src="https://img.shields.io/badge/roles-62-blue" alt="Roles">
+  <img src="https://img.shields.io/badge/playbooks-30-blue" alt="Playbooks">
 </p>
 
 ---
 
 ## Overview
 
-A collection of **27 self-contained Ansible playbook sets** organized into 8 functional categories. Each playbook is fully independent with its own inventory, roles, and variables — no global shared state.
+A collection of **30 self-contained Ansible playbook sets** organized into 8 functional categories. Each playbook is fully independent with its own inventory, roles, and variables — no global shared state.
 
 **Key features:**
 
@@ -75,9 +75,14 @@ Deploys a hardened, production-grade remote access stack on a single server. Run
 | Cockpit | Web-based server management & terminal | — |
 | Homepage | Service dashboard | — |
 
-**Subdomains provisioned:** `auth.<domain>`, `home.<domain>`, `cockpit.<domain>`, `wg.<domain>`, `pihole.<domain>`
+**Subdomains provisioned:** `auth.<domain>`, `home.<domain>`, `cockpit.<domain>`, `wg.<domain>`, `pihole.<domain>`, `nexterm.<domain>` (+ others added by individual service playbooks)
 
-**Prompts for (16 total):** host IP/SSH credentials, public IP, domain, Let's Encrypt email, SSH port, WireGuard admin password, Authelia credentials, Pi-hole password, Cloudflare API token and tunnel name (both optional), SMTP username and app password for email notifications (both optional).
+**Prompts for (17 total):** host IP/SSH credentials, public IP, domain, Let's Encrypt email, SSH port, WireGuard admin password, Authelia credentials, Pi-hole password, Cockpit auto-login password (for Basic auth injection), Cloudflare API token and tunnel name (both optional), SMTP username and app password for email notifications (both optional).
+
+**Notable features:**
+- Cockpit auto-login via Caddy Basic auth header injection (`Authorization: Basic <base64>`) — no Caddy SSO or PAM config needed
+- Caddy reload uses `docker exec caddy caddy reload` (no file copy overhead)
+- All Caddyfile blocks managed via `blockinfile` with named markers for idempotent re-runs
 
 **Secrets:** Automatically generated JWT, session, and encryption keys. All credentials written to `~/.homelab-credentials` (mode 0600). When Vault is available, secrets are also stored at `secret/homelab/infrastructure`.
 
@@ -282,6 +287,9 @@ Playbooks for developer environment setup.
 | Playbook | Description | Roles |
 |----------|-------------|-------|
 | [`dev-tools/claude-code-setup`](./dev-tools/claude-code-setup/) | Claude Code CLI — plugins, MCP servers, Serena semantic analysis, custom rules | 6 |
+| [`dev-tools/nexterm-setup`](./dev-tools/nexterm-setup/) | Nexterm — web-based SSH/terminal manager with auto-provisioned host connections | 1 |
+| [`dev-tools/vault-mcp-setup`](./dev-tools/vault-mcp-setup/) | Vault MCP Server — HashiCorp Vault integration for Claude Code via MCP | 1 |
+| [`dev-tools/grepai-setup`](./dev-tools/grepai-setup/) | grepai + Ollama — semantic codebase search with local embeddings | 2 |
 
 ### dev-tools/claude-code-setup
 
@@ -289,6 +297,34 @@ Provisions [Claude Code](https://claude.ai/code) with a curated set of plugins, 
 
 - **Roles:** `claude_cli`, `claude_config`, `plugins`, `serena`, `mcp_servers`, `commands`
 - **Installs:** Claude Code CLI, Serena (semantic code analysis via LSP), Gmail MCP server, custom slash commands
+
+### dev-tools/nexterm-setup
+
+Deploys [Nexterm](https://github.com/gnmyt/nexterm) — a lightweight web-based SSH/terminal manager for managing multiple homelab hosts.
+
+- **Image:** `germannewsmaker/nexterm:latest`
+- **Web UI:** port 6989 (proxied via Caddy at `nexterm.<domain>`)
+- **Auto-provisioning:** creates admin account, SSH key identity, and host connections via Nexterm REST API on first run (sentinel-gated)
+- **Connections auto-added:** all hosts defined in `nexterm_connections` (lw-main, lw-s1 by default)
+- **Encryption:** generates 64-char hex `ENCRYPTION_KEY` on first run, stored at `/opt/homelab/nexterm/.encryption_key`
+- **Homepage integration:** adds Nexterm card to the Homepage service dashboard
+
+### dev-tools/vault-mcp-setup
+
+Installs the [HashiCorp Vault MCP Server](https://developer.hashicorp.com/vault/docs/mcp-server/overview) and wires it into Claude Code so the AI can read/write Vault secrets directly via MCP.
+
+- **Binary:** `~/.local/bin/vault-mcp-server` (v0.2.0, from releases.hashicorp.com)
+- **Transport:** stdio
+- **Config:** adds `vault` entry to `~/.claude.json` with `VAULT_ADDR` and `VAULT_TOKEN` from `~/.vault-ansible.yml`
+- **Requires:** `security/vault-setup` deployed first and `~/.vault-ansible.yml` present
+
+### dev-tools/grepai-setup
+
+Installs [grepai](https://grepai.dev/) for AI-powered semantic code search, backed by a local [Ollama](https://ollama.ai/) instance for embeddings (no cloud API keys required).
+
+- **Roles:** `ollama` (v0.18.2), `grepai` (v0.35.0)
+- **Embedding model:** `nomic-embed-text` (pulled automatically via Ollama)
+- **Usage after install:** `cd <project> && grepai init && grepai watch`
 
 ---
 
@@ -344,7 +380,8 @@ For a fresh homelab server:
 1. security/secure-homelab-access        # Firewall, VPN, HTTPS, 2FA
 2. security/vault-setup                  # Centralized secrets (optional, recommended)
 3. monitoring/librenms-setup             # Network monitoring
-4. ai/*, automation/*, files/*           # Any services you want
+4. dev-tools/nexterm-setup               # Web-based SSH terminal manager
+5. ai/*, automation/*, files/*           # Any services you want
 ```
 
 For a local development machine:
@@ -352,7 +389,9 @@ For a local development machine:
 ```
 1. desktop/i3-setup                      # Window manager
 2. dev-tools/claude-code-setup           # AI coding assistant
-3. k8s/k8s-full-setup                   # Local Kubernetes
+3. dev-tools/vault-mcp-setup             # Vault MCP for Claude Code (requires vault-setup)
+4. dev-tools/grepai-setup                # Semantic code search
+5. k8s/k8s-full-setup                    # Local Kubernetes
 ```
 
 ### Vault Integration (Optional)

@@ -1,0 +1,16 @@
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart={{ ollama_bin }} serve
+User={{ ollama_user }}
+Group={{ ollama_group }}
+Restart=always
+RestartSec=3
+Environment="OLLAMA_HOST={{ ollama_host }}:{{ ollama_port }}"
+Environment="HOME={{ ollama_home }}"
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=default.target

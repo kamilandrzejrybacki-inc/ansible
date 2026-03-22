@@ -1,0 +1,70 @@
+---
+- name: Check if grepai is already installed
+  ansible.builtin.command: "{{ grepai_bin }} version"
+  register: _grepai_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install grepai
+  when: >
+    _grepai_installed.rc != 0 or
+    grepai_version not in (_grepai_installed.stdout | default(''))
+  block:
+    - name: Map architecture to grepai release suffix
+      ansible.builtin.set_fact:
+        _grepai_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'} [ansible_architecture] | default(ansible_architecture) }}"
+
+    - name: Download grepai tarball
+      ansible.builtin.get_url:
+        url: "https://github.com/yoanbernabeu/grepai/releases/download/v{{ grepai_version }}/grepai_{{ grepai_version }}_linux_{{ _grepai_arch }}.tar.gz"
+        dest: "/tmp/grepai_{{ grepai_version }}_linux_{{ _grepai_arch }}.tar.gz"
+        mode: "0644"
+
+    - name: Extract grepai binary
+      ansible.builtin.unarchive:
+        src: "/tmp/grepai_{{ grepai_version }}_linux_{{ _grepai_arch }}.tar.gz"
+        dest: /tmp
+        remote_src: true
+        extra_opts: ["--no-same-owner"]
+
+    - name: Install grepai binary
+      ansible.builtin.copy:
+        src: /tmp/grepai
+        dest: "{{ grepai_bin }}"
+        mode: "0755"
+        owner: root
+        group: root
+        remote_src: true
+
+    - name: Clean up grepai temporary files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/grepai_{{ grepai_version }}_linux_{{ _grepai_arch }}.tar.gz"
+        - /tmp/grepai
+
+- name: Verify grepai installation
+  ansible.builtin.command: "{{ grepai_bin }} version"
+  register: _grepai_version
+  changed_when: false
+
+- name: Display grepai status
+  ansible.builtin.debug:
+    msg: |
+      grepai {{ _grepai_version.stdout }} is installed.
+
+      To index a project, run:
+        cd your-project
+        grepai init          # creates .grepai/config.yaml (uses Ollama by default)
+        grepai watch         # indexes the codebase and keeps the index live
+
+      MCP server is pre-configured in ~/.claude.json.
+      Restart Claude Code to activate semantic code search.
+
+      Available MCP tools:
+        grepai_search          Semantic code search
+        grepai_trace_callers   Find callers of a symbol
+        grepai_trace_callees   Find callees of a symbol
+        grepai_trace_graph     Full call graph around a symbol
+        grepai_index_status    Check index health

@@ -5,6 +5,7 @@ Ansible playbook for setting up secure remote access to a homelab entry node via
 ## Architecture
 
 ```
+Internet → Cloudflare Tunnel (optional) → Caddy (HTTPS + TLS)
 Internet → Public IP:51820/UDP → WireGuard VPN (wg-easy)
                                        │
                                   VPN Network (10.8.0.0/24)
@@ -13,10 +14,10 @@ Internet → Public IP:51820/UDP → WireGuard VPN (wg-easy)
                                        │
                                     Authelia (2FA: TOTP / WebAuthn)
                                        │
-                         ┌─────────────┼─────────────┐
-                         │             │             │
-                     Homepage      Cockpit     Your Services
-                    (dashboard)   (terminal)    (HA, etc.)
+                 ┌─────────────────────┼─────────────────────┐
+                 │                     │                     │
+             Homepage              Cockpit               Services
+            (dashboard)        (auto-login)         (Nexterm, etc.)
 ```
 
 ### Security Layers
@@ -24,19 +25,24 @@ Internet → Public IP:51820/UDP → WireGuard VPN (wg-easy)
 1. **WireGuard VPN** — Only UDP port 51820 exposed to internet. All services accessible only through the VPN tunnel.
 2. **UFW Firewall** — Default deny incoming. Only SSH + WireGuard ports open.
 3. **Fail2ban** — Brute-force protection for SSH.
-4. **Caddy HTTPS** — TLS encryption for all services, even inside the VPN.
-5. **Authelia 2FA** — TOTP or WebAuthn required for every service access.
+4. **CrowdSec** — Threat intelligence and DDoS mitigation (runs alongside Caddy).
+5. **Caddy HTTPS** — TLS encryption for all services, even inside the VPN.
+6. **Authelia 2FA** — TOTP or WebAuthn required for every service access.
+7. **Cloudflare Tunnel** — Optional zero-trust tunnel for public-facing services without port forwarding.
 
 ## Components
 
 | Component | Role | Access URL |
 |-----------|------|------------|
 | WireGuard (wg-easy) | VPN tunnel + peer management | `wg.yourdomain.com` |
-| Caddy | Reverse proxy, HTTPS termination | - |
+| Caddy | Reverse proxy, HTTPS termination | — |
 | Authelia | 2FA authentication gateway | `auth.yourdomain.com` |
-| Cockpit | System management + web terminal | `cockpit.yourdomain.com` |
+| Cockpit | System management + web terminal (auto-login) | `cockpit.yourdomain.com` |
 | Homepage | Service dashboard | `home.yourdomain.com` |
-| UFW + Fail2ban | Firewall + brute-force protection | - |
+| Pi-hole | Ad-blocking DNS server | `pihole.yourdomain.com` |
+| CrowdSec | Threat intelligence bouncer | — |
+| UFW + Fail2ban | Firewall + brute-force protection | — |
+| Cloudflared | Zero-trust Cloudflare tunnel (optional) | — |
 
 ## Quick Start
 
@@ -61,14 +67,20 @@ You'll be walked through a setup wizard that asks for:
 
 | Step | Prompt | Example |
 |------|--------|---------|
-| 1/8 | Public IP address | `203.0.113.42` |
-| 2/8 | Domain name | `homelab.example.com` |
-| 3/8 | SSH port | `22` |
-| 4/8 | Let's Encrypt email | `you@example.com` |
-| 5/8 | WireGuard admin password | *(hidden, confirmed)* |
-| 6/8 | Authelia admin username | `admin` |
-| 7/8 | Authelia admin password | *(hidden, confirmed)* |
-| 8/8 | Authelia admin email | `you@example.com` |
+| 1 | Public IP address | `203.0.113.42` |
+| 2 | Domain name | `homelab.example.com` |
+| 3 | SSH port | `22` |
+| 4 | Let's Encrypt email | `you@example.com` |
+| 5 | WireGuard admin password | *(hidden)* |
+| 6 | Authelia admin username | `admin` |
+| 7 | Authelia admin password | *(hidden)* |
+| 8 | Authelia admin email | `you@example.com` |
+| 9 | Pi-hole admin password | *(hidden)* |
+| 10 | Cockpit auto-login password | *(hidden, for Basic auth injection)* |
+| 11 | Cloudflare API token | *(optional, press Enter to skip)* |
+| 12 | Cloudflare tunnel name | *(optional)* |
+| 13 | SMTP username | *(optional)* |
+| 14 | SMTP app password | *(optional)* |
 
 Secrets (JWT, session, encryption keys) are **auto-generated** at runtime.
 
@@ -93,10 +105,39 @@ Point `*.yourdomain.com` to your VPN server address (`10.8.0.1`) using:
 - Entries in your client's `/etc/hosts` or equivalent
 - A split-horizon DNS setup
 
+## Notable Features
+
+### Cockpit Auto-Login
+
+Caddy injects a `Basic` auth header directly into requests to Cockpit:
+
+```
+header_up Authorization "Basic {$COCKPIT_BASIC_AUTH}"
+header_down -WWW-Authenticate
+```
+
+The `COCKPIT_BASIC_AUTH` env var is set to `base64(username:password)` and passed to the Caddy container. This means navigating to `cockpit.yourdomain.com` logs you in automatically after Authelia 2FA — no separate Cockpit login prompt.
+
+### Cloudflare Tunnel (Optional)
+
+When a Cloudflare API token is provided, the playbook:
+1. Creates a Cloudflare Tunnel via the API
+2. Deploys `cloudflared` as a Docker container
+3. Configures Caddy to route tunnel traffic alongside direct VPN traffic
+
+### Vault Integration
+
+When `security/vault-setup` is deployed first, this playbook:
+- Reads existing secrets from `secret/homelab/infrastructure`
+- Pre-fills all prompt defaults (just press Enter)
+- Stores all credentials back to Vault after deployment
+
+Secret paths within `secret/homelab/infrastructure`: `authelia_*`, `caddy_*`, `cloudflare_*`, `pihole_*`, `wireguard_*`, `cockpit_*`.
+
 ## Overriding Defaults
 
 Internal settings (ports, subnets, container names) live in `group_vars/all.yml`.
-You can override any of them via extra-vars without editing files:
+Override any of them via extra-vars without editing files:
 
 ```bash
 ansible-playbook -i inventory/hosts.ini setup.yml -e wireguard_port=51900 -e vpn_subnet=10.10.0.0/24
@@ -104,12 +145,13 @@ ansible-playbook -i inventory/hosts.ini setup.yml -e wireguard_port=51900 -e vpn
 
 ## Adding More Services
 
-1. Add a reverse proxy entry in `roles/caddy/templates/Caddyfile.j2`
-2. Add the service to `roles/homepage/templates/services.yaml.j2`
-3. Create a new role if the service needs its own deployment logic
+1. Add a reverse proxy block to `roles/caddy/templates/Caddyfile.j2`
+2. Add the service card to `roles/homepage/templates/services.yaml.j2`
+3. Register any new Cloudflare DNS records via `roles/cloudflare/tasks/main.yml`
+4. Create a new role if the service needs its own deployment logic
 
 ## Requirements
 
 - Target: Debian/Ubuntu-based system
-- Ansible >= 2.10
+- Ansible >= 2.16
 - Collections: `community.docker`, `community.general`, `ansible.posix`

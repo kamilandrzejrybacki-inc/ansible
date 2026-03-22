@@ -68,6 +68,7 @@
     env:
       CROWDSEC_API_KEY: "{{ crowdsec_bouncer_key | default('disabled') }}"
       CF_API_TOKEN: "{{ cloudflare_api_token | default('') }}"
+      COCKPIT_BASIC_AUTH: "{{ (cockpit_autologin_user + ':' + cockpit_autologin_password) | b64encode }}"
     ports:
       - "80:80"
       - "443:443"

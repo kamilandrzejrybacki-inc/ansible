@@ -29,7 +29,14 @@ access_control:
         - "{{ vpn_subnet }}"   # WireGuard VPN clients
         - "10.0.0.0/8"         # LAN (homelab nodes)
         - "192.168.0.0/16"     # LAN (home network)
+    - name: docker_internal
+      networks:
+        - "172.20.0.0/24"      # homelab-net (Lightpanda, internal agents)
   rules:
+    # Docker internal: full bypass — containers on homelab-net skip auth entirely
+    - domain: "*.{{ domain }}"
+      networks: [docker_internal]
+      policy: "bypass"
     # VPN / LAN: single factor — no TOTP required when on WireGuard or home network
     - domain: "*.{{ domain }}"
       networks: [vpn_and_lan]

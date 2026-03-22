@@ -1,0 +1,93 @@
+---
+- name: Ensure install directory exists
+  ansible.builtin.file:
+    path: "{{ vault_mcp_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check current vault-mcp-server version
+  ansible.builtin.command: "{{ vault_mcp_binary }} --version"
+  register: _current_version
+  failed_when: false
+  changed_when: false
+
+- name: Install vault-mcp-server binary
+  when: vault_mcp_version not in (_current_version.stdout | default(''))
+  block:
+    - name: Download vault-mcp-server archive
+      ansible.builtin.get_url:
+        url: "{{ vault_mcp_download_url }}"
+        dest: "/tmp/vault-mcp-server.zip"
+        mode: "0644"
+
+    - name: Extract binary
+      ansible.builtin.unarchive:
+        src: "/tmp/vault-mcp-server.zip"
+        dest: "/tmp/"
+        include: ["vault-mcp-server"]
+        remote_src: true
+
+    - name: Install binary
+      ansible.builtin.copy:
+        src: "/tmp/vault-mcp-server"
+        dest: "{{ vault_mcp_binary }}"
+        mode: "0755"
+        remote_src: true
+
+    - name: Cleanup archive
+      ansible.builtin.file:
+        path: "/tmp/vault-mcp-server.zip"
+        state: absent
+
+- name: Read Vault connection file
+  ansible.builtin.command: >
+    sudo cat {{ ansible_env.HOME }}/.vault-ansible.yml
+  register: _vault_conn_raw
+  changed_when: false
+  no_log: true
+
+- name: Parse Vault connection details
+  ansible.builtin.set_fact:
+    _vault_conn: "{{ _vault_conn_raw.stdout | from_yaml }}"
+  no_log: true
+
+- name: Read Claude Code config
+  ansible.builtin.slurp:
+    src: "{{ claude_config_path }}"
+  register: _claude_config_raw
+
+- name: Parse and update Claude Code config
+  ansible.builtin.copy:
+    content: "{{ _claude_config_updated | to_nice_json(indent=2) }}"
+    dest: "{{ claude_config_path }}"
+    mode: "0600"
+    backup: true
+  vars:
+    _claude_config: "{{ _claude_config_raw.content | b64decode | from_json }}"
+    _vault_entry:
+      type: "stdio"
+      command: "{{ vault_mcp_binary }}"
+      args: ["stdio"]
+      env:
+        VAULT_ADDR: "{{ _vault_conn.vault_addr }}"
+        VAULT_TOKEN: "{{ _vault_conn.vault_token }}"
+    _claude_config_updated: >-
+      {{ _claude_config | combine({'mcpServers': _claude_config.mcpServers | combine({claude_mcp_name: _vault_entry}) }) }}
+  no_log: true
+
+- name: Verify binary works
+  ansible.builtin.command: "{{ vault_mcp_binary }} --version"
+  register: _version_check
+  changed_when: false
+
+- name: Display Vault MCP status
+  ansible.builtin.debug:
+    msg: |
+      Vault MCP Server installed and configured.
+
+      Binary:   {{ vault_mcp_binary }}
+      Version:  {{ _version_check.stdout }}
+      Vault:    {{ _vault_conn.vault_addr }}
+      MCP name: {{ claude_mcp_name }}
+
+      Restart Claude Code to load the new MCP server.

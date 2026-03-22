@@ -7,3 +7,22 @@ lightpanda_host: "127.0.0.1"
 lightpanda_restart_policy: unless-stopped
 lightpanda_hostname: lightpanda
 lightpanda_disable_telemetry: true
+
+# Homelab network integration — enables Authelia bypass for internal browsing
+docker_network_name: homelab-net
+pihole_dns_ip: "172.20.0.10"
+caddy_dns_ip: "172.20.0.3"
+
+# Explicit host overrides so Lightpanda resolves homelab services directly to Caddy.
+# Pi-hole's custom.list entries (pointing to 192.168.0.105) take precedence over
+# the dnsmasq wildcard, so we override them here per-container via /etc/hosts.
+# New services added to Pi-hole's wildcard (not in custom.list) resolve automatically.
+lightpanda_extra_hosts:
+  n8n.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  paperless.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  vault.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  netbox.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  grafana.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  hashi-vault.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  openclaw.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"
+  lightpanda.kamilandrzejrybacki.dpdns.org: "{{ caddy_dns_ip }}"

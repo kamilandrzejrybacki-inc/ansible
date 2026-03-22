@@ -280,7 +280,6 @@
   handlers:
     - name: reload caddy
       ansible.builtin.shell: |
-        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
-        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        
         docker exec caddy caddy reload --config /etc/caddy/Caddyfile
       changed_when: true

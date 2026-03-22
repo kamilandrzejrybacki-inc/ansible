@@ -1,0 +1,91 @@
+# =============================================================================
+# Nexterm Web Terminal Setup
+# =============================================================================
+# Deploys Nexterm as a Docker container — a modern web-based terminal manager
+# for SSH/Telnet/VNC access to multiple homelab hosts from any browser.
+#
+# Usage:
+#   ansible-playbook dev-tools/nexterm-setup/setup.yml \
+#     -i dev-tools/nexterm-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Deploy Nexterm web terminal manager
+  hosts: local
+  become: true
+  gather_facts: false
+  roles:
+    - nexterm
+
+- name: Integrate Nexterm with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: local
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+    - name: Integrate when secure homelab is configured
+      when: _homelab_vars_stat.stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Nexterm
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ nexterm_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _nexterm_cf_dns
+          changed_when: _nexterm_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Nexterm to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} NEXTERM"
+            unsafe_writes: true
+            block: |
+              http://{{ nexterm_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://127.0.0.1:{{ nexterm_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for Nexterm
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ nexterm_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ nexterm_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+        - name: Add Nexterm to Homepage services
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/homepage/services.yaml
+            marker: "    # {mark} NEXTERM"
+            insertafter: "    # END NETBOX"
+            unsafe_writes: true
+            block: |
+                - Nexterm:
+                    icon: terminal.png
+                    href: "https://{{ nexterm_hostname }}.{{ saved_domain }}"
+                    description: "Web-based terminal manager"
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

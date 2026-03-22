@@ -3,3 +3,9 @@
   ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
+
+- name: Restart Pi-hole DNS
+  community.docker.docker_container_exec:
+    container: "{{ pihole_container_name }}"
+    command: pihole restartdns
+  changed_when: true

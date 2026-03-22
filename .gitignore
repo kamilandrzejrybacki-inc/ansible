@@ -8,3 +8,4 @@ group_vars/*/vault.yml
 host_vars/*/vault.yml
 .env
 *.env.local
+.grepai/

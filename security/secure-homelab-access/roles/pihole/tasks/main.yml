@@ -62,3 +62,38 @@
     container: "{{ pihole_container_name }}"
     command: pihole -a -p ""
   changed_when: false
+
+- name: Get Caddy container IP on homelab-net
+  community.docker.docker_container_info:
+    name: "{{ caddy_container_name | default('caddy') }}"
+  register: _caddy_info
+
+- name: Write wildcard DNS override for internal homelab access
+  ansible.builtin.copy:
+    dest: "{{ pihole_data_dir }}/etc-dnsmasq.d/99-homelab-internal.conf"
+    content: |
+      # Resolve all homelab subdomains to Caddy directly within Docker.
+      # This lets containers (e.g. Lightpanda) bypass Cloudflare Tunnel
+      # and hit Caddy at its internal Docker IP, enabling Authelia bypass.
+      address=/.{{ domain }}/{{ _caddy_info.container.NetworkSettings.Networks[docker_network_name].IPAddress }}
+    mode: "0644"
+  notify: Restart Pi-hole DNS
+
+- name: Add adlists to Pi-hole gravity database
+  community.docker.docker_container_exec:
+    container: "{{ pihole_container_name }}"
+    command: >-
+      sqlite3 /etc/pihole/gravity.db
+      "INSERT OR IGNORE INTO adlist (address, enabled, comment)
+       VALUES ('{{ item.url }}', 1, '{{ item.comment }}')"
+  loop: "{{ pihole_adlists }}"
+  register: pihole_adlist_result
+  changed_when: pihole_adlist_result.rc == 0
+
+- name: Update Pi-hole gravity (pull and compile blocklists)
+  community.docker.docker_container_exec:
+    container: "{{ pihole_container_name }}"
+    command: pihole updateGravity
+  async: 300
+  poll: 10
+  changed_when: true

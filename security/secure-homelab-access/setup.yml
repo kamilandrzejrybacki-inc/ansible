@@ -113,9 +113,15 @@
       default: "{{ hostvars['localhost']['saved_caddy_email'] | default('') }}"
       private: false
 
+    # -- Cockpit --
+    - name: prompt_cockpit_password
+      prompt: "[7/14] Cockpit system user password (for auto-login passthrough)"
+      default: "{{ hostvars['localhost']['saved_cockpit_password'] | default('') }}"
+      private: true
+
     # -- WireGuard --
     - name: prompt_wireguard_password
-      prompt: "[7/14] WireGuard admin UI password (for managing VPN peers)"
+      prompt: "[8/14] WireGuard admin UI password (for managing VPN peers)"
       default: "{{ hostvars['localhost']['_vault_secrets']['wireguard_password'] | default(hostvars['localhost']['saved_wireguard_password'] | default('')) }}"
       private: true
       confirm: true
@@ -206,6 +212,7 @@
         domain: "{{ prompt_domain }}"
         ssh_port: "{{ prompt_ssh_port }}"
         caddy_email: "{{ prompt_caddy_email }}"
+        cockpit_autologin_password: "{{ prompt_cockpit_password }}"
         wireguard_password: "{{ prompt_wireguard_password }}"
         authelia_default_user: "{{ prompt_authelia_user }}"
         authelia_default_email: "{{ prompt_authelia_email }}"
@@ -430,6 +437,7 @@
           saved_domain: "{{ domain }}"
           saved_ssh_port: "{{ ssh_port }}"
           saved_caddy_email: "{{ caddy_email }}"
+          saved_cockpit_password: "{{ cockpit_autologin_password }}"
           saved_wireguard_password: "{{ wireguard_password }}"
           saved_authelia_user: "{{ authelia_default_user }}"
           saved_authelia_password: "{{ prompt_authelia_password }}"

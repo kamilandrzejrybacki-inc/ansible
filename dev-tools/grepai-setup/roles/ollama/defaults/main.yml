@@ -1,0 +1,11 @@
+---
+ollama_version: "0.18.2"
+ollama_embedding_model: "nomic-embed-text"
+ollama_user: ollama
+ollama_group: ollama
+ollama_home: /usr/share/ollama
+ollama_bin: /usr/local/bin/ollama
+ollama_host: "127.0.0.1"
+ollama_port: 11434
+ollama_health_check_retries: 20
+ollama_health_check_delay: 5

@@ -1,0 +1,17 @@
+# =============================================================================
+# Vault MCP Server Setup
+# =============================================================================
+# Downloads the HashiCorp Vault MCP Server binary and wires it into
+# Claude Code so the AI can read/write Vault secrets directly via MCP.
+#
+# Usage:
+#   ansible-playbook dev-tools/vault-mcp-setup/setup.yml \
+#     -i dev-tools/vault-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Deploy Vault MCP Server
+  hosts: local
+  become: false
+  gather_facts: true
+  roles:
+    - vault-mcp

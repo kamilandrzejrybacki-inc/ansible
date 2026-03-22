@@ -13,6 +13,11 @@
     restart_policy: "{{ lightpanda_restart_policy }}"
     published_ports:
       - "{{ lightpanda_bind_address }}:{{ lightpanda_cdp_port }}:9222"
+    dns_servers:
+      - "{{ pihole_dns_ip }}"   # Wildcard: new subdomains resolve to Caddy directly
+    networks:
+      - name: "{{ docker_network_name }}"  # homelab-net — enables Authelia bypass policy
+    etc_hosts: "{{ lightpanda_extra_hosts }}"
     env:
       LIGHTPANDA_DISABLE_TELEMETRY: "{{ lightpanda_disable_telemetry | string }}"
 

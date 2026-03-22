@@ -1,0 +1,25 @@
+---
+# =============================================================================
+# Ollama + grepai Setup
+# =============================================================================
+# Installs Ollama (local LLM runtime) and grepai (semantic code search) on the
+# local machine. Ollama provides the `nomic-embed-text` embedding model used by
+# grepai for indexing codebases without any cloud API keys.
+#
+# After running this playbook, initialise each project you want indexed:
+#   cd your-project
+#   grepai init
+#   grepai watch      # keeps the index live in the background
+#
+# Usage:
+#   ansible-playbook dev-tools/grepai-setup/setup.yml \
+#     -i dev-tools/grepai-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Install Ollama and grepai
+  hosts: local
+  become: true
+  gather_facts: true
+  roles:
+    - ollama
+    - grepai

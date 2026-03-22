@@ -1,0 +1,15 @@
+---
+vault_mcp_version: "0.2.0"
+vault_mcp_os: "linux"
+vault_mcp_arch: "amd64"
+vault_mcp_install_dir: "{{ ansible_env.HOME }}/.local/bin"
+vault_mcp_binary: "{{ vault_mcp_install_dir }}/vault-mcp-server"
+vault_mcp_download_url: >-
+  https://releases.hashicorp.com/vault-mcp-server/{{ vault_mcp_version }}/vault-mcp-server_{{ vault_mcp_version }}_{{ vault_mcp_os }}_{{ vault_mcp_arch }}.zip
+
+# Vault connection — read from ~/.vault-ansible.yml
+vault_addr: "http://127.0.0.1:8200"
+
+# Claude Code config
+claude_config_path: "{{ ansible_env.HOME }}/.claude.json"
+claude_mcp_name: "vault"

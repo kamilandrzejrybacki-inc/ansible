@@ -1,0 +1,82 @@
+---
+# =============================================================================
+# Lightpanda Browser Setup
+# =============================================================================
+# Deploys Lightpanda headless browser as a local Docker container.
+# Lightpanda runs a Chrome DevTools Protocol (CDP) server on port 9222,
+# compatible with Playwright, Puppeteer, and Claude Code browser tools.
+#
+# Usage:
+#   ansible-playbook dev-tools/lightpanda-setup/setup.yml \
+#     -i dev-tools/lightpanda-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Deploy Lightpanda headless browser
+  hosts: local
+  become: true
+  gather_facts: false
+  roles:
+    - lightpanda
+
+- name: Integrate Lightpanda with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
+  hosts: local
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+    - name: Integrate when secure homelab is configured
+      when: _homelab_vars_stat.stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route for Lightpanda
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            {{ lightpanda_hostname }}.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _lp_cf_dns
+          changed_when: _lp_cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Lightpanda to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} LIGHTPANDA"
+            unsafe_writes: true
+            block: |
+              http://{{ lightpanda_hostname }}.{{ saved_domain }} {
+                import rate_limit
+                import authelia
+                reverse_proxy http://127.0.0.1:{{ lightpanda_cdp_port }}
+              }
+          notify: reload caddy
+
+        - name: Add Pi-hole local DNS record for Lightpanda
+          ansible.builtin.command: >
+            docker exec pihole sh -c
+            'grep -qF "{{ lightpanda_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+             (echo "{{ ansible_default_ipv4.address }} {{ lightpanda_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+          register: _pihole_dns
+          changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+        - name: Reload Pi-hole DNS
+          ansible.builtin.command: docker exec pihole pihole restartdns reload
+          changed_when: true
+          when: _pihole_dns.changed
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        caddy_pid=$(docker inspect --format='{{ "{{.State.Pid}}" }}' caddy)
+        tee /proc/${caddy_pid}/root/etc/caddy/Caddyfile < /opt/homelab/caddy/Caddyfile > /dev/null
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

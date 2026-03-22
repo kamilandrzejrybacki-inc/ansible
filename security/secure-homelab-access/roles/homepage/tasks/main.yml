@@ -1,4 +1,11 @@
 ---
+- name: Remove stale Vaultwarden entry from Homepage services
+  ansible.builtin.blockinfile:
+    path: "{{ homepage_data_dir }}/services.yaml"
+    marker: "    # {mark} VAULTWARDEN"
+    state: absent
+  failed_when: false
+
 - name: Create Homepage data directory
   ansible.builtin.file:
     path: "{{ homepage_data_dir }}"

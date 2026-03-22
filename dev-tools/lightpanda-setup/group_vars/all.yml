@@ -1,0 +1,9 @@
+---
+lightpanda_container_name: lightpanda
+lightpanda_image: lightpanda/browser:nightly
+lightpanda_cdp_port: 9222
+lightpanda_bind_address: "0.0.0.0"
+lightpanda_host: "127.0.0.1"
+lightpanda_restart_policy: unless-stopped
+lightpanda_hostname: lightpanda
+lightpanda_disable_telemetry: true

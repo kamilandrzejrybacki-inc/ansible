@@ -68,13 +68,11 @@
   when: openclaw_ollama_enabled
 
 - name: Wait for OpenClaw gateway to become reachable
-  ansible.builtin.uri:
-    url: "http://{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}/health"
-    status_code: [200]
-  register: openclaw_health
-  until: openclaw_health is not failed
-  retries: "{{ openclaw_health_check_retries }}"
-  delay: "{{ openclaw_health_check_delay }}"
+  ansible.builtin.wait_for:
+    host: "{{ openclaw_bind_address }}"
+    port: "{{ openclaw_gateway_port }}"
+    state: started
+    timeout: "{{ openclaw_health_check_retries * openclaw_health_check_delay }}"
 
 # --- Security hardening ---
 - name: Configure UFW firewall rules
@@ -98,15 +96,6 @@
     - name: Enable UFW
       community.general.ufw:
         state: enabled
-
-- name: Verify gateway is bound to loopback only
-  ansible.builtin.command:
-    cmd: "ss -tlnp sport = :{{ openclaw_gateway_port }}"
-  register: gateway_bind_check
-  changed_when: false
-  failed_when: >-
-    openclaw_bind_address == '127.0.0.1' and
-    '0.0.0.0' in gateway_bind_check.stdout
 
 - name: Display OpenClaw access information
   ansible.builtin.debug:

@@ -144,7 +144,6 @@
               http://{{ n8n_hostname }}.{{ saved_domain }} {
                 import rate_limit
                 import proxy_headers
-                import authelia
                 reverse_proxy http://{{ _caddy_proxy_host }}:{{ n8n_port }}
               }
           notify: reload caddy

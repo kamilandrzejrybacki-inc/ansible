@@ -2,6 +2,7 @@
 claude_marketplaces:
   - "obra/superpowers-marketplace"
   - "affaan-m/everything-claude-code"
+  - "czlonkowski/n8n-skills"
 
 claude_plugins:
   - "superpowers@claude-plugins-official"
@@ -9,6 +10,7 @@ claude_plugins:
   - "github@claude-plugins-official"
   - "serena@claude-plugins-official"
   - "everything-claude-code@everything-claude-code"
+  - "n8n-mcp-skills@n8n-mcp-skills"
 
 claude_blocked_plugins:
   - "code-review@claude-plugins-official"

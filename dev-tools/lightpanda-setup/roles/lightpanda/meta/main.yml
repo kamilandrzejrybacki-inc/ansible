@@ -1,0 +1,6 @@
+---
+galaxy_info:
+  role_name: lightpanda
+  description: Deploy Lightpanda headless browser as a Docker container (CDP server on port 9222)
+  min_ansible_version: "2.14"
+dependencies: []

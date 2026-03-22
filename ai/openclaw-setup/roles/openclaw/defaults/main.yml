@@ -5,7 +5,7 @@ openclaw_install_dir: "/opt/openclaw"
 # OpenClaw Docker image
 openclaw_image: "ghcr.io/openclaw/openclaw:latest"
 
-# Gateway port (loopback only for security)
+# Gateway port (protected by UFW – only 443/SSH allowed externally)
 openclaw_gateway_port: 18789
 
 # --- Provider: NVIDIA NIM (free, 6 models) ---
@@ -49,7 +49,9 @@ openclaw_complex_model: "deepseek/deepseek-chat"
 openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
 # --- Security ---
-openclaw_bind_address: "127.0.0.1"
+# Bind to all interfaces so Caddy (running in Docker) can proxy to this port.
+# UFW blocks port {{ openclaw_gateway_port }} from external access, so 0.0.0.0 is safe.
+openclaw_bind_address: "0.0.0.0"
 openclaw_allow_tailscale: true
 
 # Health-check settings

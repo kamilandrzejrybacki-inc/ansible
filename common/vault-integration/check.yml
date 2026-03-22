@@ -21,7 +21,7 @@
   ansible.builtin.include_vars:
     file: "{{ lookup('env', 'HOME') }}/.vault-ansible.yml"
     name: _vault_conn
-  when: _vault_conn_file.stat.exists
+  when: _vault_conn_file.stat.exists and _vault_conn_file.stat.readable
 
 - name: Test Vault connectivity
   ansible.builtin.uri:
@@ -32,7 +32,7 @@
     timeout: 5
   register: _vault_health_check
   failed_when: false
-  when: _vault_conn_file.stat.exists
+  when: _vault_conn_file.stat.exists and _vault_conn_file.stat.readable
 
 - name: Set Vault availability facts
   ansible.builtin.set_fact:

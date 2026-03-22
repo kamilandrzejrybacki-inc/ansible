@@ -17,6 +17,8 @@
     restart_policy: "{{ n8n_restart_policy }}"
     published_ports:
       - "{{ n8n_bind_address }}:{{ n8n_port }}:5678"
+    etc_hosts:
+      host.docker.internal: host-gateway
     volumes:
       - "{{ n8n_volume_name }}:/home/node/.n8n"
     env: "{{ _n8n_env | combine(_n8n_public_url_env) }}"
@@ -56,6 +58,45 @@
       {{ 'Owner account created successfully.'
          if owner_setup_result.status == 200
          else 'Owner account already exists (skipped).' }}
+
+- name: Find workflow files to import
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/workflows"
+    patterns: "*.json"
+  register: _n8n_workflow_files
+  delegate_to: localhost
+  become: false
+
+- name: Import workflows into n8n
+  when: _n8n_workflow_files.files | length > 0
+  block:
+    - name: Copy workflow files to remote host
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "/tmp/{{ item.path | basename }}"
+        mode: "0644"
+      loop: "{{ _n8n_workflow_files.files }}"
+
+    - name: Copy workflow files into n8n container
+      ansible.builtin.command: >
+        docker cp /tmp/{{ item.path | basename }}
+        {{ n8n_container_name }}:/tmp/{{ item.path | basename }}
+      loop: "{{ _n8n_workflow_files.files }}"
+      changed_when: true
+
+    - name: Import workflows via n8n CLI
+      ansible.builtin.command: >
+        docker exec {{ n8n_container_name }}
+        n8n import:workflow --input=/tmp/{{ item.path | basename }}
+      loop: "{{ _n8n_workflow_files.files }}"
+      register: _n8n_import_result
+      changed_when: "'Successfully imported' in _n8n_import_result.stdout"
+
+    - name: Clean up workflow files from remote host
+      ansible.builtin.file:
+        path: "/tmp/{{ item.path | basename }}"
+        state: absent
+      loop: "{{ _n8n_workflow_files.files }}"
 
 - name: Display n8n access information
   ansible.builtin.debug:

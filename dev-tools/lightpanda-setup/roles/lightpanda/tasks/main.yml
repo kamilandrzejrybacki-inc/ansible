@@ -1,0 +1,40 @@
+---
+- name: Pull Lightpanda Docker image
+  community.docker.docker_image:
+    name: "{{ lightpanda_image }}"
+    source: pull
+    force_source: true
+
+- name: Start Lightpanda container
+  community.docker.docker_container:
+    name: "{{ lightpanda_container_name }}"
+    image: "{{ lightpanda_image }}"
+    state: started
+    restart_policy: "{{ lightpanda_restart_policy }}"
+    published_ports:
+      - "{{ lightpanda_bind_address }}:{{ lightpanda_cdp_port }}:9222"
+    env:
+      LIGHTPANDA_DISABLE_TELEMETRY: "{{ lightpanda_disable_telemetry | string }}"
+
+- name: Wait for Lightpanda CDP endpoint to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ lightpanda_cdp_port }}/json/version"
+    status_code: 200
+  register: _lp_health
+  until: _lp_health is not failed
+  retries: "{{ lightpanda_health_check_retries }}"
+  delay: "{{ lightpanda_health_check_delay }}"
+
+- name: Display Lightpanda access information
+  ansible.builtin.debug:
+    msg: |
+      Lightpanda is running.
+
+      CDP endpoint:  ws://localhost:{{ lightpanda_cdp_port }}
+      Version info:  http://localhost:{{ lightpanda_cdp_port }}/json/version
+
+      Connect with Playwright:
+        chromium.connectOverCDP("http://localhost:{{ lightpanda_cdp_port }}")
+
+      Connect with Puppeteer:
+        puppeteer.connect({ browserURL: "http://localhost:{{ lightpanda_cdp_port }}" })

@@ -43,7 +43,7 @@
 # Without this, Django CSRF checks, n8n and others serve blank
 # pages or reject requests because they think the client is on plain HTTP.
 (proxy_headers) {
-	header_up X-Forwarded-Proto https
+	request_header X-Forwarded-Proto https
 }
 
 {% if cloudflare_api_token | default('') %}

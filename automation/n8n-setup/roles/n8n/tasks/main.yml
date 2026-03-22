@@ -4,6 +4,11 @@
     name: python3-docker
     state: present
 
+- name: Create n8n Docker network
+  community.docker.docker_network:
+    name: "{{ n8n_network_name }}"
+    state: present
+
 - name: Create Docker volume for n8n data
   community.docker.docker_volume:
     name: "{{ n8n_volume_name }}"
@@ -19,9 +24,12 @@
       - "{{ n8n_bind_address }}:{{ n8n_port }}:5678"
     etc_hosts:
       host.docker.internal: host-gateway
-    volumes:
-      - "{{ n8n_volume_name }}:/home/node/.n8n"
+    volumes: "{{ [n8n_volume_name + ':/home/node/.n8n'] + n8n_extra_volumes }}"
+    networks:
+      - name: "{{ n8n_network_name }}"
     env: "{{ _n8n_env | combine(_n8n_public_url_env) }}"
+    comparisons:
+      env: ignore   # vault-n8n-sync daemon owns N8N_VAR_* — Ansible must not fight it
   vars:
     _n8n_env:
       N8N_HOST: "{{ n8n_hostname }}"
@@ -29,6 +37,7 @@
       N8N_PROTOCOL: "{{ 'https' if n8n_public_url | default('') != '' else 'http' }}"
       N8N_SOURCE_CONTROL_ENABLED: "true"
       N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL: "{{ n8n_external_secrets_update_interval }}"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
     _n8n_public_url_env: "{{ {'N8N_EDITOR_BASE_URL': n8n_public_url, 'WEBHOOK_URL': n8n_public_url} if n8n_public_url | default('') != '' else {} }}"
 
 - name: Wait for n8n to become reachable
@@ -60,50 +69,6 @@
       {{ 'Owner account created successfully.'
          if owner_setup_result.status == 200
          else 'Owner account already exists (skipped).' }}
-
-- name: Configure Vault External Secrets provider
-  when: n8n_vault_reader_token | default('') != '' and n8n_vault_addr | default('') != ''
-  no_log: true
-  block:
-    - name: Authenticate to n8n API
-      ansible.builtin.uri:
-        url: "http://localhost:{{ n8n_port }}/rest/login"
-        method: POST
-        body_format: json
-        body:
-          email: "{{ n8n_owner_email }}"
-          password: "{{ n8n_owner_password }}"
-        status_code: [200]
-      register: _n8n_login
-
-    - name: Configure HashiCorp Vault as External Secrets provider
-      ansible.builtin.uri:
-        url: "http://localhost:{{ n8n_port }}/rest/external-secrets/providers/vault"
-        method: POST
-        headers:
-          Cookie: "n8n-auth={{ _n8n_login.cookies['n8n-auth'] | default('') }}"
-        body_format: json
-        body:
-          connected: true
-          settings:
-            url: "{{ n8n_vault_addr }}"
-            authMethod: token
-            token: "{{ n8n_vault_reader_token }}"
-            namespace: ""
-            path: "{{ n8n_vault_kv_path }}"
-        status_code: [200, 201]
-        failed_when: false
-      register: _ext_secrets_result
-      no_log: false
-
-    - name: Report External Secrets configuration result
-      ansible.builtin.debug:
-        msg: >-
-          {{ 'Vault External Secrets configured — workflows can use ={{ $secrets.vault.KEY_NAME }}'
-             if _ext_secrets_result.status | default(0) in [200, 201]
-             else 'External Secrets API call returned status ' + (_ext_secrets_result.status | default('unknown') | string)
-                  + '. Configure manually: Settings > External Secrets > HashiCorp Vault.' }}
-      no_log: false
 
 - name: Install git for workflow repository cloning
   ansible.builtin.apt:

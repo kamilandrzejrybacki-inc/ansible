@@ -1,3 +1,6 @@
 ---
 n8n_health_check_retries: 12
 n8n_health_check_delay: 5
+
+# Extra volume mounts to add to the n8n container (host_path:container_path[:options])
+n8n_extra_volumes: []

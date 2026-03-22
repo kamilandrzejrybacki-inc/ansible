@@ -8,17 +8,30 @@ n8n_restart_policy: unless-stopped
 n8n_hostname: "n8n"
 n8n_bind_address: "127.0.0.1"
 
-# n8n External Secrets — HashiCorp Vault integration
-# n8n connects to Vault and polls for secrets every n8n_external_secrets_update_interval seconds.
-# New secrets added to Vault become available in workflows via ={{ $secrets.vault.KEY_NAME }}
-# without restarting n8n. The reader token is created automatically at deploy time.
+# Docker network shared by n8n and the Vault shim sidecar
+n8n_network_name: n8n-net
+
+# External Secrets polling interval (seconds)
 n8n_external_secrets_update_interval: "300"
+
+# Vault KV path that holds n8n secrets (under the KV mount root)
+# Secrets at this path are available in workflows as ={{ $secrets.vault.KEY_NAME }}
 n8n_vault_kv_path: "homelab/n8n"
+
+# Vault shim sidecar settings
+n8n_vault_shim_container_name: n8n-vault-shim
+n8n_vault_shim_image: n8n-vault-shim
+n8n_vault_shim_build_dir: /tmp/n8n-vault-shim-build
+n8n_vault_shim_force_rebuild: false
 
 # n8n Source Control / workflow Git repository
 # Workflows are cloned from this repo at deploy time and imported into n8n.
 # For private repos, store a personal access token in Vault first:
-#   vault kv put secret/n8n workflows_repo_token=<PAT>
+#   vault kv put secret/homelab/n8n workflows_repo_token=<PAT>
 n8n_workflows_repo: "https://github.com/kamilrybacki/n8n-workflows"
 n8n_workflows_branch: main
 n8n_workflows_clone_dir: /tmp/n8n-workflows
+
+# Mount host SSH key read-only so Execute Command nodes can SSH to homelab nodes
+n8n_extra_volumes:
+  - "/home/kamil/.ssh/n8n-backup-key:/home/node/.ssh/n8n-backup-key:ro"

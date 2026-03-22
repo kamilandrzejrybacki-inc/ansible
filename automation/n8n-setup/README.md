@@ -14,31 +14,34 @@ The wizard prompts for the target host IP, SSH user, and n8n owner account detai
 
 ## Vault Secrets
 
-Store secrets before running (Vault must be unsealed):
+Store the n8n owner password (and optionally a GitHub PAT for private workflow repos) before running:
 
 ```bash
 vault kv put secret/n8n \
   owner_password=<n8n-owner-password> \
-  netbox_token=<netbox-api-token> \
-  librenms_token=<librenms-api-token> \
   workflows_repo_token=<github-pat>   # only if workflows repo is private
 ```
 
-| Key | Purpose |
-|-----|---------|
-| `owner_password` | n8n owner account password |
-| `netbox_token` | Injected as `$vars.NETBOX_TOKEN` in workflows |
-| `librenms_token` | Injected as `$vars.LIBRENMS_TOKEN` in workflows |
-| `workflows_repo_token` | GitHub PAT for cloning a private workflows repo |
+Service secrets (API tokens, etc.) are stored in the same path and picked up automatically by n8n at runtime — no redeployment needed:
 
-## Workflow Credentials
+```bash
+# Add a new secret any time — n8n picks it up within 5 minutes
+vault kv patch secret/n8n netbox_token=<value>
+vault kv patch secret/n8n librenms_token=<value>
+vault kv patch secret/n8n my_new_api_key=<value>
+```
 
-Service API tokens are injected into the n8n container as `N8N_VAR_*` environment variables and accessed in workflow nodes via:
+## Workflow Credentials — External Secrets
+
+n8n connects directly to HashiCorp Vault via the **External Secrets** integration, configured automatically at deploy time. Secrets stored at `secret/n8n` in Vault are available in all workflow nodes as:
 
 ```
-={{ $vars.NETBOX_TOKEN }}
-={{ $vars.LIBRENMS_TOKEN }}
+={{ $secrets.vault.netbox_token }}
+={{ $secrets.vault.librenms_token }}
+={{ $secrets.vault.my_new_api_key }}
 ```
+
+n8n polls Vault every 300 seconds (configurable via `n8n_external_secrets_update_interval`). Adding a new key to `secret/n8n` makes it available in workflows within that window — no restart required.
 
 **Never hardcode tokens in workflow JSON files.** Workflow files are stored in a Git repository and must not contain secrets.
 

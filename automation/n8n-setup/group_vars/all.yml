@@ -8,11 +8,12 @@ n8n_restart_policy: unless-stopped
 n8n_hostname: "n8n"
 n8n_bind_address: "127.0.0.1"
 
-# Service API tokens injected as n8n variables ($vars.*)
-# Store in Vault before deploying: vault kv put secret/n8n netbox_token=<token> librenms_token=<token>
-# Workflows reference them via ={{ $vars.NETBOX_TOKEN }} / ={{ $vars.LIBRENMS_TOKEN }}
-n8n_netbox_token: ""
-n8n_librenms_token: ""
+# n8n External Secrets — HashiCorp Vault integration
+# n8n connects to Vault and polls for secrets every n8n_external_secrets_update_interval seconds.
+# New secrets added to Vault become available in workflows via ={{ $secrets.vault.KEY_NAME }}
+# without restarting n8n. The reader token is created automatically at deploy time.
+n8n_external_secrets_update_interval: "300"
+n8n_vault_kv_path: "n8n"
 
 # n8n Source Control / workflow Git repository
 # Workflows are cloned from this repo at deploy time and imported into n8n.

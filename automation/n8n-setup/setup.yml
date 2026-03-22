@@ -12,12 +12,13 @@
 # Vault secrets (store before running):
 #   vault kv put secret/n8n \
 #     owner_password=<password> \
-#     netbox_token=<netbox-api-token> \
-#     librenms_token=<librenms-api-token> \
-#     workflows_repo_token=<github-pat>   # only if repo is private
+#     workflows_repo_token=<github-pat>   # only if workflows repo is private
 #
-# Service tokens are injected as N8N_VAR_* env vars and accessed in workflows
-# via ={{ $vars.TOKEN_NAME }}. Never hardcode tokens in workflow JSON files.
+# Service secrets (Netbox token, LibreNMS token, etc.) live at secret/n8n and
+# are surfaced in workflows via ={{ $secrets.vault.KEY_NAME }} through n8n's
+# native Vault External Secrets integration. Add new secrets to Vault at any
+# time — n8n picks them up within N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL seconds.
+# Never hardcode tokens in workflow JSON files.
 #
 # After deployment, retrieve the MCP Access Token from the n8n UI
 # and run the claude-n8n-mcp playbook to connect Claude Code.
@@ -94,8 +95,8 @@
         n8n_owner_last_name: "User"
         n8n_bind_address: "{{ '127.0.0.1' if n8n_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
         n8n_workflows_repo_token: "{{ hostvars['localhost']['_vault_secrets']['workflows_repo_token'] | default('') }}"
-        n8n_netbox_token: "{{ hostvars['localhost']['_vault_secrets']['netbox_token'] | default('') }}"
-        n8n_librenms_token: "{{ hostvars['localhost']['_vault_secrets']['librenms_token'] | default('') }}"
+        n8n_vault_addr: "{{ hostvars['localhost']['_vault_addr'] | default('') }}"
+        n8n_vault_reader_token: "{{ hostvars['localhost']['_n8n_vault_reader_token'] | default('') }}"
         n8n_public_url: >-
           {{
             'https://' + n8n_hostname + '.' + hostvars['localhost']['saved_domain']
@@ -117,6 +118,47 @@
           owner_email: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_email'] | default('') }}"
           owner_password: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_password'] | default('') }}"
       when: _vault_available | default(false) | bool
+
+- name: Create n8n Vault reader token for External Secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  when: _vault_available | default(false) | bool
+  tasks:
+    - name: Create n8n-secrets-reader Vault policy
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/sys/policies/acl/n8n-secrets-reader"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body_format: json
+        body:
+          policy: |
+            path "secret/data/n8n" { capabilities = ["read"] }
+            path "secret/metadata/n8n" { capabilities = ["read", "list"] }
+        status_code: [200, 204]
+      no_log: true
+
+    - name: Generate n8n Vault reader token
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/auth/token/create"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body_format: json
+        body:
+          policies: ["n8n-secrets-reader"]
+          ttl: "87600h"
+          display_name: "n8n-external-secrets"
+          renewable: true
+        status_code: [200]
+      register: _n8n_vault_token_resp
+      no_log: true
+
+    - name: Store reader token as host fact
+      ansible.builtin.set_fact:
+        _n8n_vault_reader_token: "{{ _n8n_vault_token_resp.json.auth.client_token }}"
+      no_log: true
 
 - name: Install Docker and deploy n8n
   hosts: n8n_hosts

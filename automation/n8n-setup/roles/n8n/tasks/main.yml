@@ -28,8 +28,7 @@
       N8N_PORT: "5678"
       N8N_PROTOCOL: "{{ 'https' if n8n_public_url | default('') != '' else 'http' }}"
       N8N_SOURCE_CONTROL_ENABLED: "true"
-      N8N_VAR_NETBOX_TOKEN: "{{ n8n_netbox_token | default('') }}"
-      N8N_VAR_LIBRENMS_TOKEN: "{{ n8n_librenms_token | default('') }}"
+      N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL: "{{ n8n_external_secrets_update_interval }}"
     _n8n_public_url_env: "{{ {'N8N_EDITOR_BASE_URL': n8n_public_url, 'WEBHOOK_URL': n8n_public_url} if n8n_public_url | default('') != '' else {} }}"
 
 - name: Wait for n8n to become reachable
@@ -61,6 +60,50 @@
       {{ 'Owner account created successfully.'
          if owner_setup_result.status == 200
          else 'Owner account already exists (skipped).' }}
+
+- name: Configure Vault External Secrets provider
+  when: n8n_vault_reader_token | default('') != '' and n8n_vault_addr | default('') != ''
+  no_log: true
+  block:
+    - name: Authenticate to n8n API
+      ansible.builtin.uri:
+        url: "http://localhost:{{ n8n_port }}/rest/login"
+        method: POST
+        body_format: json
+        body:
+          email: "{{ n8n_owner_email }}"
+          password: "{{ n8n_owner_password }}"
+        status_code: [200]
+      register: _n8n_login
+
+    - name: Configure HashiCorp Vault as External Secrets provider
+      ansible.builtin.uri:
+        url: "http://localhost:{{ n8n_port }}/rest/external-secrets/providers/vault"
+        method: POST
+        headers:
+          Cookie: "n8n-auth={{ _n8n_login.cookies['n8n-auth'] | default('') }}"
+        body_format: json
+        body:
+          connected: true
+          settings:
+            url: "{{ n8n_vault_addr }}"
+            authMethod: token
+            token: "{{ n8n_vault_reader_token }}"
+            namespace: ""
+            path: "{{ n8n_vault_kv_path }}"
+        status_code: [200, 201]
+        failed_when: false
+      register: _ext_secrets_result
+      no_log: false
+
+    - name: Report External Secrets configuration result
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Vault External Secrets configured — workflows can use ={{ $secrets.vault.KEY_NAME }}'
+             if _ext_secrets_result.status | default(0) in [200, 201]
+             else 'External Secrets API call returned status ' + (_ext_secrets_result.status | default('unknown') | string)
+                  + '. Configure manually: Settings > External Secrets > HashiCorp Vault.' }}
+      no_log: false
 
 - name: Install git for workflow repository cloning
   ansible.builtin.apt:
@@ -135,10 +178,11 @@
              to the repository (write access required for push/backup).
            - For private repos: store a PAT in Vault before deploying:
                vault kv put secret/n8n workflows_repo_token=<PAT>
-        NOTE: Service API tokens (Netbox, LibreNMS, etc.) must be stored in Vault
-        and are injected as n8n variables. Workflows reference them via $vars.*
-        and must NOT hardcode them directly. Store with:
-          vault kv put secret/n8n netbox_token=<token> librenms_token=<token>
+        NOTE: Service secrets live in Vault at secret/n8n and are available in
+        workflows as ={{ $secrets.vault.KEY_NAME }} via the External Secrets
+        integration configured above. To add a new secret:
+          vault kv patch secret/n8n my_new_token=<value>
+        n8n will pick it up within {{ n8n_external_secrets_update_interval }}s automatically.
         3. Go to Settings > Instance-level MCP.
         4. Copy your MCP Access Token from the Access Token tab.
         5. Run the claude-n8n-mcp playbook to connect Claude Code:

@@ -103,8 +103,9 @@ module.exports.initiateOIDCLogin = async (providerId) => {
             provider.clientId,
             provider.clientSecret,
             undefined,
-            { allowInsecureRequests: true },
+            { execute: [client.allowInsecureRequests] },
         );
+        client.allowInsecureRequests(configuration);
 
         const state = client.randomState();
         const nonce = client.randomNonce();
@@ -154,7 +155,8 @@ module.exports.handleOIDCCallback = async (query, userInfo) => {
             return { code: 404, message: "Provider not found" };
         }
 
-        const configuration = await client.discovery(new URL(provider.issuer), provider.clientId, provider.clientSecret, undefined, { allowInsecureRequests: true });
+        const configuration = await client.discovery(new URL(provider.issuer), provider.clientId, provider.clientSecret, undefined, { execute: [client.allowInsecureRequests] });
+        client.allowInsecureRequests(configuration);
 
         const url = new URL(provider.redirectUri + "?" + new URLSearchParams(query).toString());
 

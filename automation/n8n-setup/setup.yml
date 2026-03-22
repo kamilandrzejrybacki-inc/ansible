@@ -67,8 +67,13 @@
       confirm: true
 
     - name: n8n_owner_first_name
-      prompt: "[5/5] First name for the n8n owner account"
+      prompt: "[5/6] First name for the n8n owner account"
       default: "Admin"
+      private: false
+
+    - name: n8n_workflows_repo_url
+      prompt: "[6/6] Git repo URL for workflow definitions (leave empty to skip)"
+      default: "{{ hostvars['localhost']['_vault_secrets']['workflows_repo_url'] | default('https://github.com/kamilrybacki/n8n-workflows') }}"
       private: false
 
   tasks:
@@ -83,6 +88,8 @@
         n8n_owner_first_name: "{{ n8n_owner_first_name }}"
         n8n_owner_last_name: "User"
         n8n_bind_address: "{{ '127.0.0.1' if n8n_host_ip in ['localhost', '127.0.0.1', '::1'] else '0.0.0.0' }}"
+        n8n_workflows_repo: "{{ n8n_workflows_repo_url | default('') }}"
+        n8n_workflows_repo_token: "{{ hostvars['localhost']['_vault_secrets']['workflows_repo_token'] | default('') }}"
         n8n_public_url: >-
           {{
             'https://' + n8n_hostname + '.' + hostvars['localhost']['saved_domain']
@@ -103,6 +110,7 @@
         vault_secrets_data:
           owner_email: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_email'] | default('') }}"
           owner_password: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_owner_password'] | default('') }}"
+          workflows_repo_url: "{{ hostvars[groups['n8n_hosts'][0]]['n8n_workflows_repo'] | default('') }}"
       when: _vault_available | default(false) | bool
 
 - name: Install Docker and deploy n8n

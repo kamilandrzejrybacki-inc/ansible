@@ -27,6 +27,7 @@
       N8N_HOST: "{{ n8n_hostname }}"
       N8N_PORT: "5678"
       N8N_PROTOCOL: "{{ 'https' if n8n_public_url | default('') != '' else 'http' }}"
+      N8N_SOURCE_CONTROL_ENABLED: "true"
     _n8n_public_url_env: "{{ {'N8N_EDITOR_BASE_URL': n8n_public_url, 'WEBHOOK_URL': n8n_public_url} if n8n_public_url | default('') != '' else {} }}"
 
 - name: Wait for n8n to become reachable
@@ -59,30 +60,48 @@
          if owner_setup_result.status == 200
          else 'Owner account already exists (skipped).' }}
 
-- name: Find workflow files to import
-  ansible.builtin.find:
-    paths: "{{ playbook_dir }}/workflows"
-    patterns: "*.json"
-  register: _n8n_workflow_files
-  delegate_to: localhost
-  become: false
+- name: Install git for workflow repository cloning
+  ansible.builtin.apt:
+    name: git
+    state: present
+  when: n8n_workflows_repo | default('') != ''
 
-- name: Import workflows into n8n
-  when: _n8n_workflow_files.files | length > 0
+- name: Import workflows from Git repository
+  when: n8n_workflows_repo | default('') != ''
+  no_log: true
   block:
-    - name: Copy workflow files to remote host
-      ansible.builtin.copy:
-        src: "{{ item.path }}"
-        dest: "/tmp/{{ item.path | basename }}"
-        mode: "0644"
-      loop: "{{ _n8n_workflow_files.files }}"
+    - name: Build workflow repository clone URL
+      ansible.builtin.set_fact:
+        _n8n_workflows_clone_url: >-
+          {%- set token = n8n_workflows_repo_token | default('') -%}
+          {%- if token != '' -%}
+          {{ n8n_workflows_repo | regex_replace('^(https?://)', '\1' + token + '@') }}
+          {%- else -%}
+          {{ n8n_workflows_repo }}
+          {%- endif -%}
+
+    - name: Clone workflows repository
+      ansible.builtin.git:
+        repo: "{{ _n8n_workflows_clone_url }}"
+        dest: "{{ n8n_workflows_clone_dir }}"
+        version: "{{ n8n_workflows_branch }}"
+        force: true
+
+    - name: Find workflow files in repository
+      ansible.builtin.find:
+        paths: "{{ n8n_workflows_clone_dir }}"
+        patterns: "*.json"
+        recurse: false
+      register: _n8n_workflow_files
+      no_log: false
 
     - name: Copy workflow files into n8n container
       ansible.builtin.command: >
-        docker cp /tmp/{{ item.path | basename }}
+        docker cp {{ item.path }}
         {{ n8n_container_name }}:/tmp/{{ item.path | basename }}
       loop: "{{ _n8n_workflow_files.files }}"
       changed_when: true
+      when: _n8n_workflow_files.files | length > 0
 
     - name: Import workflows via n8n CLI
       ansible.builtin.command: >
@@ -91,12 +110,55 @@
       loop: "{{ _n8n_workflow_files.files }}"
       register: _n8n_import_result
       changed_when: "'Successfully imported' in _n8n_import_result.stdout"
+      when: _n8n_workflow_files.files | length > 0
+      no_log: false
 
-    - name: Clean up workflow files from remote host
+    - name: Remove workflow clone directory
       ansible.builtin.file:
-        path: "/tmp/{{ item.path | basename }}"
+        path: "{{ n8n_workflows_clone_dir }}"
         state: absent
-      loop: "{{ _n8n_workflow_files.files }}"
+
+- name: Import workflows from local directory
+  when: n8n_workflows_repo | default('') == ''
+  block:
+    - name: Find workflow files to import
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/workflows"
+        patterns: "*.json"
+      register: _n8n_workflow_files
+      delegate_to: localhost
+      become: false
+
+    - name: Import workflows into n8n
+      when: _n8n_workflow_files.files | length > 0
+      block:
+        - name: Copy workflow files to remote host
+          ansible.builtin.copy:
+            src: "{{ item.path }}"
+            dest: "/tmp/{{ item.path | basename }}"
+            mode: "0644"
+          loop: "{{ _n8n_workflow_files.files }}"
+
+        - name: Copy workflow files into n8n container
+          ansible.builtin.command: >
+            docker cp /tmp/{{ item.path | basename }}
+            {{ n8n_container_name }}:/tmp/{{ item.path | basename }}
+          loop: "{{ _n8n_workflow_files.files }}"
+          changed_when: true
+
+        - name: Import workflows via n8n CLI
+          ansible.builtin.command: >
+            docker exec {{ n8n_container_name }}
+            n8n import:workflow --input=/tmp/{{ item.path | basename }}
+          loop: "{{ _n8n_workflow_files.files }}"
+          register: _n8n_import_result
+          changed_when: "'Successfully imported' in _n8n_import_result.stdout"
+
+        - name: Clean up workflow files from remote host
+          ansible.builtin.file:
+            path: "/tmp/{{ item.path | basename }}"
+            state: absent
+          loop: "{{ _n8n_workflow_files.files }}"
 
 - name: Display n8n access information
   ansible.builtin.debug:
@@ -108,8 +170,14 @@
 
       Next steps:
         1. Log in to n8n at the URL above.
-        2. Go to Settings > Instance-level MCP.
-        3. Copy your MCP Access Token from the Access Token tab.
-        4. Run the claude-n8n-mcp playbook to connect Claude Code:
+        2. Go to Settings > Source Control.
+           - Connect to: {{ n8n_workflows_repo | default('(no repo configured)') }}
+           - Generate SSH key pair in n8n and add the public key as a deploy key
+             to the repository (write access required for push/backup).
+           - For private repos: store a PAT in Vault before deploying:
+               vault kv put secret/n8n workflows_repo_token=<PAT>
+        3. Go to Settings > Instance-level MCP.
+        4. Copy your MCP Access Token from the Access Token tab.
+        5. Run the claude-n8n-mcp playbook to connect Claude Code:
              ansible-playbook dev-tools/claude-n8n-mcp/setup.yml \
                -i dev-tools/claude-n8n-mcp/inventory/hosts.ini

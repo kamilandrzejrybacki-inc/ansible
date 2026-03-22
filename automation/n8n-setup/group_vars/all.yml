@@ -7,3 +7,11 @@ n8n_volume_name: n8n_data
 n8n_restart_policy: unless-stopped
 n8n_hostname: "n8n"
 n8n_bind_address: "127.0.0.1"
+
+# n8n Source Control / workflow Git repository
+# Set n8n_workflows_repo to a Git HTTPS URL to clone workflows at deploy time.
+# For private repos, store a personal access token in Vault:
+#   vault kv put secret/n8n workflows_repo_token=<PAT>
+n8n_workflows_repo: "https://github.com/kamilrybacki/n8n-workflows"
+n8n_workflows_branch: main
+n8n_workflows_clone_dir: /tmp/n8n-workflows

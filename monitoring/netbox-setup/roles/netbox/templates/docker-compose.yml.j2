@@ -11,7 +11,7 @@ services:
     ports:
       - "{{ netbox_bind_address }}:{{ netbox_port }}:8080"
     environment:
-      ALLOWED_HOSTS: "{{ netbox_hostname }}.{{ saved_domain | default('localhost') }} localhost 127.0.0.1"
+      ALLOWED_HOSTS: "{{ netbox_hostname }}.{{ saved_domain | default('localhost') }} localhost 127.0.0.1 {{ ansible_host }}"
       DB_HOST: postgres
       DB_NAME: netbox
       DB_PASSWORD: "{{ netbox_db_password }}"

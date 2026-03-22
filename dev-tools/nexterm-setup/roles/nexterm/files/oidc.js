@@ -90,6 +90,43 @@ module.exports.deleteProvider = async (providerId) => {
     return { message: "Provider deleted successfully" };
 };
 
+// Build an OIDC configuration that works when Caddy only serves HTTP internally.
+// Problem: Authelia derives its issuer from X-Forwarded-Proto. Via the browser
+// (HTTPS through Cloudflare) it returns iss=https://. Via Docker (HTTP) it
+// returns issuer=http://. openid-client requires these to match.
+// Solution: use a patchedFetch that rewrites discovery to always show https://
+// issuer and disables the authorization_response_iss_parameter_supported check,
+// while keeping all actual HTTP calls over http:// (port 80, reachable in Docker).
+async function buildOIDCConfig(provider) {
+    const authHost = new URL(provider.issuer).hostname;
+
+    const patchedFetch = async (url, options) => {
+        const u = new URL(url.toString());
+        if (u.hostname === authHost) u.protocol = 'http:';
+        const res = await fetch(u.toString(), options);
+        if (u.pathname.includes('.well-known') && (res.headers.get('content-type') || '').includes('json')) {
+            const json = await res.json();
+            json.issuer = 'https://' + authHost;
+            json.authorization_response_iss_parameter_supported = false;
+            return new Response(JSON.stringify(json), { status: res.status, headers: { 'content-type': 'application/json' } });
+        }
+        return res;
+    };
+
+    const httpsIssuer = new URL(provider.issuer);
+    httpsIssuer.protocol = 'https:';
+
+    const configuration = await client.discovery(
+        httpsIssuer,
+        provider.clientId,
+        provider.clientSecret,
+        undefined,
+        { execute: [client.allowInsecureRequests], [client.customFetch]: patchedFetch },
+    );
+    client.allowInsecureRequests(configuration);
+    return configuration;
+}
+
 module.exports.initiateOIDCLogin = async (providerId) => {
     try {
         const provider = await OIDCProvider.findByPk(providerId);
@@ -98,14 +135,7 @@ module.exports.initiateOIDCLogin = async (providerId) => {
             return { code: 404, message: "Provider not found or disabled" };
         }
 
-        const configuration = await client.discovery(
-            new URL(provider.issuer),
-            provider.clientId,
-            provider.clientSecret,
-            undefined,
-            { execute: [client.allowInsecureRequests] },
-        );
-        client.allowInsecureRequests(configuration);
+        const configuration = await buildOIDCConfig(provider);
 
         const state = client.randomState();
         const nonce = client.randomNonce();
@@ -155,15 +185,9 @@ module.exports.handleOIDCCallback = async (query, userInfo) => {
             return { code: 404, message: "Provider not found" };
         }
 
-        const configuration = await client.discovery(new URL(provider.issuer), provider.clientId, provider.clientSecret, undefined, { execute: [client.allowInsecureRequests] });
-        client.allowInsecureRequests(configuration);
+        const configuration = await buildOIDCConfig(provider);
 
-        // Strip `iss` from callback params: Authelia returns iss=https:// (external)
-        // but discovery was fetched via http:// (internal Docker), causing a mismatch.
-        // State + PKCE still protect the flow; iss check is redundant in single-provider setup.
-        const callbackParams = new URLSearchParams(query);
-        callbackParams.delete('iss');
-        const url = new URL(provider.redirectUri + "?" + callbackParams.toString());
+        const url = new URL(provider.redirectUri + "?" + new URLSearchParams(query).toString());
 
         const tokens = await client.authorizationCodeGrant(configuration, url, {
             expectedState: query.state,

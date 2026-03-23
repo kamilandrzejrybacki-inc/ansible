@@ -34,6 +34,11 @@
         vault_service_name: "paperless"
       when: _vault_available | bool
 
+    - name: Detect shared database availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/shared-database/detect.yml"
+      vars:
+        shared_db_types: ["postgres", "redis"]
+
 - name: Gather host details
   hosts: localhost
   connection: local
@@ -86,6 +91,12 @@
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
+        paperless_use_shared_db: "{{ _shared_postgres_available | default(false) | bool }}"
+        paperless_use_shared_redis: "{{ _shared_redis_available | default(false) | bool }}"
+        paperless_shared_redis_password: "{{ _shared_redis_password | default('') }}"
+        paperless_db_host: "{{ 'shared-postgres' if _shared_postgres_available | default(false) | bool else 'db' }}"
+        paperless_redis_host: "{{ 'shared-redis' if _shared_redis_available | default(false) | bool else 'redis' }}"
+        paperless_redis_db: "3"
       no_log: true
 
 - name: Store Paperless secrets to Vault

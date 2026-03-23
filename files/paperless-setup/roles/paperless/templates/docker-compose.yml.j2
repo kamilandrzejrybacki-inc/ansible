@@ -1,4 +1,5 @@
 services:
+{% if not paperless_use_shared_redis %}
   redis:
     container_name: {{ paperless_container_name }}-redis
     image: {{ paperless_redis_image }}
@@ -8,6 +9,8 @@ services:
     networks:
       - paperless-net
 
+{% endif %}
+{% if not paperless_use_shared_db %}
   db:
     container_name: {{ paperless_container_name }}-db
     image: {{ paperless_postgres_image }}
@@ -21,13 +24,18 @@ services:
     networks:
       - paperless-net
 
+{% endif %}
   webserver:
     container_name: {{ paperless_container_name }}
     image: {{ paperless_image }}
     restart: {{ paperless_restart_policy }}
     depends_on:
+{% if not paperless_use_shared_db %}
       - db
+{% endif %}
+{% if not paperless_use_shared_redis %}
       - redis
+{% endif %}
     ports:
       - "{{ paperless_bind_address }}:{{ paperless_port }}:8000"
     volumes:
@@ -38,8 +46,12 @@ services:
       - paperless-media:/usr/src/paperless/media
 {% endif %}
     environment:
+{% if paperless_use_shared_redis %}
+      PAPERLESS_REDIS: "redis://:{{ paperless_shared_redis_password }}@{{ paperless_redis_host }}:6379/{{ paperless_redis_db }}"
+{% else %}
       PAPERLESS_REDIS: "redis://redis:6379"
-      PAPERLESS_DBHOST: db
+{% endif %}
+      PAPERLESS_DBHOST: "{{ paperless_db_host }}"
       PAPERLESS_DBPASS: "{{ paperless_db_password }}"
       PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
       PAPERLESS_ADMIN_USER: "{{ paperless_admin_user }}"
@@ -54,10 +66,17 @@ services:
       PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME: "HTTP_REMOTE_USER"
     networks:
       - paperless-net
+{% if paperless_use_shared_db or paperless_use_shared_redis %}
+      - databases-net
+{% endif %}
 
 volumes:
+{% if not paperless_use_shared_redis %}
   paperless-redis-data:
+{% endif %}
+{% if not paperless_use_shared_db %}
   paperless-db-data:
+{% endif %}
   paperless-data:
 {% if paperless_document_path | length == 0 %}
   paperless-media:
@@ -66,3 +85,7 @@ volumes:
 networks:
   paperless-net:
     driver: bridge
+{% if paperless_use_shared_db or paperless_use_shared_redis %}
+  databases-net:
+    external: true
+{% endif %}

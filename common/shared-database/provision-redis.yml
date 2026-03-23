@@ -8,11 +8,12 @@
 # No provisioning needed — Redis databases are implicit (0-15)
 
 - name: Verify shared Redis connectivity with assigned database
-  ansible.builtin.command: >
+  ansible.builtin.shell: >
     docker run --rm --network host
+    -e REDISCLI_AUTH="{{ _shared_redis_password }}"
     valkey/valkey:8.0-alpine
     valkey-cli -h {{ shared_db_host }} -p {{ shared_redis_port }}
-    -a "{{ _shared_redis_password }}" -n {{ redis_db_number }}
+    -n {{ redis_db_number }}
     PING
   register: _redis_ping
   changed_when: false

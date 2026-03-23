@@ -23,6 +23,7 @@
     login_user: "postgres"
     login_password: "{{ _shared_postgres_superuser_password }}"
     state: present
+  no_log: true
 
 - name: Create user on shared PostgreSQL
   community.postgresql.postgresql_user:

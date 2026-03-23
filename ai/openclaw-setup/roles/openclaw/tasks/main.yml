@@ -115,6 +115,55 @@
   register: _agent_create
   changed_when: _agent_create.rc == 0
 
+# --- Telegram channel ---
+- name: Configure Telegram channel
+  when: openclaw_telegram_bot_token | default('') | length > 0
+  block:
+    - name: Install Telegram plugin
+      ansible.builtin.command:
+        cmd: docker exec openclaw openclaw plugins install @openclaw/telegram
+      register: _telegram_install
+      changed_when: "'Installed' in _telegram_install.stdout | default('')"
+      failed_when: false
+
+    - name: Check if Telegram channel is already configured
+      ansible.builtin.command:
+        cmd: docker exec openclaw openclaw channels list
+      register: _channels_list
+      changed_when: false
+
+    - name: Add Telegram channel
+      ansible.builtin.command:
+        cmd: >-
+          docker exec openclaw openclaw channels add
+          --channel telegram
+          --token {{ openclaw_telegram_bot_token | quote }}
+      register: _telegram_add
+      changed_when: _telegram_add.rc == 0
+      when: "'Telegram' not in _channels_list.stdout | default('')"
+
+    - name: Set Telegram group policy to open
+      ansible.builtin.command:
+        cmd: >-
+          docker exec openclaw python3 -c "
+          import json;
+          f='/home/node/.openclaw/openclaw.json';
+          d=json.load(open(f));
+          c=d.get('channels',{}).get('telegram',{});
+          changed=c.get('groupPolicy')!='open';
+          c['groupPolicy']='open';
+          json.dump(d,open(f,'w'),indent=2) if changed else None;
+          print('CHANGED' if changed else 'OK')
+          "
+      register: _telegram_policy
+      changed_when: "'CHANGED' in _telegram_policy.stdout | default('')"
+
+    - name: Restart OpenClaw to apply Telegram config
+      community.docker.docker_compose_v2:
+        project_src: "{{ openclaw_install_dir }}"
+        state: restarted
+      when: _telegram_install.changed or (_telegram_add is defined and _telegram_add.changed) or _telegram_policy.changed
+
 # --- Security hardening ---
 - name: Configure UFW firewall rules
   block:

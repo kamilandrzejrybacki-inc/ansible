@@ -48,6 +48,9 @@ openclaw_complex_model: "deepseek/deepseek-chat"
 # Deep thinking model (paid, reasoning)
 openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
+# --- Chat channels ---
+openclaw_telegram_bot_token: ""
+
 # --- Named agents ---
 # Each agent is created via `openclaw agents add` at deploy time.
 # Note: agents are created regardless of provider API key status.

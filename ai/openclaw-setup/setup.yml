@@ -107,6 +107,14 @@
       default: "no"
       private: false
 
+    - name: telegram_bot_token
+      prompt: |
+
+        === Chat channels ===
+        Telegram bot token (from @BotFather, leave empty to skip)
+      default: "{{ hostvars['localhost']['_vault_secrets']['telegram_bot_token'] | default('') }}"
+      private: true
+
   tasks:
     - name: Validate at least one provider key is configured
       ansible.builtin.assert:
@@ -136,6 +144,7 @@
         openclaw_ollama_enabled: "{{ enable_ollama | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
         openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        openclaw_telegram_bot_token: "{{ telegram_bot_token | default('') }}"
         openclaw_primary_model: >-
           {{
             'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
@@ -165,6 +174,7 @@
         openclaw_ollama_enabled: "{{ enable_ollama | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
         openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
+        openclaw_telegram_bot_token: "{{ telegram_bot_token | default('') }}"
         openclaw_primary_model: >-
           {{
             'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
@@ -205,6 +215,7 @@
           groq_api_key: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_groq_api_key'] | default('') }}"
           gemini_api_key: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_gemini_api_key'] | default('') }}"
           deepseek_api_key: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_deepseek_api_key'] | default('') }}"
+          telegram_bot_token: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_telegram_bot_token'] | default('') }}"
       when: _vault_available | default(false) | bool
 
 # Play 5: Integrate with secure homelab
@@ -240,8 +251,9 @@
             block: |
               http://{{ openclaw_hostname }}.{{ saved_domain }} {
                 import rate_limit
+                import proxy_headers
                 import authelia
-                reverse_proxy http://{{ _caddy_proxy_host }}:{{ openclaw_gateway_port | default(18789) }}
+                reverse_proxy openclaw:{{ openclaw_proxy_port | default(18790) }}
               }
           notify: reload caddy
 

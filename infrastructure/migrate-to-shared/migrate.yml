@@ -66,7 +66,7 @@
           ansible.builtin.shell: >
             docker exec shared-postgres
             psql -U postgres -d outline -c
-            "REASSIGN OWNED BY postgres TO outline;"
+            "DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO outline'; END LOOP; FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE 'ALTER SEQUENCE public.' || quote_ident(r.sequence_name) || ' OWNER TO outline'; END LOOP; END \\$\\$;"
           changed_when: true
 
         - name: Count Outline target rows
@@ -110,7 +110,7 @@
           ansible.builtin.shell: >
             docker exec shared-postgres
             psql -U postgres -d netbox -c
-            "REASSIGN OWNED BY postgres TO netbox;"
+            "DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO netbox'; END LOOP; FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE 'ALTER SEQUENCE public.' || quote_ident(r.sequence_name) || ' OWNER TO netbox'; END LOOP; END \\$\\$;"
           changed_when: true
 
     # ── Paperless PostgreSQL ──
@@ -141,7 +141,7 @@
           ansible.builtin.shell: >
             docker exec shared-postgres
             psql -U postgres -d paperless -c
-            "REASSIGN OWNED BY postgres TO paperless;"
+            "DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO paperless'; END LOOP; FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE 'ALTER SEQUENCE public.' || quote_ident(r.sequence_name) || ' OWNER TO paperless'; END LOOP; END \\$\\$;"
           changed_when: true
 
     # ── Seafile MariaDB ──
@@ -268,7 +268,7 @@
           ansible.builtin.shell: >
             docker exec shared-postgres
             psql -U postgres -d dify -c
-            "REASSIGN OWNED BY postgres TO dify;"
+            "DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO dify'; END LOOP; FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP EXECUTE 'ALTER SEQUENCE public.' || quote_ident(r.sequence_name) || ' OWNER TO dify'; END LOOP; END \\$\\$;"
           changed_when: true
 
     - name: Migration summary

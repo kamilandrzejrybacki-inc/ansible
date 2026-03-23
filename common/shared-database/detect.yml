@@ -15,7 +15,7 @@
 
 - name: Load shared-database defaults
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../common/shared-database/defaults.yml"
+    file: "{{ playbook_dir }}/../../common/shared-database/defaults.yml"
 
 - name: Check shared PostgreSQL reachability
   ansible.builtin.wait_for:

@@ -49,29 +49,26 @@
 
 - name: Set shared database availability facts
   ansible.builtin.set_fact:
-    _shared_postgres_available: "{{ ('postgres' in shared_db_types) and (_pg_check is defined) and (_pg_check is succeeded) }}"
-    _shared_redis_available: "{{ ('redis' in shared_db_types) and (_redis_check is defined) and (_redis_check is succeeded) }}"
-    _shared_mariadb_available: "{{ ('mariadb' in shared_db_types) and (_mariadb_check is defined) and (_mariadb_check is succeeded) }}"
+    _shared_postgres_available: "{{ ('postgres' in shared_db_types) and (_pg_check is defined) and (not _pg_check.failed) }}"
+    _shared_redis_available: "{{ ('redis' in shared_db_types) and (_redis_check is defined) and (not _redis_check.failed) }}"
+    _shared_mariadb_available: "{{ ('mariadb' in shared_db_types) and (_mariadb_check is defined) and (not _mariadb_check.failed) }}"
 
 - name: Load shared Redis password
   ansible.builtin.set_fact:
-    _shared_redis_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-redis/password') }}"
+    _shared_redis_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-redis/password', errors='warn') | default('') }}"
   when: _shared_redis_available | bool
-  failed_when: false
   no_log: true
 
 - name: Load shared PostgreSQL superuser password
   ansible.builtin.set_fact:
-    _shared_postgres_superuser_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/superuser_password') }}"
+    _shared_postgres_superuser_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/superuser_password', errors='warn') | default('') }}"
   when: _shared_postgres_available | bool
-  failed_when: false
   no_log: true
 
 - name: Load shared MariaDB root password
   ansible.builtin.set_fact:
-    _shared_mariadb_root_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/root_password') }}"
+    _shared_mariadb_root_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/root_password', errors='warn') | default('') }}"
   when: _shared_mariadb_available | bool
-  failed_when: false
   no_log: true
 
 - name: Report shared database detection results

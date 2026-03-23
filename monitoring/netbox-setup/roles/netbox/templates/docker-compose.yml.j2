@@ -4,6 +4,7 @@ services:
   netbox:
     container_name: {{ netbox_container_name }}
     image: {{ netbox_image }}
+{% if not (netbox_use_shared_db and netbox_use_shared_redis) %}
     depends_on:
 {% if not netbox_use_shared_db %}
       - postgres
@@ -11,6 +12,7 @@ services:
 {% if not netbox_use_shared_redis %}
       - redis
       - redis-cache
+{% endif %}
 {% endif %}
     ports:
       - "{{ netbox_bind_address }}:{{ netbox_port }}:8080"

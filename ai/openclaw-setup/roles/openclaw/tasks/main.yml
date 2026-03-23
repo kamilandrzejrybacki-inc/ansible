@@ -163,14 +163,10 @@
 
       Primary model    : {{ openclaw_primary_model }}
 
-      Routing:
-        Heartbeat      → {{ openclaw_heartbeat_model }} (every {{ openclaw_heartbeat_interval }}s)
-        Simple tasks   → {{ openclaw_primary_model }}
-        Moderate       → fallback chain across free providers
-      {% if openclaw_deepseek_api_key | default('') | length > 0 %}
-        Complex        → {{ openclaw_complex_model }}
-        Deep thinking  → {{ openclaw_thinking_model }}
-      {% endif %}
+      Named agents:
+      {% for agent in openclaw_agents %}
+        {{ agent.name }} → {{ agent.model }}
+      {% endfor %}
 
       Quick model switch (/model <alias>):
       {% if openclaw_nvidia_api_key | default('') | length > 0 %}

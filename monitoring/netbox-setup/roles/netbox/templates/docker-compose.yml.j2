@@ -171,12 +171,14 @@ services:
       - netbox-net
 
 {% endif %}
+{% if not (netbox_use_shared_db and netbox_use_shared_redis) %}
 volumes:
 {% if not netbox_use_shared_db %}
   netbox-postgres-data:
 {% endif %}
 {% if not netbox_use_shared_redis %}
   netbox-redis-data:
+{% endif %}
 {% endif %}
 
 networks:

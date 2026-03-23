@@ -1,0 +1,7 @@
+# librenms-setup/roles/docker/defaults/main.yml
+---
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin

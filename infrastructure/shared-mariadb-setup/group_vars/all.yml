@@ -1,0 +1,19 @@
+---
+shared_mariadb_image: "mariadb:10.11"
+shared_mariadb_port: 3306
+shared_mariadb_data_dir: /opt/shared-mariadb
+shared_mariadb_container_name: shared-mariadb
+shared_mariadb_bind_address: "10.0.0.2"
+shared_mariadb_restart_policy: unless-stopped
+shared_mariadb_health_check_retries: 20
+shared_mariadb_health_check_delay: 5
+
+shared_mariadb_tenants:
+  - name: seafile
+    databases:
+      - ccnet_db
+      - seafile_db
+      - seahub_db
+  - name: librenms
+    databases:
+      - librenms

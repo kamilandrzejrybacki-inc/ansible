@@ -1,0 +1,33 @@
+---
+services:
+  shared-mariadb:
+    container_name: {{ shared_mariadb_container_name }}
+    image: {{ shared_mariadb_image }}
+    command: >
+      mysqld
+      --innodb-file-per-table=1
+      --lower-case-table-names=0
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: "{{ shared_mariadb_root_password }}"
+    ports:
+      - "{{ shared_mariadb_bind_address }}:{{ shared_mariadb_port }}:3306"
+    volumes:
+      - shared-mariadb-data:/var/lib/mysql
+      - "{{ shared_mariadb_data_dir }}/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro"
+    healthcheck:
+      test: ["CMD", "healthcheck", "--connect", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: {{ shared_mariadb_restart_policy }}
+    networks:
+      - databases-net
+
+volumes:
+  shared-mariadb-data:
+
+networks:
+  databases-net:
+    external: true

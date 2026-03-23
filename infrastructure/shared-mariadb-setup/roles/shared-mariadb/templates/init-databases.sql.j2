@@ -1,0 +1,17 @@
+-- init-databases.sql.j2
+-- Creates tenant databases and users on first MariaDB start.
+-- This file is mounted at /docker-entrypoint-initdb.d/ and runs once.
+
+{% for tenant in shared_mariadb_tenants %}
+-- Tenant: {{ tenant.name }}
+{% for db in tenant.databases %}
+CREATE DATABASE IF NOT EXISTS `{{ db }}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+{% endfor %}
+
+CREATE USER IF NOT EXISTS '{{ tenant.name }}'@'%' IDENTIFIED BY '{{ hostvars[inventory_hostname]["shared_mariadb_" + tenant.name + "_password"] }}';
+{% for db in tenant.databases %}
+GRANT ALL PRIVILEGES ON `{{ db }}`.* TO '{{ tenant.name }}'@'%';
+{% endfor %}
+
+{% endfor %}
+FLUSH PRIVILEGES;

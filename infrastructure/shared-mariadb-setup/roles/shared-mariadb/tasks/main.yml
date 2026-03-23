@@ -1,0 +1,92 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create shared MariaDB data directory
+  ansible.builtin.file:
+    path: "{{ shared_mariadb_data_dir }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Ensure local secrets directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/shared-mariadb"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Generate root password (idempotent)
+  ansible.builtin.set_fact:
+    shared_mariadb_root_password: "{{ lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/root_password chars=ascii_letters,digits length=64') }}"
+  no_log: true
+
+- name: Generate per-tenant passwords (idempotent)
+  ansible.builtin.set_fact:
+    "shared_mariadb_{{ item.name }}_password": "{{ lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/' + item.name + '_password chars=ascii_letters,digits length=64') }}"
+  loop: "{{ shared_mariadb_tenants }}"
+  no_log: true
+
+- name: Restrict local secret files to owner-only
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0600"
+  loop: >-
+    {{ ['root_password'] + (shared_mariadb_tenants | map(attribute='name') | map('regex_replace', '(.*)', '\1_password') | list) | map('regex_replace', '(.*)', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/\1') | list }}
+  delegate_to: localhost
+  become: false
+
+- name: Create databases-net Docker network
+  community.docker.docker_network:
+    name: databases-net
+    state: present
+
+- name: Template init-databases.sql
+  ansible.builtin.template:
+    src: init-databases.sql.j2
+    dest: "{{ shared_mariadb_data_dir }}/init-databases.sql"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Template Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ shared_mariadb_data_dir }}/docker-compose.yml"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Deploy shared MariaDB stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ shared_mariadb_data_dir }}"
+    state: present
+  no_log: true
+
+- name: Wait for shared MariaDB to become ready
+  ansible.builtin.command: >
+    docker exec {{ shared_mariadb_container_name }}
+    healthcheck --connect --silent
+  register: mariadb_ready
+  until: mariadb_ready.rc == 0
+  retries: "{{ shared_mariadb_health_check_retries }}"
+  delay: "{{ shared_mariadb_health_check_delay }}"
+  changed_when: false
+
+- name: Display shared MariaDB access information
+  ansible.builtin.debug:
+    msg: |
+      Shared MariaDB is running at {{ inventory_hostname }}:{{ shared_mariadb_port }}
+
+      Root user: root
+      Tenants:
+        seafile  -> ccnet_db, seafile_db, seahub_db
+        librenms -> librenms
+
+      Credentials stored in ~/.homelab-secrets/shared-mariadb/

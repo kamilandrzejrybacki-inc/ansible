@@ -96,13 +96,16 @@
 
 - name: Parse existing agent names
   ansible.builtin.set_fact:
-    _openclaw_existing_agents: "{{ (_openclaw_agents_raw.stdout | default('[]') | from_json | map(attribute='name') | list) if _openclaw_agents_raw.rc == 0 else [] }}"
+    _openclaw_existing_agents: >-
+      {{ (_openclaw_agents_raw.stdout | default('[]') | from_json | map(attribute='name') | list)
+         if (_openclaw_agents_raw.rc == 0 and _openclaw_agents_raw.stdout | default('') | trim is regex('^\['))
+         else [] }}
 
 - name: Create OpenClaw agents
   ansible.builtin.command:
     cmd: >-
-      docker exec openclaw openclaw agents add {{ item.name }}
-      --model {{ item.model }}
+      docker exec openclaw openclaw agents add {{ item.name | quote }}
+      --model {{ item.model | quote }}
       --non-interactive
       --workspace /home/node/.openclaw/workspace
   loop: "{{ openclaw_agents }}"
@@ -141,7 +144,7 @@
       OpenClaw is running!
 
       Gateway          : http://{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}
-      Config file      : {{ openclaw_install_dir }}/config.json
+      Config file      : {{ openclaw_install_dir }}/openclaw-home/openclaw.json
       Data dir         : {{ openclaw_install_dir }}/data
 
       Active providers:

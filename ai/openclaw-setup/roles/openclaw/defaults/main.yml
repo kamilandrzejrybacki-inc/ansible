@@ -50,7 +50,7 @@ openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
 # --- Named agents ---
 # Each agent is created via `openclaw agents add` at deploy time.
-# Agents with models from unconfigured providers are skipped.
+# Note: agents are created regardless of provider API key status.
 openclaw_agents:
   - name: quick-chat
     model: "groq/llama-3.3-70b-versatile"

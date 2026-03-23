@@ -1,4 +1,5 @@
 services:
+{% if not seafile_use_shared_db %}
   db:
     container_name: {{ seafile_db_container_name }}
     image: {{ seafile_db_image }}
@@ -11,6 +12,7 @@ services:
     networks:
       - seafile-net
 
+{% endif %}
   memcached:
     container_name: {{ seafile_memcached_container_name }}
     image: {{ seafile_memcached_image }}
@@ -28,8 +30,12 @@ services:
     volumes:
       - {{ seafile_data_path }}:/shared
     environment:
-      DB_HOST: db
+      DB_HOST: {{ seafile_db_host }}
+{% if seafile_use_shared_db %}
+      DB_ROOT_PASSWD: "{{ seafile_shared_mariadb_root_password }}"
+{% else %}
       DB_ROOT_PASSWD: "{{ seafile_db_root_password }}"
+{% endif %}
       SEAFILE_ADMIN_EMAIL: "{{ seafile_admin_email }}"
       SEAFILE_ADMIN_PASSWORD: "{{ seafile_admin_password }}"
       SEAFILE_SERVER_HOSTNAME: "{{ caddy_domain }}"
@@ -37,14 +43,25 @@ services:
       SEAFILE_SERVER_LETSENCRYPT: "false"
 {% endif %}
     depends_on:
+{% if not seafile_use_shared_db %}
       - db
+{% endif %}
       - memcached
     networks:
       - seafile-net
+{% if seafile_use_shared_db %}
+      - databases-net
+{% endif %}
 
 volumes:
+{% if not seafile_use_shared_db %}
   seafile-db-data:
+{% endif %}
 
 networks:
   seafile-net:
     driver: bridge
+{% if seafile_use_shared_db %}
+  databases-net:
+    external: true
+{% endif %}

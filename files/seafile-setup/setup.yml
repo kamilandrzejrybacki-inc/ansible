@@ -24,6 +24,11 @@
         vault_service_name: "seafile"
       when: _vault_available | bool
 
+    - name: Detect shared database availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/shared-database/detect.yml"
+      vars:
+        shared_db_types: ["mariadb"]
+
 # Play 2: Gather Seafile configuration
 - name: Gather Seafile configuration
   hosts: localhost
@@ -61,6 +66,9 @@
         seafile_admin_password: "{{ seafile_admin_password }}"
         seafile_db_root_password: "{{ seafile_db_root_password }}"
         caddy_domain: "{{ caddy_domain }}"
+        seafile_use_shared_db: "{{ _shared_mariadb_available | default(false) | bool }}"
+        seafile_db_host: "{{ 'shared-mariadb' if _shared_mariadb_available | default(false) | bool else 'db' }}"
+        seafile_shared_mariadb_root_password: "{{ _shared_mariadb_root_password | default('') }}"
       no_log: true
 
 - name: Store Seafile secrets to Vault

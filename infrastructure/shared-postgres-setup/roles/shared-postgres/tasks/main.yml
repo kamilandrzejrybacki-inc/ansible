@@ -34,10 +34,10 @@
 
 - name: Restrict local secret files to owner-only
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/shared-postgres/{{ item }}"
     mode: "0600"
   loop: >-
-    {{ ['superuser_password'] + (shared_postgres_tenants | map(attribute='name') | map('regex_replace', '(.*)', '\1_password') | list) | map('regex_replace', '(.*)', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/\1') | list }}
+    {{ ['superuser_password'] + shared_postgres_tenants | map(attribute='name') | map('regex_replace', '^(.*)$', '\1_password') | list }}
   delegate_to: localhost
   become: false
 

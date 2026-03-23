@@ -33,10 +33,10 @@
 
 - name: Restrict local secret files to owner-only
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/shared-mariadb/{{ item }}"
     mode: "0600"
   loop: >-
-    {{ ['root_password'] + (shared_mariadb_tenants | map(attribute='name') | map('regex_replace', '(.*)', '\1_password') | list) | map('regex_replace', '(.*)', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/\1') | list }}
+    {{ ['root_password'] + shared_mariadb_tenants | map(attribute='name') | map('regex_replace', '^(.*)$', '\1_password') | list }}
   delegate_to: localhost
   become: false
 

@@ -115,6 +115,11 @@
       default: "{{ hostvars['localhost']['_vault_secrets']['telegram_bot_token'] | default('') }}"
       private: true
 
+    - name: telegram_allowed_users
+      prompt: "Telegram user IDs to auto-approve (comma-separated, leave empty to skip)"
+      default: "{{ hostvars['localhost']['_vault_secrets']['telegram_allowed_users'] | default('') }}"
+      private: false
+
   tasks:
     - name: Validate at least one provider key is configured
       ansible.builtin.assert:
@@ -145,6 +150,7 @@
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
         openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_telegram_bot_token: "{{ telegram_bot_token | default('') }}"
+        openclaw_telegram_allowed_users: "{{ (telegram_allowed_users | default('')).split(',') | map('trim') | select | list }}"
         openclaw_primary_model: >-
           {{
             'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
@@ -175,6 +181,7 @@
         openclaw_ollama_model: "{{ ollama_model | default('llama3.1:8b') }}"
         openclaw_ollama_gpu_enabled: "{{ enable_gpu | default('no') | lower in ['yes', 'true', '1'] }}"
         openclaw_telegram_bot_token: "{{ telegram_bot_token | default('') }}"
+        openclaw_telegram_allowed_users: "{{ (telegram_allowed_users | default('')).split(',') | map('trim') | select | list }}"
         openclaw_primary_model: >-
           {{
             'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
@@ -216,6 +223,7 @@
           gemini_api_key: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_gemini_api_key'] | default('') }}"
           deepseek_api_key: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_deepseek_api_key'] | default('') }}"
           telegram_bot_token: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_telegram_bot_token'] | default('') }}"
+          telegram_allowed_users: "{{ hostvars[groups['openclaw_targets'][0]]['openclaw_telegram_allowed_users'] | default([]) | join(',') }}"
       when: _vault_available | default(false) | bool
 
 # Play 5: Integrate with secure homelab

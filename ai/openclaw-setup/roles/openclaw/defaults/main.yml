@@ -50,6 +50,8 @@ openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
 # --- Chat channels ---
 openclaw_telegram_bot_token: ""
+# Telegram user IDs to auto-approve (skip pairing flow)
+openclaw_telegram_allowed_users: []
 
 # --- Named agents ---
 # Each agent is created via `openclaw agents add` at deploy time.

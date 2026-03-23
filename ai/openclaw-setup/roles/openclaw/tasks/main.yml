@@ -142,7 +142,7 @@
       changed_when: _telegram_add.rc == 0
       when: "'Telegram' not in _channels_list.stdout | default('')"
 
-    - name: Set Telegram group policy to open
+    - name: Configure Telegram settings (groupPolicy + allowFrom)
       ansible.builtin.command:
         cmd: >-
           docker exec openclaw python3 -c "
@@ -150,9 +150,15 @@
           f='/home/node/.openclaw/openclaw.json';
           d=json.load(open(f));
           c=d.get('channels',{}).get('telegram',{});
-          changed=c.get('groupPolicy')!='open';
-          c['groupPolicy']='open';
-          json.dump(d,open(f,'w'),indent=2) if changed else None;
+          changed=False;
+          if c.get('groupPolicy')!='open':
+            c['groupPolicy']='open'; changed=True;
+          if c.get('dmPolicy')!='allowlist':
+            c['dmPolicy']='allowlist'; changed=True;
+          allow={{ openclaw_telegram_allowed_users | map('string') | list | to_json }};
+          if sorted(c.get('allowFrom',[])) != sorted(allow):
+            c['allowFrom']=allow; changed=True;
+          if changed: json.dump(d,open(f,'w'),indent=2);
           print('CHANGED' if changed else 'OK')
           "
       register: _telegram_policy

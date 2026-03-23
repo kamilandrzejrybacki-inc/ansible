@@ -1,0 +1,74 @@
+# infrastructure/shared-postgres-setup/setup.yml
+---
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "shared-postgres"
+      when: _vault_available | bool
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Shared PostgreSQL Setup
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the target machine
+      default: "10.0.0.2"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user for the target machine"
+      default: "kamil"
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: shared_postgres_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+
+- name: Install Docker and deploy shared PostgreSQL
+  hosts: shared_postgres_hosts
+  become: true
+  roles:
+    - docker
+    - shared-postgres
+
+- name: Store shared PostgreSQL secrets to Vault (after deployment generates them)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Store secrets to Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
+      vars:
+        vault_service_name: "shared-postgres"
+        vault_secrets_data:
+          superuser_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/superuser_password') }}"
+      when: _vault_available | default(false) | bool

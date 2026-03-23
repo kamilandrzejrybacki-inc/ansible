@@ -1,0 +1,36 @@
+#!/bin/bash
+# init-databases.sh.j2
+# Creates tenant databases and users on first PostgreSQL start.
+# Mounted at /docker-entrypoint-initdb.d/ and runs once.
+set -e
+
+{% for tenant in shared_postgres_tenants %}
+# Tenant: {{ tenant.name }}
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<-EOSQL
+  DO \$\$
+  BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ tenant.name }}') THEN
+      CREATE ROLE {{ tenant.name }} WITH LOGIN PASSWORD '{{ hostvars[inventory_hostname]["shared_postgres_" + tenant.name + "_password"] }}';
+    END IF;
+  END
+  \$\$;
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres -tAc \
+  "SELECT 1 FROM pg_database WHERE datname = '{{ tenant.name }}'" | grep -q 1 || \
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres -c \
+  "CREATE DATABASE {{ tenant.name }} OWNER {{ tenant.name }}"
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<-EOSQL
+  GRANT ALL PRIVILEGES ON DATABASE {{ tenant.name }} TO {{ tenant.name }};
+  ALTER ROLE {{ tenant.name }} CONNECTION LIMIT {{ tenant.conn_limit }};
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname {{ tenant.name }} <<-EOSQL
+  GRANT ALL ON SCHEMA public TO {{ tenant.name }};
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ tenant.name }};
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ tenant.name }};
+EOSQL
+
+{% endfor %}
+echo "All tenant databases and users created successfully."

@@ -1,0 +1,27 @@
+---
+services:
+  shared-postgres:
+    container_name: {{ shared_postgres_container_name }}
+    image: {{ shared_postgres_image }}
+    environment:
+      POSTGRES_PASSWORD: "{{ shared_postgres_superuser_password }}"
+    ports:
+      - "{{ shared_postgres_bind_address }}:{{ shared_postgres_port }}:5432"
+    volumes:
+      - shared-postgres-data:/var/lib/postgresql/data
+      - "{{ shared_postgres_data_dir }}/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: {{ shared_postgres_restart_policy }}
+    networks:
+      - databases-net
+
+volumes:
+  shared-postgres-data:
+
+networks:
+  databases-net:
+    external: true

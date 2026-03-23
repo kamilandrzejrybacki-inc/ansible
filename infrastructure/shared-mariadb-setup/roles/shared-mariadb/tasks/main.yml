@@ -72,7 +72,7 @@
 - name: Wait for shared MariaDB to become ready
   ansible.builtin.command: >
     docker exec {{ shared_mariadb_container_name }}
-    healthcheck --connect --silent
+    mariadb-admin ping --silent
   register: mariadb_ready
   until: mariadb_ready.rc == 0
   retries: "{{ shared_mariadb_health_check_retries }}"

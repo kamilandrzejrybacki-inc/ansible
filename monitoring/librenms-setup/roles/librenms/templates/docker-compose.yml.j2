@@ -1,6 +1,7 @@
 # librenms-setup/roles/librenms/templates/docker-compose.yml.j2
 ---
 services:
+{% if not librenms_use_shared_db %}
   db:
     image: mariadb:10.11
     container_name: librenms_db
@@ -18,12 +19,19 @@ services:
       MYSQL_PASSWORD: "{{ librenms_db_password }}"
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - librenms-net
 
+{% endif %}
+{% if not librenms_use_shared_redis %}
   redis:
     image: redis:7-alpine
     container_name: librenms_redis
     restart: unless-stopped
+    networks:
+      - librenms-net
 
+{% endif %}
   librenms:
     image: librenms/librenms:{{ librenms_version }}
     container_name: librenms_app
@@ -33,13 +41,18 @@ services:
       - "{{ librenms_port }}:8000"
     environment:
       TZ: "{{ librenms_timezone }}"
-      DB_HOST: db
+      DB_HOST: {{ librenms_db_host }}
       DB_USER: librenms
       DB_PASSWORD: "{{ librenms_db_password }}"
       DB_NAME: librenms
-      REDIS_HOST: redis
+      REDIS_HOST: {{ librenms_redis_host_resolved }}
       REDIS_PORT: 6379
+{% if librenms_use_shared_redis %}
+      REDIS_PASSWORD: "{{ librenms_shared_redis_password }}"
+      REDIS_DB: "{{ librenms_redis_db_number }}"
+{% else %}
       REDIS_DB: 0
+{% endif %}
       # ── Authelia header SSO ─────────────────────────────────────────────────
       # Caddy forward_auth injects Remote-User; LibreNMS reads it directly.
       AUTH_MECHANISM: "header"
@@ -47,8 +60,17 @@ services:
     volumes:
       - librenms_data:/data
     depends_on:
+{% if not librenms_use_shared_db %}
       - db
+{% endif %}
+{% if not librenms_use_shared_redis %}
       - redis
+{% endif %}
+    networks:
+      - librenms-net
+{% if librenms_use_shared_db or librenms_use_shared_redis %}
+      - databases-net
+{% endif %}
 
   dispatcher:
     image: librenms/librenms:{{ librenms_version }}
@@ -57,19 +79,29 @@ services:
     restart: unless-stopped
     environment:
       TZ: "{{ librenms_timezone }}"
-      DB_HOST: db
+      DB_HOST: {{ librenms_db_host }}
       DB_USER: librenms
       DB_PASSWORD: "{{ librenms_db_password }}"
       DB_NAME: librenms
-      REDIS_HOST: redis
+      REDIS_HOST: {{ librenms_redis_host_resolved }}
       REDIS_PORT: 6379
+{% if librenms_use_shared_redis %}
+      REDIS_PASSWORD: "{{ librenms_shared_redis_password }}"
+      REDIS_DB: "{{ librenms_redis_db_number }}"
+{% else %}
       REDIS_DB: 0
+{% endif %}
       DISPATCHER_NODE_ID: dispatcher1
       SIDECAR_DISPATCHER: 1
     volumes:
       - librenms_data:/data
     depends_on:
       - librenms
+    networks:
+      - librenms-net
+{% if librenms_use_shared_db or librenms_use_shared_redis %}
+      - databases-net
+{% endif %}
 
   syslog:
     image: librenms/librenms:{{ librenms_version }}
@@ -81,19 +113,39 @@ services:
       - "514:514/tcp"
     environment:
       TZ: "{{ librenms_timezone }}"
-      DB_HOST: db
+      DB_HOST: {{ librenms_db_host }}
       DB_USER: librenms
       DB_PASSWORD: "{{ librenms_db_password }}"
       DB_NAME: librenms
-      REDIS_HOST: redis
+      REDIS_HOST: {{ librenms_redis_host_resolved }}
       REDIS_PORT: 6379
+{% if librenms_use_shared_redis %}
+      REDIS_PASSWORD: "{{ librenms_shared_redis_password }}"
+      REDIS_DB: "{{ librenms_redis_db_number }}"
+{% else %}
       REDIS_DB: 0
+{% endif %}
       SIDECAR_SYSLOGNG: 1
     volumes:
       - librenms_data:/data
     depends_on:
       - librenms
+    networks:
+      - librenms-net
+{% if librenms_use_shared_db or librenms_use_shared_redis %}
+      - databases-net
+{% endif %}
 
 volumes:
+{% if not librenms_use_shared_db %}
   db_data:
+{% endif %}
   librenms_data:
+
+networks:
+  librenms-net:
+    driver: bridge
+{% if librenms_use_shared_db or librenms_use_shared_redis %}
+  databases-net:
+    external: true
+{% endif %}

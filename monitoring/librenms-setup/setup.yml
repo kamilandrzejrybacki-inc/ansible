@@ -30,6 +30,11 @@
         file: "{{ lookup('env', 'HOME') }}/.librenms-setup-vars.yml"
       when: _setup_vars_stat.stat.exists
 
+    - name: Detect shared database availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/shared-database/detect.yml"
+      vars:
+        shared_db_types: ["mariadb", "redis"]
+
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
@@ -96,6 +101,13 @@
         librenms_discovery_networks: "{{ librenms_discovery_networks }}"
         librenms_db_password: "{{ librenms_db_password }}"
         librenms_timezone: "{{ librenms_timezone }}"
+        librenms_use_shared_db: "{{ _shared_mariadb_available | default(false) | bool }}"
+        librenms_use_shared_redis: "{{ _shared_redis_available | default(false) | bool }}"
+        librenms_shared_redis_password: "{{ _shared_redis_password | default('') }}"
+        librenms_shared_mariadb_root_password: "{{ _shared_mariadb_root_password | default('') }}"
+        librenms_db_host: "{{ 'shared-mariadb' if _shared_mariadb_available | default(false) | bool else 'db' }}"
+        librenms_redis_host_resolved: "{{ 'shared-redis' if _shared_redis_available | default(false) | bool else 'redis' }}"
+        librenms_redis_db_number: "4"
 
     - name: Save setup vars for future runs
       ansible.builtin.copy:
@@ -227,6 +239,5 @@
   handlers:
     - name: reload caddy
       ansible.builtin.shell: |
-        
         docker exec caddy caddy reload --config /etc/caddy/Caddyfile
       changed_when: true

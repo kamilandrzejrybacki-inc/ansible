@@ -62,7 +62,7 @@
 # ── Grafana API token (for Alloy metrics scraping) ───────────────────────────
 - name: Check if Grafana scrape token already exists in LibreNMS DB
   ansible.builtin.shell: |
-    docker exec librenms_db mysql -u librenms -p"{{ librenms_db_password }}" librenms \
+    docker exec {{ 'shared-mariadb' if librenms_use_shared_db | default(false) | bool else 'librenms_db' }} mysql -u librenms -p"{{ librenms_db_password }}" librenms \
       -sNe "SELECT COUNT(*) FROM api_tokens WHERE description='grafana-alloy';"
   register: _token_count
   changed_when: false
@@ -71,7 +71,7 @@
 - name: Generate and insert Grafana scrape token into LibreNMS DB
   ansible.builtin.shell: |
     TOKEN=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-    docker exec librenms_db mysql -u librenms -p"{{ librenms_db_password }}" librenms \
+    docker exec {{ 'shared-mariadb' if librenms_use_shared_db | default(false) | bool else 'librenms_db' }} mysql -u librenms -p"{{ librenms_db_password }}" librenms \
       -e "INSERT INTO api_tokens (user_id, token_hash, description)
           SELECT id, '${TOKEN}', 'grafana-alloy' FROM users LIMIT 1;"
   when: _token_count.stdout | trim == '0'
@@ -80,7 +80,7 @@
 
 - name: Read Grafana scrape token from LibreNMS DB
   ansible.builtin.shell: |
-    docker exec librenms_db mysql -u librenms -p"{{ librenms_db_password }}" librenms \
+    docker exec {{ 'shared-mariadb' if librenms_use_shared_db | default(false) | bool else 'librenms_db' }} mysql -u librenms -p"{{ librenms_db_password }}" librenms \
       -sNe "SELECT token_hash FROM api_tokens WHERE description='grafana-alloy' LIMIT 1;"
   register: _librenms_grafana_token
   changed_when: false

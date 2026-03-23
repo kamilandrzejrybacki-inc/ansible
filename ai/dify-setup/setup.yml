@@ -21,6 +21,11 @@
         file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
       when: _homelab_vars_stat.stat.exists
 
+    - name: Detect shared database availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/shared-database/detect.yml"
+      vars:
+        shared_db_types: ["postgres", "redis"]
+
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
@@ -114,6 +119,13 @@
         litellm_gemini_api_key: "{{ gemini_api_key | default('') }}"
         litellm_openrouter_api_key: "{{ openrouter_api_key | default('') }}"
         litellm_cerebras_api_key: "{{ cerebras_api_key | default('') }}"
+        dify_use_shared_db: "{{ _shared_postgres_available | default(false) | bool }}"
+        dify_use_shared_redis: "{{ _shared_redis_available | default(false) | bool }}"
+        dify_shared_redis_password: "{{ _shared_redis_password | default('') }}"
+        dify_db_host_resolved: "{{ 'shared-postgres' if _shared_postgres_available | default(false) | bool else 'db_postgres' }}"
+        dify_db_username: "{{ 'dify' if _shared_postgres_available | default(false) | bool else 'postgres' }}"
+        dify_redis_host_resolved: "{{ 'shared-redis' if _shared_redis_available | default(false) | bool else 'redis' }}"
+        dify_redis_db_number: "5"
         dify_public_url: >-
           {{
             'https://' + dify_hostname + '.' + hostvars['localhost']['saved_domain']
@@ -136,6 +148,13 @@
         litellm_gemini_api_key: "{{ gemini_api_key | default('') }}"
         litellm_openrouter_api_key: "{{ openrouter_api_key | default('') }}"
         litellm_cerebras_api_key: "{{ cerebras_api_key | default('') }}"
+        dify_use_shared_db: "{{ _shared_postgres_available | default(false) | bool }}"
+        dify_use_shared_redis: "{{ _shared_redis_available | default(false) | bool }}"
+        dify_shared_redis_password: "{{ _shared_redis_password | default('') }}"
+        dify_db_host_resolved: "{{ 'shared-postgres' if _shared_postgres_available | default(false) | bool else 'db_postgres' }}"
+        dify_db_username: "{{ 'dify' if _shared_postgres_available | default(false) | bool else 'postgres' }}"
+        dify_redis_host_resolved: "{{ 'shared-redis' if _shared_redis_available | default(false) | bool else 'redis' }}"
+        dify_redis_db_number: "5"
         dify_public_url: >-
           {{
             'https://' + dify_hostname + '.' + hostvars['localhost']['saved_domain']
@@ -246,6 +265,5 @@
   handlers:
     - name: reload caddy
       ansible.builtin.shell: |
-        
         docker exec caddy caddy reload --config /etc/caddy/Caddyfile
       changed_when: true

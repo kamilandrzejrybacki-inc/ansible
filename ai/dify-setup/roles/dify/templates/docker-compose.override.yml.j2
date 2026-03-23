@@ -1,0 +1,26 @@
+---
+# Disables Dify's internal database containers when shared instances are available
+# and adds databases-net to services that need it.
+services:
+{% if dify_use_shared_db | default(false) | bool %}
+  db_postgres:
+    deploy:
+      replicas: 0
+  api:
+    networks:
+      - default
+      - databases-net
+  worker:
+    networks:
+      - default
+      - databases-net
+{% endif %}
+{% if dify_use_shared_redis | default(false) | bool %}
+  redis:
+    deploy:
+      replicas: 0
+{% endif %}
+
+networks:
+  databases-net:
+    external: true

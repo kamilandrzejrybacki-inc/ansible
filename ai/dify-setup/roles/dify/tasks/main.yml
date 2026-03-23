@@ -56,6 +56,21 @@
   no_log: true
   notify: Restart dify services
 
+- name: Deploy docker-compose override for shared databases
+  ansible.builtin.template:
+    src: docker-compose.override.yml.j2
+    dest: "{{ dify_install_dir }}/docker/docker-compose.override.yml"
+    mode: "0600"
+  when: (dify_use_shared_db | default(false) | bool) or (dify_use_shared_redis | default(false) | bool)
+  no_log: true
+  notify: Restart dify services
+
+- name: Remove docker-compose override when using local databases
+  ansible.builtin.file:
+    path: "{{ dify_install_dir }}/docker/docker-compose.override.yml"
+    state: absent
+  when: not ((dify_use_shared_db | default(false) | bool) or (dify_use_shared_redis | default(false) | bool))
+
 - name: Start Dify services with Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ dify_install_dir }}/docker"

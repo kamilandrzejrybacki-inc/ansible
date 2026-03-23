@@ -48,10 +48,27 @@ openclaw_complex_model: "deepseek/deepseek-chat"
 # Deep thinking model (paid, reasoning)
 openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
+# --- Named agents ---
+# Each agent is created via `openclaw agents add` at deploy time.
+# Agents with models from unconfigured providers are skipped.
+openclaw_agents:
+  - name: quick-chat
+    model: "groq/llama-3.3-70b-versatile"
+  - name: code-helper
+    model: "nvidia/kimi-k2.5"
+  - name: infra-ops
+    model: "nvidia/kimi-k2.5"
+  - name: deep-coder
+    model: "deepseek/deepseek-chat"
+
 # --- Security ---
 # Bind to all interfaces so Caddy (running in Docker) can proxy to this port.
 # UFW blocks port {{ openclaw_gateway_port }} from external access, so 0.0.0.0 is safe.
 openclaw_bind_address: "0.0.0.0"
+
+# Port exposed by the socat sidecar on homelab-net (OpenClaw binds to 127.0.0.1
+# internally, so Caddy cannot reach it directly on the container network).
+openclaw_proxy_port: 18790
 openclaw_allow_tailscale: true
 
 # Health-check settings

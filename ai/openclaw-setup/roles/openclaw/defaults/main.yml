@@ -36,7 +36,7 @@ openclaw_ollama_image: "ollama/ollama:latest"
 
 # --- Routing defaults ---
 # Primary model for simple tasks
-openclaw_primary_model: "nvidia/kimi-k2.5"
+openclaw_primary_model: "moonshotai/kimi-k2.5"
 
 # Heartbeat model (lightweight, every 30m)
 openclaw_heartbeat_model: "groq/llama-3.3-70b-versatile"
@@ -60,9 +60,9 @@ openclaw_agents:
   - name: quick-chat
     model: "groq/llama-3.3-70b-versatile"
   - name: code-helper
-    model: "nvidia/kimi-k2.5"
+    model: "moonshotai/kimi-k2.5"
   - name: infra-ops
-    model: "nvidia/kimi-k2.5"
+    model: "moonshotai/kimi-k2.5"
   - name: deep-coder
     model: "deepseek/deepseek-chat"
 

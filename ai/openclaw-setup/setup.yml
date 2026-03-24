@@ -153,7 +153,7 @@
         openclaw_telegram_allowed_users: "{{ (telegram_allowed_users | default('')).split(',') | map('trim') | select | list }}"
         openclaw_primary_model: >-
           {{
-            'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
+            'moonshotai/kimi-k2.5' if nvidia_api_key | default('') | length > 0
             else ('groq/llama-3.3-70b-versatile' if groq_api_key | default('') | length > 0
             else ('google/gemini-2.5-flash' if gemini_api_key | default('') | length > 0
             else ('deepseek/deepseek-chat' if deepseek_api_key | default('') | length > 0
@@ -184,7 +184,7 @@
         openclaw_telegram_allowed_users: "{{ (telegram_allowed_users | default('')).split(',') | map('trim') | select | list }}"
         openclaw_primary_model: >-
           {{
-            'nvidia/kimi-k2.5' if nvidia_api_key | default('') | length > 0
+            'moonshotai/kimi-k2.5' if nvidia_api_key | default('') | length > 0
             else ('groq/llama-3.3-70b-versatile' if groq_api_key | default('') | length > 0
             else ('google/gemini-2.5-flash' if gemini_api_key | default('') | length > 0
             else ('deepseek/deepseek-chat' if deepseek_api_key | default('') | length > 0

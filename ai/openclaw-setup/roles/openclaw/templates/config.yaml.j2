@@ -1,58 +1,49 @@
-# OpenClaw configuration – managed by Ansible
-# 4 cloud providers + optional Ollama local, complexity-tiered routing
-
 {
-  "$schema": "https://openclaw.com/schemas/config.json",
-  "mode": "merge",
-
   "models": {
     "providers": {
 {% if openclaw_nvidia_api_key | default('') | length > 0 %}
       "nvidia": {
         "apiKey": "{{ openclaw_nvidia_api_key }}",
         "baseUrl": "https://integrate.api.nvidia.com/v1",
-        "rateLimit": { "rpm": {{ openclaw_nvidia_rpm }} },
         "models": [
-          { "id": "kimi-k2.5", "name": "Kimi K2.5", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "minimax-m2.5", "name": "MiniMax M2.5", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "glm-5", "name": "GLM-5 744B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "glm-4.7", "name": "GLM-4.7 Agentic", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "nemotron-70b", "name": "Nemotron 70B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "qwen-3.5-vl", "name": "Qwen 3.5 VL 400B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } }
+          { "id": "moonshotai/kimi-k2.5", "name": "Kimi K2.5", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
+          { "id": "minimaxai/minimax-m2.5", "name": "MiniMax M2.5", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
+          { "id": "z-ai/glm5", "name": "GLM-5 744B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
+          { "id": "z-ai/glm4.7", "name": "GLM-4.7 Agentic", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
+          { "id": "nvidia/llama-3.3-nemotron-super-49b-v1.5", "name": "Nemotron Super 49B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
+          { "id": "qwen/qwen3.5-397b-a17b", "name": "Qwen 3.5 397B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } }
         ]
-      },
+      }{{ ',' if (openclaw_groq_api_key | default('') | length > 0) or (openclaw_gemini_api_key | default('') | length > 0) or (openclaw_deepseek_api_key | default('') | length > 0) or openclaw_ollama_enabled else '' }}
 {% endif %}
 {% if openclaw_groq_api_key | default('') | length > 0 %}
       "groq": {
         "apiKey": "{{ openclaw_groq_api_key }}",
         "baseUrl": "https://api.groq.com/openai/v1",
-        "rateLimit": { "rpm": {{ openclaw_groq_rpm }} },
         "models": [
           { "id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
           { "id": "llama-4-scout-17b-16e-instruct", "name": "Llama 4 Scout 17B", "contextWindow": 131072, "cost": { "input": 0, "output": 0 } },
-          { "id": "whisper-large-v3-turbo", "name": "Whisper Large V3 Turbo", "contextWindow": 0, "cost": { "input": 0, "output": 0 } }
+          { "id": "whisper-large-v3-turbo", "name": "Whisper Large V3 Turbo", "contextWindow": 1, "cost": { "input": 0, "output": 0 } }
         ]
-      },
+      }{{ ',' if (openclaw_gemini_api_key | default('') | length > 0) or (openclaw_deepseek_api_key | default('') | length > 0) or openclaw_ollama_enabled else '' }}
 {% endif %}
 {% if openclaw_gemini_api_key | default('') | length > 0 %}
       "google": {
         "apiKey": "{{ openclaw_gemini_api_key }}",
-        "rateLimit": { "rpm": {{ openclaw_gemini_rpm }} },
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
         "models": [
           { "id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "contextWindow": 1048576, "cost": { "input": 0, "output": 0 } }
         ]
-      },
+      }{{ ',' if (openclaw_deepseek_api_key | default('') | length > 0) or openclaw_ollama_enabled else '' }}
 {% endif %}
 {% if openclaw_deepseek_api_key | default('') | length > 0 %}
       "deepseek": {
         "apiKey": "{{ openclaw_deepseek_api_key }}",
         "baseUrl": "https://api.deepseek.com/v1",
-        "rateLimit": { "rpm": {{ openclaw_deepseek_rpm }} },
         "models": [
           { "id": "deepseek-chat", "name": "DeepSeek Chat V3", "contextWindow": 131072, "cost": { "input": 0.27, "output": 1.10 } },
           { "id": "deepseek-reasoner", "name": "DeepSeek Reasoner R1", "contextWindow": 131072, "cost": { "input": 0.55, "output": 2.20 } }
         ]
-      },
+      }{{ ',' if openclaw_ollama_enabled else '' }}
 {% endif %}
 {% if openclaw_ollama_enabled %}
       "ollama": {
@@ -64,109 +55,33 @@
             "id": "{{ openclaw_ollama_model }}",
             "name": "{{ openclaw_ollama_model }} (local)",
             "contextWindow": {{ openclaw_ollama_context_window }},
-            "maxTokens": {{ openclaw_ollama_context_window * 10 }},
             "cost": { "input": 0, "output": 0 }
           }
-        ],
-        "compat": {
-          "supportsDeveloperRole": false,
-          "supportsReasoningEffort": false
-        }
-      },
+        ]
+      }
 {% endif %}
-      "_end": true
-    },
-
-    "aliases": {
-{% if openclaw_nvidia_api_key | default('') | length > 0 %}
-      "kimi": "nvidia/kimi-k2.5",
-      "glm5": "nvidia/glm-5",
-      "glm47": "nvidia/glm-4.7",
-      "minimax": "nvidia/minimax-m2.5",
-      "nemotron": "nvidia/nemotron-70b",
-      "qwen": "nvidia/qwen-3.5-vl",
-{% endif %}
-{% if openclaw_groq_api_key | default('') | length > 0 %}
-      "groq-llama": "groq/llama-3.3-70b-versatile",
-      "groq-scout": "groq/llama-4-scout-17b-16e-instruct",
-{% endif %}
-{% if openclaw_gemini_api_key | default('') | length > 0 %}
-      "gemini-flash": "google/gemini-2.5-flash",
-{% endif %}
-{% if openclaw_deepseek_api_key | default('') | length > 0 %}
-      "ds": "deepseek/deepseek-chat",
-      "ds-think": "deepseek/deepseek-reasoner",
-{% endif %}
-{% if openclaw_ollama_enabled %}
-      "local": "ollama/{{ openclaw_ollama_model }}",
-{% endif %}
-      "_end": true
     }
   },
 
   "agents": {
     "defaults": {
-      "model": {
-        "primary": "{{ openclaw_primary_model }}",
-        "fallback": [
-{% if openclaw_nvidia_api_key | default('') | length > 0 %}
-          "nvidia/glm-5",
-          "nvidia/minimax-m2.5",
-{% endif %}
-{% if openclaw_groq_api_key | default('') | length > 0 %}
-          "groq/llama-3.3-70b-versatile",
-{% endif %}
-{% if openclaw_gemini_api_key | default('') | length > 0 %}
-          "google/gemini-2.5-flash",
-{% endif %}
-{% if openclaw_ollama_enabled %}
-          "ollama/{{ openclaw_ollama_model }}",
-{% endif %}
-{% if openclaw_deepseek_api_key | default('') | length > 0 %}
-          "deepseek/deepseek-chat"
-{% endif %}
-        ]
-      }
-    },
-
-    "heartbeat": {
-      "model": "{{ openclaw_heartbeat_model }}",
-      "interval": {{ openclaw_heartbeat_interval }},
-      "isolatedSession": true
-    },
-
-    "complexity": {
-{% if openclaw_deepseek_api_key | default('') | length > 0 %}
-      "complex": {
-        "model": "{{ openclaw_complex_model }}",
-        "triggers": ["multi-step", "architecture", "multi-file"]
-      },
-      "thinking": {
-        "model": "{{ openclaw_thinking_model }}",
-        "triggers": ["refactoring", "novel-problems", "deep-analysis"],
-        "enableExtendedReasoning": true
-      }
-{% endif %}
+      "model": "{{ openclaw_primary_model }}"
     }
-  },
-
-{% if openclaw_groq_api_key | default('') | length > 0 %}
-  "tools": {
-    "media": {
-      "audio": {
-        "provider": "groq",
-        "model": "whisper-large-v3-turbo"
-      }
-    }
-  },
-{% endif %}
-
-  "security": {
-    "bindAddress": "{{ openclaw_bind_address }}",
-    "allowTailscale": {{ openclaw_allow_tailscale | lower }}
   },
 
   "gateway": {
+    "auth": {
+      "mode": "trusted-proxy",
+      "trustedProxy": {
+        "userHeader": "X-Forwarded-For"
+      }
+    },
+    "trustedProxies": ["127.0.0.1/8", "172.20.0.0/24"],
+{% if openclaw_public_url | default('') | length > 0 %}
+    "controlUi": {
+      "allowedOrigins": ["{{ openclaw_public_url }}"]
+    },
+{% endif %}
     "port": {{ openclaw_gateway_port }}
   }
 }

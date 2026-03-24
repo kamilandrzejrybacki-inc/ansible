@@ -20,6 +20,6 @@ mimir_port: 9009
 
 alloy_image: "grafana/alloy:v1.5.1"
 
-# OpenClaw metrics exporter (set to "127.0.0.1" when deployed)
-openclaw_metrics_host: "127.0.0.1"
+# OpenClaw metrics exporter — use Docker gateway IP so Alloy (in grafana-stack network) can reach it
+openclaw_metrics_host: "172.19.0.1"
 openclaw_metrics_port: 9101

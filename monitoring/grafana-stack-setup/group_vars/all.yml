@@ -24,31 +24,31 @@ alloy_image: "grafana/alloy:v1.5.1"
 openclaw_metrics_host: "172.19.0.1"
 openclaw_metrics_port: 9101
 
-# Security service metrics — set host to Node 1 LAN IP (e.g. 10.0.0.1) to enable scraping
-caddy_metrics_host: ""
+# Security service metrics — Alloy must be on homelab-net; use container IPs (not names) — Alloy resolves DNS via grafana-stack_default
+caddy_metrics_host: "172.20.0.3"   # caddy on homelab-net
 caddy_metrics_port: 2019
 
-authelia_metrics_host: ""
+authelia_metrics_host: "172.20.0.4"   # authelia on homelab-net; requires telemetry.metrics.enabled: true in authelia config
 authelia_metrics_port: 9959
 
-crowdsec_metrics_host: ""
+crowdsec_metrics_host: "172.20.0.6"   # crowdsec on homelab-net
 crowdsec_metrics_port: 6060
 
-vault_metrics_host: ""
+vault_metrics_host: "172.19.0.1"   # Vault is on vault_default; reach via Docker gateway (0.0.0.0:8200 published)
 vault_metrics_port: 8200
 vault_metrics_token: ""   # Vault token with sys/metrics read policy (see spec prerequisites)
 
-pihole_exporter_host: ""
+pihole_exporter_host: ""   # Enable after running pihole role with pihole_exporter_enabled: true
 pihole_exporter_port: 9617
 
-wireguard_exporter_host: ""
+wireguard_exporter_host: ""   # Enable after running wireguard role with wireguard_exporter_enabled: true
 wireguard_exporter_port: 9586
 
-# Application service probe URLs — set to internal URL (e.g. http://10.0.0.1:PORT) to enable probe
-probe_n8n_url: ""
-probe_paperless_url: ""
-probe_netbox_url: ""
+# Application service probe URLs — node2 (10.0.0.2) is on the physical LAN (10.0.0.0/24)
+probe_n8n_url: "http://10.0.0.2:5678"
+probe_paperless_url: "http://10.0.0.2:8000"
+probe_netbox_url: "http://10.0.0.2:8081"
 probe_outline_url: ""
-probe_vaultwarden_url: ""
+probe_vaultwarden_url: "http://10.0.0.2:8080"
 probe_seafile_url: ""
 probe_dify_url: ""

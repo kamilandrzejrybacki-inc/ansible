@@ -142,9 +142,18 @@ prometheus.scrape "caddy" {
 
 prometheus.relabel "caddy_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";     replacement = "security" }
-  rule { target_label = "service"; replacement = "caddy"    }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "caddy"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -158,9 +167,18 @@ prometheus.scrape "authelia" {
 
 prometheus.relabel "authelia_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";      replacement = "security" }
-  rule { target_label = "service";  replacement = "authelia" }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "authelia"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -174,9 +192,18 @@ prometheus.scrape "crowdsec" {
 
 prometheus.relabel "crowdsec_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";      replacement = "security"  }
-  rule { target_label = "service";  replacement = "crowdsec"  }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "crowdsec"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -195,9 +222,18 @@ prometheus.scrape "vault" {
 
 prometheus.relabel "vault_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";      replacement = "security" }
-  rule { target_label = "service";  replacement = "vault"    }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "vault"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -211,9 +247,18 @@ prometheus.scrape "pihole" {
 
 prometheus.relabel "pihole_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";      replacement = "security" }
-  rule { target_label = "service";  replacement = "pihole"   }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "pihole"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -227,9 +272,18 @@ prometheus.scrape "wireguard" {
 
 prometheus.relabel "wireguard_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
-  rule { target_label = "job";      replacement = "security"   }
-  rule { target_label = "service";  replacement = "wireguard"  }
-  rule { target_label = "instance"; replacement = env("HOSTNAME") }
+  rule {
+    target_label = "job"
+    replacement  = "security"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "wireguard"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 
@@ -251,6 +305,7 @@ prometheus.exporter.blackbox "apps" {
     name    = "{{ name }}"
     address = "{{ url }}"
     module  = "http_2xx"
+    labels  = { service = "{{ name }}" }
   }
 {% endfor %}
 }
@@ -264,14 +319,14 @@ prometheus.scrape "blackbox" {
 prometheus.relabel "blackbox_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
 
-  // The blackbox exporter sets the target's name field as the "name" label.
-  // Copy it into "service" so panels can filter by service name (not URL).
   rule {
-    source_labels = ["name"]
-    target_label  = "service"
+    target_label = "job"
+    replacement  = "blackbox"
   }
-  rule { target_label = "job";      replacement = "blackbox"       }
-  rule { target_label = "instance"; replacement = env("HOSTNAME")  }
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
 }
 {% endif %}
 

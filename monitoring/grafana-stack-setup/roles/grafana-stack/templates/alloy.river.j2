@@ -233,6 +233,48 @@ prometheus.relabel "wireguard_labels" {
 }
 {% endif %}
 
+// ── Blackbox HTTP probes ──────────────────────────────────────────────────────
+{% set _probe_list = [] %}
+{% if probe_n8n_url | default('') | length > 0 %}{% set _ = _probe_list.append(('n8n', probe_n8n_url)) %}{% endif %}
+{% if probe_paperless_url | default('') | length > 0 %}{% set _ = _probe_list.append(('paperless', probe_paperless_url)) %}{% endif %}
+{% if probe_netbox_url | default('') | length > 0 %}{% set _ = _probe_list.append(('netbox', probe_netbox_url)) %}{% endif %}
+{% if probe_outline_url | default('') | length > 0 %}{% set _ = _probe_list.append(('outline', probe_outline_url)) %}{% endif %}
+{% if probe_vaultwarden_url | default('') | length > 0 %}{% set _ = _probe_list.append(('vaultwarden', probe_vaultwarden_url)) %}{% endif %}
+{% if probe_seafile_url | default('') | length > 0 %}{% set _ = _probe_list.append(('seafile', probe_seafile_url)) %}{% endif %}
+{% if probe_dify_url | default('') | length > 0 %}{% set _ = _probe_list.append(('dify', probe_dify_url)) %}{% endif %}
+{% if _probe_list | length > 0 %}
+prometheus.exporter.blackbox "apps" {
+  config = "modules:\n  http_2xx:\n    prober: http\n    timeout: 10s\n    http:\n      preferred_ip_protocol: ip4"
+
+{% for name, url in _probe_list %}
+  target {
+    name    = "{{ name }}"
+    address = "{{ url }}"
+    module  = "http_2xx"
+  }
+{% endfor %}
+}
+
+prometheus.scrape "blackbox" {
+  targets         = prometheus.exporter.blackbox.apps.targets
+  forward_to      = [prometheus.relabel.blackbox_labels.receiver]
+  scrape_interval = "60s"
+}
+
+prometheus.relabel "blackbox_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  // The blackbox exporter sets the target's name field as the "name" label.
+  // Copy it into "service" so panels can filter by service name (not URL).
+  rule {
+    source_labels = ["name"]
+    target_label  = "service"
+  }
+  rule { target_label = "job";      replacement = "blackbox"       }
+  rule { target_label = "instance"; replacement = env("HOSTNAME")  }
+}
+{% endif %}
+
 // ── Remote write endpoints ────────────────────────────────────────────────────
 prometheus.remote_write "mimir" {
   endpoint {

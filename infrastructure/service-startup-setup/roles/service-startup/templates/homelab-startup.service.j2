@@ -1,0 +1,16 @@
+# Managed by Ansible — do not edit manually.
+[Unit]
+Description=Homelab service startup orchestrator
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart={{ service_startup_script_path }}
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

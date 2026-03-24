@@ -1,0 +1,36 @@
+# infrastructure/service-startup-setup/setup.yml
+---
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Homelab Service Startup Ordering
+        ══════════════════════════════════════════════
+
+        [1/2] IP or hostname of the target machine
+      default: "10.0.0.2"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/2] SSH user for the target machine"
+      default: "kamil"
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: startup_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+
+- name: Deploy homelab startup orchestrator
+  hosts: startup_hosts
+  become: true
+  roles:
+    - service-startup

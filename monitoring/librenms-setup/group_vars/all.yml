@@ -9,3 +9,7 @@ librenms_db_root_password: "root_{{ librenms_db_password }}"
 
 librenms_health_check_retries: 20
 librenms_health_check_delay: 10
+
+# Dispatcher CPU and polling tuning
+librenms_poller_threads: 4          # parallel poller workers; lower = smaller spikes
+librenms_dispatcher_cpu_limit: "1.5"  # cap peak CPU usage of dispatcher container

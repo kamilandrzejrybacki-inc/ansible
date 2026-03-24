@@ -1,0 +1,51 @@
+# infrastructure/service-startup-setup/roles/service-startup/tasks/main.yml
+---
+- name: Create startup script directory
+  ansible.builtin.file:
+    path: "{{ service_startup_script_path | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Template startup script
+  ansible.builtin.template:
+    src: startup.sh.j2
+    dest: "{{ service_startup_script_path }}"
+    mode: "0755"
+    owner: root
+    group: root
+  notify: Reload systemd
+
+- name: Template systemd service unit
+  ansible.builtin.template:
+    src: homelab-startup.service.j2
+    dest: "/etc/systemd/system/{{ service_startup_service_name }}.service"
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload systemd
+
+- name: Flush handlers to pick up new unit file
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable homelab-startup service
+  ansible.builtin.systemd:
+    name: "{{ service_startup_service_name }}"
+    enabled: true
+    daemon_reload: true
+
+- name: Display startup service information
+  ansible.builtin.debug:
+    msg: |
+      Homelab startup service installed and enabled.
+
+      Service: {{ service_startup_service_name }}.service
+      Script:  {{ service_startup_script_path }}
+
+      On boot, shared databases will start first and be health-checked
+      before application services are brought up.
+
+      Manual commands:
+        systemctl start {{ service_startup_service_name }}   # run startup sequence
+        journalctl -u {{ service_startup_service_name }}     # view startup logs

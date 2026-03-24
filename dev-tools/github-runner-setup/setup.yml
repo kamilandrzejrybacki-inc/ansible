@@ -1,0 +1,27 @@
+# =============================================================================
+# GitHub Actions Self-Hosted Runner — lw-s1
+# =============================================================================
+# Deploys a containerised GitHub Actions runner on lw-s1 at the org level.
+# Runner uses Docker-in-Docker (no host Docker socket write access) and is
+# confined to an isolated network with iptables rules blocking all access to
+# homelab-internal IP ranges (10.0.0.0/8, 172.20.0.0/24, 192.168.0.0/16).
+#
+# First-time usage:
+#   1. Obtain a registration token from:
+#      https://github.com/organizations/YOUR_ORG/settings/actions/runners/new
+#   2. Run:
+#      sudo HOME=/home/kamil-rybacki ansible-playbook \
+#        dev-tools/github-runner-setup/setup.yml \
+#        -i dev-tools/github-runner-setup/inventory/hosts.ini \
+#        --extra-vars "github_runner_org=YOUR_ORG github_runner_registration_token=YOUR_TOKEN"
+#
+# Subsequent runs (container already registered):
+#   Omit github_runner_registration_token — the container reuses its stored config.
+# =============================================================================
+
+- name: Deploy GitHub Actions self-hosted runner on lw-s1
+  hosts: lw_s1
+  become: true
+  gather_facts: false
+  roles:
+    - github-runner

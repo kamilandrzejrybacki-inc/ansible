@@ -77,6 +77,10 @@ services:
     container_name: librenms_dispatcher
     hostname: librenms-dispatcher
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ librenms_dispatcher_cpu_limit }}"
     environment:
       TZ: "{{ librenms_timezone }}"
       DB_HOST: {{ librenms_db_host }}
@@ -93,6 +97,7 @@ services:
 {% endif %}
       DISPATCHER_NODE_ID: dispatcher1
       SIDECAR_DISPATCHER: 1
+      LIBRENMS_POLLER_THREADS: "{{ librenms_poller_threads }}"
     volumes:
       - librenms_data:/data
     depends_on:

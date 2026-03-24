@@ -1,0 +1,24 @@
+---
+# Overridable defaults — override in group_vars/all.yml or via --extra-vars
+github_runner_name: "lw-s1-homelab"
+github_runner_scope: "org"
+github_runner_org: ""
+github_runner_labels: "self-hosted,linux,x64,lw,homelab"
+github_runner_image: "myoung34/github-runner:latest"
+github_runner_container_name: "github-runner"
+github_runner_data_dir: "/opt/homelab/github-runner"
+github_runner_restart_policy: "unless-stopped"
+github_runner_cpu_period: 100000
+github_runner_cpu_quota: 200000
+github_runner_memory: "4g"
+github_runner_memory_swap: "4g"
+github_runner_network_name: "runner-net"
+github_runner_network_subnet: "172.22.0.0/24"
+github_runner_network_gateway: "172.22.0.1"
+github_runner_blocked_networks:
+  - "10.0.0.0/8"
+  - "172.20.0.0/24"
+  - "192.168.0.0/16"
+github_runner_workdir: "/tmp/runner-work"
+github_runner_health_check_retries: 18
+github_runner_health_check_delay: 5

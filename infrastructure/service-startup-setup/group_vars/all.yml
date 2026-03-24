@@ -1,0 +1,27 @@
+# infrastructure/service-startup-setup/group_vars/all.yml
+---
+service_startup_script_path: /opt/homelab-startup/startup.sh
+service_startup_service_name: homelab-startup
+
+# Shared infrastructure compose projects — started first, in order.
+# Health is checked via Docker's built-in container healthcheck status.
+service_startup_shared_infra:
+  - name: shared-postgres
+    compose_dir: /opt/shared-postgres
+    container_name: shared-postgres
+    timeout: 60
+  - name: shared-redis
+    compose_dir: /opt/shared-redis
+    container_name: shared-redis
+    timeout: 30
+  - name: shared-mariadb
+    compose_dir: /opt/shared-mariadb
+    container_name: shared-mariadb
+    timeout: 60
+
+# Application compose projects — started after shared infra is healthy
+service_startup_app_services:
+  - name: netbox
+    compose_dir: /opt/netbox
+  - name: paperless
+    compose_dir: /opt/paperless

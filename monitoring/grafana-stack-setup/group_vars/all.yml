@@ -19,6 +19,7 @@ mimir_image: "grafana/mimir:2.14.0"
 mimir_port: 9009
 
 alloy_image: "grafana/alloy:v1.5.1"
+docker_exporter_image: "ghcr.io/davidborzek/docker-exporter:v0.3.0"
 
 # OpenClaw metrics exporter — use Docker gateway IP so Alloy (in grafana-stack network) can reach it
 openclaw_metrics_host: "openclaw-metrics"
@@ -49,6 +50,6 @@ probe_n8n_url: "https://n8n.kamilandrzejrybacki.dpdns.org"
 probe_paperless_url: "https://paperless.kamilandrzejrybacki.dpdns.org"
 probe_netbox_url: "https://netbox.kamilandrzejrybacki.dpdns.org"
 probe_outline_url: ""
-probe_vaultwarden_url: "http://10.0.0.2:8080"   # no public subdomain — internal HTTP only
+probe_vaultwarden_url: ""   # removed from homelab
 probe_seafile_url: ""
 probe_dify_url: ""

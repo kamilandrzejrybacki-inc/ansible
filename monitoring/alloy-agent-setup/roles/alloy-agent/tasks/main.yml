@@ -41,6 +41,25 @@
     group: alloy
   notify: restart alloy
 
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+  when: docker_exporter_enabled | default(true)
+
+- name: Deploy docker-exporter container
+  community.docker.docker_container:
+    name: docker-exporter
+    image: "{{ docker_exporter_image }}"
+    restart_policy: unless-stopped
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:{{ docker_exporter_port }}:8080"
+    state: started
+  when: docker_exporter_enabled | default(true)
+
 - name: Enable and start Alloy service
   ansible.builtin.systemd:
     name: alloy

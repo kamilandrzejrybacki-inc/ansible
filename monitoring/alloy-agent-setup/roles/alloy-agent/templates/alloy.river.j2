@@ -1,15 +1,47 @@
 // ── Host metrics (node_exporter-compatible) ──────────────────────────────────
 prometheus.exporter.unix "host" {}
 
-prometheus.scrape "host_metrics" {
-  targets         = prometheus.exporter.unix.host.targets
-  forward_to      = [prometheus.remote_write.mimir.receiver]
-  scrape_interval = "{{ alloy_scrape_interval }}"
+prometheus.relabel "host_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
 
-  clustering {
-    enabled = false
+  rule {
+    target_label = "job"
+    replacement  = "node"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "{{ ansible_hostname | default('localhost') }}"
   }
 }
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.relabel.host_labels.receiver]
+  scrape_interval = "{{ alloy_scrape_interval }}"
+}
+
+{% if docker_exporter_enabled | default(true) %}
+// ── Docker container metrics (docker-exporter) ───────────────────────────────
+prometheus.scrape "docker_exporter" {
+  targets         = [{"__address__" = "localhost:{{ docker_exporter_port }}"}]
+  metrics_path    = "/metrics"
+  forward_to      = [prometheus.relabel.docker_exporter_labels.receiver]
+  scrape_interval = "{{ alloy_scrape_interval }}"
+}
+
+prometheus.relabel "docker_exporter_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "docker-exporter"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "{{ ansible_hostname | default('localhost') }}"
+  }
+}
+{% endif %}
 
 // ── Systemd journal logs ──────────────────────────────────────────────────────
 loki.source.journal "system" {
@@ -18,11 +50,11 @@ loki.source.journal "system" {
 
   labels = {
     "job"      = "systemd-journal",
-    "instance" = env("HOSTNAME"),
+    "instance" = "{{ ansible_hostname | default('localhost') }}",
   }
 }
 
-// ── Docker container logs (only if Docker is running) ────────────────────────
+// ── Docker container logs ─────────────────────────────────────────────────────
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
@@ -34,7 +66,7 @@ loki.source.docker "containers" {
 
   labels = {
     "job"      = "docker",
-    "instance" = env("HOSTNAME"),
+    "instance" = "{{ ansible_hostname | default('localhost') }}",
   }
 }
 

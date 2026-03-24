@@ -1,0 +1,6 @@
+# infrastructure/service-startup-setup/roles/service-startup/defaults/main.yml
+---
+service_startup_script_path: /opt/homelab-startup/startup.sh
+service_startup_service_name: homelab-startup
+service_startup_shared_infra: []
+service_startup_app_services: []

@@ -106,19 +106,19 @@ prometheus.relabel "openclaw_labels" {
 }
 {% endif %}
 
-// ── Docker container metrics (cadvisor) ───────────────────────────────────────
-prometheus.scrape "cadvisor" {
-  targets         = [{"__address__" = "cadvisor:8080"}]
+// ── Docker container metrics (docker-exporter) ───────────────────────────────
+prometheus.scrape "docker_exporter" {
+  targets         = [{"__address__" = "docker-exporter:8080"}]
   metrics_path    = "/metrics"
-  forward_to      = [prometheus.relabel.cadvisor_labels.receiver]
+  forward_to      = [prometheus.relabel.docker_exporter_labels.receiver]
   scrape_interval = "60s"
 }
 
-prometheus.relabel "cadvisor_labels" {
+prometheus.relabel "docker_exporter_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]
   rule {
     target_label = "job"
-    replacement  = "cadvisor"
+    replacement  = "docker-exporter"
   }
   rule {
     target_label = "instance"

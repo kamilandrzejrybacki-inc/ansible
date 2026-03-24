@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Homelab service startup orchestrator
+# Ensures shared databases are healthy before starting application services.
+# Managed by Ansible — do not edit manually.
+set -euo pipefail
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+wait_healthy() {
+  local name="$1" container="$2" timeout="$3"
+  local elapsed=0 status
+
+  log "Waiting for ${name} to become healthy (timeout: ${timeout}s)..."
+  while true; do
+    status=$(docker inspect --format='{{ '{{' }}if .State.Health{{ '}}' }}{{ '{{' }}.State.Health.Status{{ '}}' }}{{ '{{' }}else{{ '}}' }}no-healthcheck{{ '{{' }}end{{ '}}' }}' "${container}" 2>/dev/null || echo "not-found")
+
+    if [ "${status}" = "healthy" ]; then
+      log "${name} is healthy (${elapsed}s)"
+      return 0
+    fi
+
+    elapsed=$((elapsed + 2))
+    if [ "${elapsed}" -ge "${timeout}" ]; then
+      log "ERROR: ${name} did not become healthy within ${timeout}s (status: ${status})"
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+# ── Phase 1: Shared infrastructure ────────────────────────────────────────────
+log "=== Phase 1: Starting shared infrastructure ==="
+
+{% for svc in service_startup_shared_infra %}
+log "Starting {{ svc.name }}..."
+docker compose -f {{ svc.compose_dir }}/docker-compose.yml up -d
+wait_healthy "{{ svc.name }}" "{{ svc.container_name }}" {{ svc.timeout }}
+
+{% endfor %}
+log "=== Shared infrastructure ready ==="
+
+# ── Phase 2: Application services ─────────────────────────────────────────────
+log "=== Phase 2: Starting application services ==="
+
+{% for svc in service_startup_app_services %}
+log "Starting {{ svc.name }}..."
+docker compose -f {{ svc.compose_dir }}/docker-compose.yml up -d
+{% endfor %}
+
+log "=== All services started ==="

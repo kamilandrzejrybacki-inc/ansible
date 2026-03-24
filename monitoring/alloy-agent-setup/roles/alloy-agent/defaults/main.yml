@@ -5,3 +5,7 @@ mimir_port: 9009
 loki_port: 3100
 alloy_config_path: /etc/alloy/config.alloy
 alloy_scrape_interval: "60s"
+
+docker_exporter_enabled: true
+docker_exporter_image: "ghcr.io/davidborzek/docker-exporter:v0.3.0"
+docker_exporter_port: 9338

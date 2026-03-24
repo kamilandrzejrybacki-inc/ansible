@@ -1,0 +1,34 @@
+---
+# Runner identity
+github_runner_name: "lw-s1-homelab"
+github_runner_scope: "org"
+# Set your GitHub org name here (e.g. "kamilrybacki" if that is your org)
+github_runner_org: "kamilandrzejrybacki-inc"
+github_runner_labels: "self-hosted,linux,x64,lw,homelab"
+
+# Container
+github_runner_image: "myoung34/github-runner:latest"
+github_runner_container_name: "github-runner"
+github_runner_data_dir: "/opt/homelab/github-runner"
+github_runner_restart_policy: "unless-stopped"
+
+# Resource limits — prevent runner jobs from starving other services on lw-s1
+github_runner_cpu_period: 100000
+github_runner_cpu_quota: 200000   # 2 vCPUs max
+github_runner_memory: "4g"
+github_runner_memory_swap: "4g"   # no swap beyond memory limit
+
+# Network isolation — dedicated bridge, not connected to homelab-net
+github_runner_network_name: "runner-net"
+github_runner_network_subnet: "172.22.0.0/24"
+github_runner_network_gateway: "172.22.0.1"
+
+# Internal ranges the runner must never reach
+github_runner_blocked_networks: []  # full internal access allowed
+
+# Work directory inside container (ephemeral per-job scratch space)
+github_runner_workdir: "/tmp/runner-work"
+
+# Health/wait
+github_runner_health_check_retries: 18
+github_runner_health_check_delay: 5

@@ -1,0 +1,160 @@
+---
+# =============================================================================
+# Pre-flight checks
+# =============================================================================
+- name: Assert required variables are set
+  ansible.builtin.assert:
+    that:
+      - github_runner_org | length > 0
+      - github_runner_registration_token | default('') | length > 0
+    fail_msg: >
+      Missing required variables.
+      Pass --extra-vars "github_runner_org=YOUR_ORG github_runner_registration_token=YOUR_TOKEN"
+      Token: https://github.com/organizations/YOUR_ORG/settings/actions/runners/new
+
+# =============================================================================
+# Data directory
+# =============================================================================
+- name: Create runner data directory
+  ansible.builtin.file:
+    path: "{{ github_runner_data_dir }}"
+    state: directory
+    mode: "0750"
+    owner: root
+    group: root
+
+# =============================================================================
+# Docker network — runner-net
+# =============================================================================
+- name: Create runner Docker network
+  community.docker.docker_network:
+    name: "{{ github_runner_network_name }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ github_runner_network_subnet }}"
+        gateway: "{{ github_runner_network_gateway }}"
+    state: present
+
+- name: Resolve runner-net bridge interface name
+  ansible.builtin.shell: |
+    docker network inspect {{ github_runner_network_name }} \
+      --format '{{ "{{" }}.Id{{ "}}" }}' | cut -c1-12 | xargs -I{} echo "br-{}"
+  register: _runner_bridge_iface
+  changed_when: false
+
+# =============================================================================
+# Incoming traffic hardening — systemd oneshot service
+#
+# Uses a systemd oneshot to apply iptables rules at boot via DOCKER-USER chain.
+# Avoids iptables-persistent entirely (caused instability on this host).
+# Rules allow only ESTABLISHED/RELATED back into runner-net; unsolicited NEW
+# connections are dropped — nothing can dial into the runner from outside.
+# =============================================================================
+- name: Write iptables hardening script
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/runner-net-iptables.sh
+    mode: "0750"
+    content: |
+      #!/bin/sh
+      # Applied by runner-net-iptables.service on boot
+      IFACE="{{ _runner_bridge_iface.stdout | trim }}"
+
+      # Allow return traffic (ESTABLISHED/RELATED) into runner-net
+      iptables -C DOCKER-USER -o "$IFACE" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+        iptables -I DOCKER-USER -o "$IFACE" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+      # Drop unsolicited NEW inbound connections to runner-net
+      iptables -C DOCKER-USER -o "$IFACE" -m conntrack --ctstate NEW -j DROP 2>/dev/null || \
+        iptables -A DOCKER-USER -o "$IFACE" -m conntrack --ctstate NEW -j DROP
+  notify: restart runner-net-iptables
+
+- name: Install runner-net iptables systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/runner-net-iptables.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Apply iptables rules for runner-net
+      After=docker.service network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/runner-net-iptables.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: restart runner-net-iptables
+
+- name: Enable runner-net iptables service
+  ansible.builtin.systemd:
+    name: runner-net-iptables
+    enabled: true
+    daemon_reload: true
+
+# =============================================================================
+# GitHub Actions Runner container (Docker-in-Docker)
+# =============================================================================
+- name: Pull GitHub runner image
+  community.docker.docker_image:
+    name: "{{ github_runner_image }}"
+    source: pull
+
+- name: Start GitHub Actions runner container
+  community.docker.docker_container:
+    name: "{{ github_runner_container_name }}"
+    image: "{{ github_runner_image }}"
+    state: started
+    restart_policy: "{{ github_runner_restart_policy }}"
+    privileged: true
+    networks:
+      - name: "{{ github_runner_network_name }}"
+    volumes:
+      - "{{ github_runner_data_dir }}:/home/runner/work"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    env:
+      RUNNER_SCOPE: "{{ github_runner_scope }}"
+      ORG_NAME: "{{ github_runner_org }}"
+      RUNNER_TOKEN: "{{ github_runner_registration_token }}"
+      RUNNER_NAME: "{{ github_runner_name }}"
+      RUNNER_WORKDIR: "{{ github_runner_workdir }}"
+      LABELS: "{{ github_runner_labels }}"
+      DOCKER_IN_DOCKER: "true"
+      DISABLE_RUNNER_UPDATE: "true"
+    cpu_period: "{{ github_runner_cpu_period }}"
+    cpu_quota: "{{ github_runner_cpu_quota }}"
+    memory: "{{ github_runner_memory }}"
+    memory_swap: "{{ github_runner_memory_swap }}"
+
+# =============================================================================
+# Verify registration
+# =============================================================================
+- name: Wait for runner to register with GitHub
+  ansible.builtin.command:
+    cmd: docker logs {{ github_runner_container_name }}
+  register: _runner_logs
+  until: >
+    'Listening for Jobs' in _runner_logs.stdout or
+    'Connected to GitHub' in _runner_logs.stdout
+  retries: "{{ github_runner_health_check_retries }}"
+  delay: "{{ github_runner_health_check_delay }}"
+  changed_when: false
+  failed_when: false
+
+- name: Display registration status
+  ansible.builtin.debug:
+    msg: |
+      GitHub Actions Runner deployed on lw-s1.
+
+      Runner name : {{ github_runner_name }}
+      Org         : {{ github_runner_org }}
+      Labels      : {{ github_runner_labels }}
+      Network     : {{ github_runner_network_name }} ({{ github_runner_network_subnet }})
+      Data dir    : {{ github_runner_data_dir }}
+
+      Security model:
+        - Outbound : full access (homelab + internet)
+        - Inbound  : ESTABLISHED/RELATED only — unsolicited NEW connections dropped
+
+      Verify at: https://github.com/organizations/{{ github_runner_org }}/settings/actions/runners

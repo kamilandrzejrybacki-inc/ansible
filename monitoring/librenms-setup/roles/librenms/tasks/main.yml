@@ -40,6 +40,16 @@
   retries: "{{ librenms_health_check_retries }}"
   delay: "{{ librenms_health_check_delay }}"
 
+- name: Configure dispatcher poller worker counts
+  ansible.builtin.command: >
+    docker exec librenms_dispatcher sh -c
+    "su -s /bin/sh librenms -c '/opt/librenms/lnms config:set {{ item.key }} {{ item.value }}'"
+  loop:
+    - {key: service_poller_workers,    value: "{{ librenms_poller_workers }}"}
+    - {key: service_discovery_workers, value: "{{ librenms_discovery_workers }}"}
+    - {key: service_services_workers,  value: "{{ librenms_services_workers }}"}
+  changed_when: true
+
 - name: Configure SNMP community string
   ansible.builtin.command: >
     docker exec librenms_app lnms config:set snmp.community

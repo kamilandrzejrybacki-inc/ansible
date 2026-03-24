@@ -97,7 +97,6 @@ services:
 {% endif %}
       DISPATCHER_NODE_ID: dispatcher1
       SIDECAR_DISPATCHER: 1
-      LIBRENMS_POLLER_THREADS: "{{ librenms_poller_threads }}"
     volumes:
       - librenms_data:/data
     depends_on:

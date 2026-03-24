@@ -11,5 +11,7 @@ librenms_health_check_retries: 20
 librenms_health_check_delay: 10
 
 # Dispatcher CPU and polling tuning
-librenms_poller_threads: 4          # parallel poller workers; lower = smaller spikes
-librenms_dispatcher_cpu_limit: "1.5"  # cap peak CPU usage of dispatcher container
+librenms_poller_workers: 4           # parallel poller workers (default was 24)
+librenms_discovery_workers: 3        # parallel discovery workers (default was 16)
+librenms_services_workers: 2         # parallel services workers (default was 8)
+librenms_dispatcher_cpu_limit: "1.5" # hard CPU cap on dispatcher container

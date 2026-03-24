@@ -4,3 +4,5 @@ pihole_upstream_dns: "1.1.1.1;1.0.0.1"
 pihole_adlists:
   - url: "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt"
     comment: "Hagezi DNS Blocklist - Multi PRO"
+
+pihole_exporter_enabled: false

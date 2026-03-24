@@ -6,6 +6,7 @@ import signal
 import threading
 import logging
 import collections
+import urllib.request
 
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 from watchdog.observers import Observer
@@ -17,6 +18,7 @@ log = logging.getLogger(__name__)
 SESSIONS_DIR = os.environ.get("SESSIONS_DIR", "/data/sessions")
 LOGS_DIR = os.environ.get("LOGS_DIR", "/data/logs")
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "9101"))
+HEALTH_URL = os.environ.get("HEALTH_URL", "http://openclaw:18789/health")
 
 # ---------------------------------------------------------------------------
 # Metric definitions
@@ -319,6 +321,29 @@ class LogTailer(threading.Thread):
 # Burn-rate calculator
 # ---------------------------------------------------------------------------
 
+class HealthChecker(threading.Thread):
+    """Periodically check OpenClaw gateway health endpoint."""
+    daemon = True
+
+    def __init__(self, url: str, interval: int = 30) -> None:
+        super().__init__(name="HealthChecker")
+        self.url = url
+        self.interval = interval
+
+    def run(self) -> None:
+        while True:
+            try:
+                req = urllib.request.urlopen(self.url, timeout=5)
+                data = json.loads(req.read())
+                if data.get("ok") or data.get("status") == "live":
+                    heartbeat_status.set(1)
+                else:
+                    heartbeat_status.set(0)
+            except Exception:
+                heartbeat_status.set(0)
+            time.sleep(self.interval)
+
+
 class BurnRateCalculator(threading.Thread):
     daemon = True
 
@@ -366,6 +391,10 @@ def main() -> None:
     burn_calc = BurnRateCalculator()
     burn_calc.start()
     log.info("BurnRateCalculator started")
+
+    health_checker = HealthChecker(HEALTH_URL)
+    health_checker.start()
+    log.info("HealthChecker started for %s", HEALTH_URL)
 
     info_gauge.labels(version="1.0.0", primary_model="unknown").set(1)
 

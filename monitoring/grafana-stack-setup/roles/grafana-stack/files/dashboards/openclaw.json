@@ -12,28 +12,46 @@
   "panels": [
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
       "title": "Overview",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 2,
       "options": {
         "colorMode": "value",
@@ -41,7 +59,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -50,7 +70,10 @@
       "title": "Tokens Today",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(increase(openclaw_tokens_input_total[24h])) + sum(increase(openclaw_tokens_output_total[24h]))",
           "instant": true,
           "refId": "A"
@@ -59,23 +82,36 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 4,
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 3,
       "options": {
         "colorMode": "value",
@@ -83,7 +119,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -92,7 +130,10 @@
       "title": "Cost Today ($)",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(increase(openclaw_cost_dollars_total[24h]))",
           "instant": true,
           "refId": "A"
@@ -101,23 +142,36 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "decimals": 1,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 4,
       "options": {
         "colorMode": "value",
@@ -125,7 +179,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -134,7 +190,10 @@
       "title": "Requests/min",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(rate(openclaw_requests_total[5m])) * 60",
           "instant": true,
           "refId": "A"
@@ -143,22 +202,35 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 5,
       "options": {
         "colorMode": "value",
@@ -166,7 +238,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -175,7 +249,10 @@
       "title": "Active Sessions",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(openclaw_active_sessions)",
           "instant": true,
           "refId": "A"
@@ -185,16 +262,26 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 6,
       "title": "Provider Breakdown",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 80,
             "gradientMode": "none",
@@ -202,29 +289,51 @@
             "lineWidth": 1,
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "normal" }
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
       "id": 7,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "title": "Cost by Provider",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (provider) (increase(openclaw_cost_dollars_total[1h]))",
           "legendFormat": "{{provider}}",
           "refId": "A"
@@ -233,10 +342,15 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 80
           },
@@ -244,28 +358,47 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
       "id": 8,
       "options": {
         "barWidth": 0.97,
         "groupWidth": 0.7,
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "orientation": "auto",
-        "tooltip": { "mode": "single", "sort": "none" },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 200
       },
       "title": "Requests by Provider",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (provider) (increase(openclaw_requests_total{status=\"success\"}[1h]))",
           "legendFormat": "{{provider}}",
           "refId": "A"
@@ -274,10 +407,15 @@
       "type": "barchart"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -285,29 +423,51 @@
             "lineWidth": 1,
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
       "id": 9,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "title": "Errors by Provider",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (provider) (rate(openclaw_errors_total[5m]))",
           "legendFormat": "{{provider}}",
           "refId": "A"
@@ -317,33 +477,60 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
       "id": 10,
       "title": "Agent Activity",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "mappings": [],
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 15
+      },
       "id": 11,
       "options": {
-        "displayLabels": ["percent"],
-        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
         "pieType": "pie",
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "title": "Requests per Agent",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (agent) (increase(openclaw_requests_total[24h]))",
           "legendFormat": "{{agent}}",
           "refId": "A"
@@ -352,10 +539,15 @@
       "type": "piechart"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 80
           },
@@ -363,28 +555,47 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 15
+      },
       "id": 12,
       "options": {
         "barWidth": 0.97,
         "groupWidth": 0.7,
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "orientation": "auto",
-        "tooltip": { "mode": "single", "sort": "none" },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 200
       },
       "title": "Model Usage",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (model) (increase(openclaw_requests_total[24h]))",
           "legendFormat": "{{model}}",
           "refId": "A"
@@ -393,10 +604,15 @@
       "type": "barchart"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -404,29 +620,51 @@
             "lineWidth": 1,
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 15
+      },
       "id": 13,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "title": "Telegram Messages",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum by (direction) (rate(openclaw_telegram_messages_total[5m])) * 60",
           "legendFormat": "{{direction}}",
           "refId": "A"
@@ -436,16 +674,26 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
       "id": 14,
       "title": "Operational",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -453,41 +701,69 @@
             "lineWidth": 1,
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "s"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 24 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 24
+      },
       "id": 15,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "title": "Response Latency",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "histogram_quantile(0.5, sum by (le) (rate(openclaw_request_duration_seconds_bucket[5m])))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "histogram_quantile(0.95, sum by (le) (rate(openclaw_request_duration_seconds_bucket[5m])))",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "histogram_quantile(0.99, sum by (le) (rate(openclaw_request_duration_seconds_bucket[5m])))",
           "legendFormat": "p99",
           "refId": "C"
@@ -496,25 +772,55 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [
-            { "options": { "0": { "color": "red", "index": 0, "text": "DOWN" }, "1": { "color": "green", "index": 1, "text": "UP" } }, "type": "value" }
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 24 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 24
+      },
       "id": 16,
       "options": {
         "colorMode": "background",
@@ -522,7 +828,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -531,7 +839,10 @@
       "title": "Heartbeat Status",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "openclaw_heartbeat_status",
           "instant": true,
           "refId": "A"
@@ -540,23 +851,36 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "displayName": "$/hour",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 24
+      },
       "id": 17,
       "options": {
         "colorMode": "value",
@@ -564,7 +888,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -573,7 +899,10 @@
       "title": "Cost Burn Rate",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(openclaw_cost_rate_dollars_per_hour)",
           "instant": true,
           "refId": "A"
@@ -582,10 +911,15 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -593,35 +927,60 @@
             "lineWidth": 1,
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 24
+      },
       "id": 18,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "title": "Estimated vs Reported Tokens",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(rate(openclaw_tokens_estimated_total[5m])) * 60",
           "legendFormat": "Estimated",
           "refId": "A"
         },
         {
-          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "mimir"
+          },
           "expr": "sum(rate(openclaw_tokens_input_total[5m])) * 60 - sum(rate(openclaw_tokens_estimated_total[5m])) * 60",
           "legendFormat": "Reported",
           "refId": "B"
@@ -632,9 +991,18 @@
   ],
   "refresh": "1m",
   "schemaVersion": 39,
-  "tags": ["openclaw", "llm", "ai"],
-  "templating": { "list": [] },
-  "time": { "from": "now-24h", "to": "now" },
+  "tags": [
+    "openclaw",
+    "llm",
+    "ai"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
   "title": "OpenClaw LLM Metrics",

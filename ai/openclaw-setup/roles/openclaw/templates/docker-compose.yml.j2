@@ -6,8 +6,8 @@ services:
     ports:
       - "{{ openclaw_bind_address }}:{{ openclaw_gateway_port }}:18789"
     volumes:
-      - ./config.json:/app/config.json:ro
       - ./data:/app/data
+      - ./openclaw-home:/home/node/.openclaw
     environment:
 {% if openclaw_nvidia_api_key | default('') | length > 0 %}
       NVIDIA_API_KEY: "{{ openclaw_nvidia_api_key }}"
@@ -28,7 +28,10 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+{% endif %}
     networks:
+      - homelab-net
+{% if openclaw_ollama_enabled %}
       - openclaw-net
 {% endif %}
     restart: unless-stopped
@@ -39,12 +42,24 @@ services:
       retries: 3
       start_period: 30s
 
+  # OpenClaw hardcodes binding to 127.0.0.1 inside the container, so other
+  # containers on homelab-net cannot reach it directly. This socat sidecar
+  # shares OpenClaw's network namespace and forwards 0.0.0.0:{{ openclaw_proxy_port }}
+  # to 127.0.0.1:18789, making the service accessible to Caddy by container name.
+  openclaw-proxy:
+    image: alpine/socat
+    container_name: openclaw-proxy
+    network_mode: "service:openclaw"
+    command: "TCP-LISTEN:{{ openclaw_proxy_port }},fork,reuseaddr TCP:127.0.0.1:18789"
+    restart: unless-stopped
+    depends_on:
+      openclaw:
+        condition: service_healthy
+
 {% if openclaw_ollama_enabled %}
   ollama:
     image: {{ openclaw_ollama_image }}
     container_name: ollama
-    ports:
-      - "{{ openclaw_bind_address }}:11434:11434"
     volumes:
       - ./ollama-data:/root/.ollama
 {% if openclaw_ollama_gpu_enabled %}
@@ -58,15 +73,19 @@ services:
 {% endif %}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "ls"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     networks:
       - openclaw-net
+{% endif %}
 
 networks:
+  homelab-net:
+    external: true
+{% if openclaw_ollama_enabled %}
   openclaw-net:
     driver: bridge
 {% endif %}

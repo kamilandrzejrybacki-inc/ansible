@@ -83,6 +83,29 @@ prometheus.relabel "librenms_labels" {
 }
 {% endif %}
 
+{% if openclaw_metrics_host | default('') | length > 0 %}
+// ── OpenClaw metrics ───────────────────────────────────────────────────────
+prometheus.scrape "openclaw" {
+  targets         = [{"__address__" = "{{ openclaw_metrics_host }}:{{ openclaw_metrics_port }}"}]
+  metrics_path    = "/metrics"
+  forward_to      = [prometheus.relabel.openclaw_labels.receiver]
+  scrape_interval = "60s"
+}
+
+prometheus.relabel "openclaw_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "openclaw"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "{{ openclaw_metrics_host }}"
+  }
+}
+{% endif %}
+
 // ── Remote write endpoints ────────────────────────────────────────────────────
 prometheus.remote_write "mimir" {
   endpoint {

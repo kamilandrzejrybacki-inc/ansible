@@ -19,3 +19,7 @@ mimir_image: "grafana/mimir:2.14.0"
 mimir_port: 9009
 
 alloy_image: "grafana/alloy:v1.5.1"
+
+# OpenClaw metrics exporter (set to "127.0.0.1" when deployed)
+openclaw_metrics_host: ""
+openclaw_metrics_port: 9101

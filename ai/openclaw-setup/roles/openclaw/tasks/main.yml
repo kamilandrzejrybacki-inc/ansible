@@ -244,8 +244,9 @@
           d=json.load(open(f));
           c=d.get('channels',{}).get('telegram',{});
           changed=False;
-          if c.get('groupPolicy')!='open':
-            c['groupPolicy']='open'; changed=True;
+          group_policy='{{ openclaw_telegram_group_policy }}';
+          if c.get('groupPolicy')!=group_policy:
+            c['groupPolicy']=group_policy; changed=True;
           if c.get('dmPolicy')!='allowlist':
             c['dmPolicy']='allowlist'; changed=True;
           allow={{ openclaw_telegram_allowed_users | map('string') | list | to_json }};
@@ -264,6 +265,82 @@
         docker compose up -d
       changed_when: true
       when: _telegram_install.changed or (_telegram_add is defined and _telegram_add.changed) or _telegram_policy.changed
+
+# --- Discord channel ---
+- name: Configure Discord channel
+  when: openclaw_discord_bot_token | default('') | length > 0
+  block:
+    - name: Install Discord plugin
+      ansible.builtin.command:
+        cmd: docker exec openclaw openclaw plugins install @openclaw/discord
+      register: _discord_install
+      changed_when: "'Installed' in _discord_install.stdout | default('')"
+      failed_when: false
+
+    - name: Restart OpenClaw after Discord plugin install
+      ansible.builtin.shell: |
+        cd {{ openclaw_install_dir }}
+        docker compose down
+        docker compose up -d
+      changed_when: true
+      when: _discord_install.changed
+
+    - name: Wait for OpenClaw after Discord plugin install
+      ansible.builtin.command:
+        cmd: docker exec openclaw curl -sf http://localhost:18789/health
+      register: _post_discord_health
+      until: _post_discord_health is not failed
+      retries: "{{ openclaw_health_check_retries }}"
+      delay: "{{ openclaw_health_check_delay }}"
+      changed_when: false
+      when: _discord_install.changed
+
+    - name: Check if Discord channel is already configured
+      ansible.builtin.command:
+        cmd: docker exec openclaw openclaw channels list
+      register: _discord_channels_list
+      changed_when: false
+      failed_when: false
+
+    - name: Add Discord channel
+      ansible.builtin.command:
+        cmd: >-
+          docker exec openclaw openclaw channels add
+          --channel discord
+          --token {{ openclaw_discord_bot_token | quote }}
+      register: _discord_add
+      changed_when: _discord_add.rc == 0
+      when: "'Discord' not in _discord_channels_list.stdout | default('')"
+
+    - name: Configure Discord settings (strict allowlist for DMs and servers)
+      ansible.builtin.command:
+        cmd: >-
+          docker exec openclaw python3 -c "
+          import json;
+          f='/home/node/.openclaw/openclaw.json';
+          d=json.load(open(f));
+          c=d.get('channels',{}).get('discord',{});
+          changed=False;
+          if c.get('guildPolicy')!='allowlist':
+            c['guildPolicy']='allowlist'; changed=True;
+          if c.get('dmPolicy')!='allowlist':
+            c['dmPolicy']='allowlist'; changed=True;
+          allow={{ openclaw_discord_allowed_users | map('string') | list | to_json }};
+          if sorted(c.get('allowFrom',[])) != sorted(allow):
+            c['allowFrom']=allow; changed=True;
+          if changed: json.dump(d,open(f,'w'),indent=2);
+          print('CHANGED' if changed else 'OK')
+          "
+      register: _discord_policy
+      changed_when: "'CHANGED' in _discord_policy.stdout | default('')"
+
+    - name: Restart OpenClaw to apply Discord config
+      ansible.builtin.shell: |
+        cd {{ openclaw_install_dir }}
+        docker compose down
+        docker compose up -d
+      changed_when: true
+      when: _discord_install.changed or (_discord_add is defined and _discord_add.changed) or _discord_policy.changed
 
 # --- Security hardening ---
 - name: Configure UFW firewall rules

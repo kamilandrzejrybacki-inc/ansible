@@ -1,0 +1,27 @@
+# SSH hardening drop-in — managed by Ansible
+# Placed in /etc/ssh/sshd_config.d/99-hardening.conf (takes precedence over
+# the main sshd_config on systems where Include is enabled by default).
+#
+# Goals: key-only auth, no root login, aggressive connection limits to pair
+# with fail2ban's brute-force banning.
+
+# Key-based authentication only — disable passwords entirely
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+
+# Never allow root to log in over SSH
+PermitRootLogin no
+
+# Reduce window for incomplete handshakes
+LoginGraceTime 20
+
+# Cut off aggressive auth attempts early (fail2ban bans after {{ fail2ban_maxretry }})
+MaxAuthTries 3
+
+# Limit concurrent unauthenticated connections (start:rate:full)
+MaxStartups 5:50:10
+
+# Drop inactive sessions after 5 minutes of silence
+ClientAliveInterval 60
+ClientAliveCountMax 5

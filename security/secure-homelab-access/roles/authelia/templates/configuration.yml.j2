@@ -41,6 +41,9 @@ access_control:
     - domain: "*.{{ domain }}"
       networks: [vpn_and_lan]
       policy: "one_factor"
+    # Nexterm: one-factor from any network — Nexterm has its own OIDC auth layer
+    - domain: "{{ nexterm_hostname | default('nexterm') }}.{{ domain }}"
+      policy: "one_factor"
     # WAN: full two-factor
     - domain: "*.{{ domain }}"
       policy: "two_factor"

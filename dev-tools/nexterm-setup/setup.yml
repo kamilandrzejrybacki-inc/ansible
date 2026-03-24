@@ -53,8 +53,8 @@
             block: |
               http://{{ nexterm_hostname }}.{{ saved_domain }} {
                 import rate_limit
-                import authelia
-                reverse_proxy http://127.0.0.1:{{ nexterm_port }}
+                import proxy_headers
+                reverse_proxy {{ nexterm_container_name }}:{{ nexterm_port }}
               }
           notify: reload caddy
 

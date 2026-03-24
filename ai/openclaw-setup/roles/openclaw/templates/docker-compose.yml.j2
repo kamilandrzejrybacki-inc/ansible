@@ -25,6 +25,10 @@ services:
 {% if openclaw_ollama_enabled %}
       OLLAMA_API_KEY: "ollama-local"
 {% endif %}
+      # Pin the browser profile to an isolated path inside the container so
+      # OpenClaw never touches or shares the host user's personal browser data.
+      BROWSER_USER_DATA_DIR: "/home/node/.openclaw/browser-data"
+      PLAYWRIGHT_BROWSERS_PATH: "/home/node/.openclaw/browser-bin"
 {% if openclaw_ollama_enabled %}
     depends_on:
       ollama:

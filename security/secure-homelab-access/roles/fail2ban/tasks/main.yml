@@ -1,4 +1,23 @@
 ---
+# --- SSH hardening (brute-force defence layer 1) ---
+- name: Ensure sshd_config.d directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+
+- name: Write SSH hardening drop-in config
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    mode: "0600"
+  notify: restart sshd
+
+- name: Validate SSH config before reloading
+  ansible.builtin.command: sshd -t
+  changed_when: false
+
+# --- Fail2ban (brute-force defence layer 2) ---
 - name: Install Fail2ban
   ansible.builtin.apt:
     name: "{{ fail2ban_packages }}"

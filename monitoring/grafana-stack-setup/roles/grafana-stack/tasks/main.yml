@@ -94,11 +94,15 @@
     mode: "0644"
   notify: Restart grafana-stack
 
-- name: Copy OpenClaw dashboard
+- name: Copy Grafana dashboards
   ansible.builtin.copy:
-    src: dashboards/openclaw.json
-    dest: "{{ grafana_data_dir }}/provisioning/dashboards/openclaw.json"
+    src: "dashboards/{{ item }}"
+    dest: "{{ grafana_data_dir }}/provisioning/dashboards/{{ item }}"
     mode: "0644"
+  loop:
+    - openclaw.json
+    - node-health.json
+    - docker-containers.json
   notify: Restart grafana-stack
 
 - name: Deploy Grafana stack with Docker Compose

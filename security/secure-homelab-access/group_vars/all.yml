@@ -62,6 +62,7 @@ subdomain_home: "home"
 subdomain_cockpit: "cockpit"
 subdomain_wireguard: "wg"
 subdomain_pihole: "pihole"
+subdomain_openclaw: "openclaw"
 
 # -- CrowdSec -----------------------------------------------------------------
 crowdsec_container_name: "crowdsec"

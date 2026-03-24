@@ -50,8 +50,16 @@ openclaw_thinking_model: "deepseek/deepseek-reasoner"
 
 # --- Chat channels ---
 openclaw_telegram_bot_token: ""
-# Telegram user IDs to auto-approve (skip pairing flow)
+# Telegram user IDs to auto-approve (strict allowlist for both DMs and groups)
 openclaw_telegram_allowed_users: []
+# groupPolicy controls who can use the bot in group chats.
+# "allowlist" = only users in openclaw_telegram_allowed_users; "open" = anyone.
+openclaw_telegram_group_policy: "allowlist"
+
+# Discord integration (optional)
+openclaw_discord_bot_token: ""
+# Discord user IDs (snowflakes) allowed to interact with the bot
+openclaw_discord_allowed_users: []
 
 # --- Community agents (awesome-openclaw-agents) ---
 # Clone and install all agents from the community catalog
@@ -85,9 +93,10 @@ openclaw_metrics_enabled: true
 openclaw_metrics_port: 9101
 
 # --- Security ---
-# Bind to all interfaces so Caddy (running in Docker) can proxy to this port.
-# UFW blocks port {{ openclaw_gateway_port }} from external access, so 0.0.0.0 is safe.
-openclaw_bind_address: "0.0.0.0"
+# Bind only to loopback — Caddy reaches OpenClaw via the openclaw-proxy socat
+# sidecar on homelab-net (container-to-container), so host binding to 0.0.0.0
+# is not required. 127.0.0.1 prevents any direct LAN/WAN access to the raw port.
+openclaw_bind_address: "127.0.0.1"
 
 # Port exposed by the socat sidecar on homelab-net (OpenClaw binds to 127.0.0.1
 # internally, so Caddy cannot reach it directly on the container network).

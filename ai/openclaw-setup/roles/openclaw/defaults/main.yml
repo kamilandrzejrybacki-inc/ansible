@@ -53,6 +53,12 @@ openclaw_telegram_bot_token: ""
 # Telegram user IDs to auto-approve (skip pairing flow)
 openclaw_telegram_allowed_users: []
 
+# --- Community agents (awesome-openclaw-agents) ---
+# Clone and install all agents from the community catalog
+openclaw_community_agents_repo: "https://github.com/mergisi/awesome-openclaw-agents.git"
+openclaw_community_agents_enabled: true
+openclaw_community_agents_model: "nvidia/moonshotai/kimi-k2.5"
+
 # --- Named agents ---
 # Each agent is created via `openclaw agents add` at deploy time.
 # Note: agents are created regardless of provider API key status.

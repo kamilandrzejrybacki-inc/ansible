@@ -128,6 +128,46 @@
   when: item.name not in _openclaw_existing_agents
   changed_when: true
 
+# --- Community agents (awesome-openclaw-agents) ---
+- name: Install community agents
+  when: openclaw_community_agents_enabled | default(false) | bool
+  block:
+    - name: Clone community agents repo
+      ansible.builtin.git:
+        repo: "{{ openclaw_community_agents_repo }}"
+        dest: /tmp/awesome-openclaw-agents
+        depth: 1
+        force: true
+
+    - name: Copy community agents repo into container
+      ansible.builtin.command:
+        cmd: docker cp /tmp/awesome-openclaw-agents openclaw:/tmp/agents-repo
+
+    - name: Write community agents install script
+      ansible.builtin.template:
+        src: install-community-agents.py.j2
+        dest: /tmp/install-community-agents.py
+        mode: "0755"
+
+    - name: Copy install script into container
+      ansible.builtin.command:
+        cmd: docker cp /tmp/install-community-agents.py openclaw:/tmp/install-community-agents.py
+
+    - name: Run community agents installer
+      ansible.builtin.command:
+        cmd: docker exec openclaw python3 /tmp/install-community-agents.py
+      register: _community_agents
+      changed_when: "'installed' in _community_agents.stdout | default('')"
+
+    - name: Show community agents result
+      ansible.builtin.debug:
+        msg: "{{ _community_agents.stdout }}"
+
+    - name: Clean up
+      ansible.builtin.file:
+        path: /tmp/awesome-openclaw-agents
+        state: absent
+
 # --- Telegram channel ---
 - name: Configure Telegram channel
   when: openclaw_telegram_bot_token | default('') | length > 0

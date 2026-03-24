@@ -44,11 +44,11 @@ pihole_exporter_port: 9617
 wireguard_exporter_host: ""   # Enable after running wireguard role with wireguard_exporter_enabled: true
 wireguard_exporter_port: 9586
 
-# Application service probe URLs — node2 (10.0.0.2) is on the physical LAN (10.0.0.0/24)
-probe_n8n_url: "http://10.0.0.2:5678"
-probe_paperless_url: "http://10.0.0.2:8000"
-probe_netbox_url: "http://10.0.0.2:8081"
+# Application service probe URLs — HTTPS via public domain to get SSL cert expiry metrics
+probe_n8n_url: "https://n8n.kamilandrzejrybacki.dpdns.org"
+probe_paperless_url: "https://paperless.kamilandrzejrybacki.dpdns.org"
+probe_netbox_url: "https://netbox.kamilandrzejrybacki.dpdns.org"
 probe_outline_url: ""
-probe_vaultwarden_url: "http://10.0.0.2:8080"
+probe_vaultwarden_url: "http://10.0.0.2:8080"   # no public subdomain — internal HTTP only
 probe_seafile_url: ""
 probe_dify_url: ""

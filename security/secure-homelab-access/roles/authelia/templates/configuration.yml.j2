@@ -58,6 +58,7 @@ session:
     - domain: "{{ domain }}"
       authelia_url: "https://{{ subdomain_auth }}.{{ domain }}"
       default_redirection_url: "https://{{ subdomain_home }}.{{ domain }}"
+      same_site: "lax"
 
 storage:
   encryption_key: "{{ authelia_storage_encryption_key }}"
@@ -150,6 +151,7 @@ identity_providers:
         client_secret: "{{ authelia_oidc_client_secret_nexterm_hash | default('') }}"
         public: false
         authorization_policy: one_factor
+        consent_mode: implicit
         scopes: [openid, profile, email]
         redirect_uris:
           - "https://{{ nexterm_hostname | default('nexterm') }}.{{ domain }}/api/auth/oidc/callback"

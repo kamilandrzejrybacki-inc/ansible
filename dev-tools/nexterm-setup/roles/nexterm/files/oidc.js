@@ -97,12 +97,22 @@ module.exports.deleteProvider = async (providerId) => {
 // Solution: use a patchedFetch that rewrites discovery to always show https://
 // issuer and disables the authorization_response_iss_parameter_supported check,
 // while keeping all actual HTTP calls over http:// (port 80, reachable in Docker).
+// Resolve Authelia internally via Docker container name (port 9091) so the
+// token exchange never depends on external DNS.  The env var lets operators
+// override the address without rebuilding the image.
+const AUTHELIA_INTERNAL_URL = process.env.AUTHELIA_INTERNAL_URL || 'http://authelia:9091';
+
 async function buildOIDCConfig(provider) {
     const authHost = new URL(provider.issuer).hostname;
+    const internalBase = new URL(AUTHELIA_INTERNAL_URL);
 
     const patchedFetch = async (url, options) => {
         const u = new URL(url.toString());
-        if (u.hostname === authHost) u.protocol = 'http:';
+        if (u.hostname === authHost) {
+            u.protocol = internalBase.protocol;
+            u.hostname = internalBase.hostname;
+            u.port = internalBase.port;
+        }
         const res = await fetch(u.toString(), options);
         if (u.pathname.includes('.well-known') && (res.headers.get('content-type') || '').includes('json')) {
             const json = await res.json();

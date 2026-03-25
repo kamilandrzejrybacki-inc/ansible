@@ -43,3 +43,20 @@
     route: true
     src: "{{ nas_link_subnet }}"
     comment: "Forward traffic from NAS subnet"
+
+- name: Allow forwarded traffic to NAS subnet (return path)
+  community.general.ufw:
+    rule: allow
+    route: true
+    dest: "{{ nas_link_subnet }}"
+    comment: "Forward traffic to NAS subnet"
+
+- name: Add FORWARD rules to UFW before.rules
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/before.rules
+    insertafter: "^# End required lines"
+    marker: "# {mark} ANSIBLE MANAGED — NAS FORWARDING"
+    block: |
+      -A ufw-before-forward -s {{ nas_link_subnet }} -j ACCEPT
+      -A ufw-before-forward -d {{ nas_link_subnet }} -j ACCEPT
+  notify: reload ufw

@@ -54,6 +54,7 @@
     - {key: service_poller_workers,    value: "{{ librenms_poller_workers }}"}
     - {key: service_discovery_workers, value: "{{ librenms_discovery_workers }}"}
     - {key: service_services_workers,  value: "{{ librenms_services_workers }}"}
+    - {key: service_alerting_frequency, value: "{{ librenms_alerting_frequency }}"}
   changed_when: true
 
 - name: Configure SNMP community string

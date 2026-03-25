@@ -14,6 +14,7 @@ librenms_health_check_delay: 10
 librenms_poller_workers: 4           # parallel poller workers (default was 24)
 librenms_discovery_workers: 3        # parallel discovery workers (default was 16)
 librenms_services_workers: 2         # parallel services workers (default was 8)
+librenms_alerting_frequency: 300     # alerting check interval in seconds (default was 60)
 librenms_dispatcher_cpu_limit: "1.5" # hard CPU cap on dispatcher container
 
 # App container tuning

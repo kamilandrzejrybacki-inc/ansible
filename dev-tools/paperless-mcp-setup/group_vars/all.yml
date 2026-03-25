@@ -1,6 +1,6 @@
 ---
 # Paperless-NGX MCP Server configuration
-paperless_api_url: "http://10.0.0.2:8000"
+paperless_api_url: "http://10.0.1.2:8000"
 paperless_mcp_package: "paperless-mcp"
 
 # Claude Code config

@@ -3,8 +3,8 @@
 node1_lan_ip: "192.168.0.105"
 node1_nas_link_ip: "10.0.1.1"
 node1_nas_link_prefix: 24
-node1_nas_link_iface: "enx00e04c360158"
-node1_nas_link_mac: "00:e0:4c:36:01:58"
+node1_nas_link_iface: "enx3c52a1db0e64"
+node1_nas_link_mac: "3c:52:a1:db:0e:64"
 node1_wifi_iface: "wlx30169dd56e93"
 node1_wired_iface: "eno1"
 

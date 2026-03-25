@@ -1,5 +1,6 @@
 tunnel: {{ cf_tunnel_id }}
 credentials-file: {{ cloudflared_credentials_dir }}/{{ cf_tunnel_id }}.json
+protocol: http2
 
 ingress:
   # Route all subdomains and the root domain to Caddy

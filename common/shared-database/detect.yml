@@ -2,7 +2,7 @@
 ---
 # Detects whether shared database instances are reachable.
 # Caller sets:
-#   shared_db_host   – IP of the shared DB node (default: 10.0.0.2)
+#   shared_db_host   – IP of the shared DB node (default: 10.0.1.2)
 #   shared_db_types  – list of types to check, e.g. ["postgres", "redis"]
 #
 # Sets facts:

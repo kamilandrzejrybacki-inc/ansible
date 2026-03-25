@@ -4,7 +4,7 @@ shared_postgres_image: "postgres:16-alpine"
 shared_postgres_port: 5432
 shared_postgres_data_dir: /opt/shared-postgres
 shared_postgres_container_name: shared-postgres
-shared_postgres_bind_address: "10.0.0.2"
+shared_postgres_bind_address: "10.0.1.2"
 shared_postgres_restart_policy: unless-stopped
 shared_postgres_health_check_retries: 20
 shared_postgres_health_check_delay: 5

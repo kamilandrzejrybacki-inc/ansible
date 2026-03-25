@@ -1,7 +1,7 @@
 # common/shared-database/defaults.yml
 ---
 # Default shared database host — override via homelab vars or playbook vars
-shared_db_host: "10.0.0.2"
+shared_db_host: "10.0.1.2"
 
 # Ports
 shared_postgres_port: 5432

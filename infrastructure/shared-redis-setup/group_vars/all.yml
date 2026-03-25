@@ -3,7 +3,7 @@ shared_redis_image: "valkey/valkey:8.0-alpine"
 shared_redis_port: 6379
 shared_redis_data_dir: /opt/shared-redis
 shared_redis_container_name: shared-redis
-shared_redis_bind_address: "10.0.0.2"
+shared_redis_bind_address: "10.0.1.2"
 shared_redis_restart_policy: unless-stopped
 shared_redis_maxmemory: "512mb"
 shared_redis_maxmemory_policy: "volatile-lru"

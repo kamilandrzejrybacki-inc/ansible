@@ -1,0 +1,3 @@
+---
+n8n_worker_namespace: n8n
+n8n_worker_replicas: 2

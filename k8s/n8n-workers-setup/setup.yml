@@ -1,0 +1,32 @@
+---
+# =============================================================================
+# n8n Workers Setup — lw-c1 K3s
+# =============================================================================
+# Reads n8n DB password from Vault, deploys n8n queue workers to K3s.
+#
+# Pre-condition: K3s running on lw-c1, kubeconfig at ~/.kube/lw-c1.yaml
+# Pre-condition: n8n Postgres password synced (see spec Task 6 pre-condition)
+#
+# Usage:
+#   ansible-playbook k8s/n8n-workers-setup/setup.yml \
+#     -i k8s/n8n-workers-setup/inventory/localhost.ini
+# =============================================================================
+
+- name: Load secrets from Vault
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+    - name: Load secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "n8n"
+      when: _vault_available | bool
+
+- name: Deploy n8n workers to K3s
+  hosts: localhost
+  connection: local
+  roles:
+    - n8n-worker

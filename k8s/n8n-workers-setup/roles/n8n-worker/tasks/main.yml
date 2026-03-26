@@ -1,0 +1,50 @@
+---
+- name: Create n8n namespace
+  ansible.builtin.command: kubectl create namespace {{ n8n_worker_namespace }}
+  register: _ns
+  changed_when: _ns.rc == 0
+  failed_when: _ns.rc != 0 and 'already exists' not in _ns.stderr
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+
+- name: Apply n8n worker Secret
+  ansible.builtin.template:
+    src: secret.yml.j2
+    dest: /tmp/n8n-worker-secret.yml
+    mode: "0600"
+  no_log: true
+
+- name: Apply Secret to cluster
+  ansible.builtin.command: kubectl apply -f /tmp/n8n-worker-secret.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  no_log: true
+
+- name: Remove temp secret file
+  ansible.builtin.file:
+    path: /tmp/n8n-worker-secret.yml
+    state: absent
+
+- name: Apply n8n worker Deployment
+  ansible.builtin.template:
+    src: deployment.yml.j2
+    dest: /tmp/n8n-worker-deployment.yml
+    mode: "0644"
+
+- name: Apply Deployment to cluster
+  ansible.builtin.command: kubectl apply -f /tmp/n8n-worker-deployment.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+
+- name: Remove temp deployment file
+  ansible.builtin.file:
+    path: /tmp/n8n-worker-deployment.yml
+    state: absent
+
+- name: Wait for n8n workers to be ready
+  ansible.builtin.command: >
+    kubectl rollout status deployment/n8n-workers
+    -n {{ n8n_worker_namespace }} --timeout=120s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  changed_when: false

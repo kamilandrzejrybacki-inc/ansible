@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-workers
+  namespace: {{ n8n_worker_namespace }}
+spec:
+  replicas: {{ n8n_worker_replicas }}
+  selector:
+    matchLabels:
+      app: n8n-worker
+  template:
+    metadata:
+      labels:
+        app: n8n-worker
+    spec:
+      containers:
+        - name: n8n-worker
+          image: {{ n8n_worker_image }}:{{ n8n_version }}
+          command: ["n8n", "worker"]
+          env:
+            - name: EXECUTIONS_MODE
+              value: "queue"
+            - name: QUEUE_BULL_REDIS_HOST
+              value: "{{ n8n_redis_host }}"
+            - name: QUEUE_BULL_REDIS_PORT
+              value: "{{ n8n_redis_port }}"
+            - name: QUEUE_BULL_REDIS_DB
+              value: "{{ n8n_redis_db }}"
+            - name: DB_TYPE
+              value: "postgresdb"
+            - name: DB_POSTGRESDB_HOST
+              value: "{{ n8n_db_host }}"
+            - name: DB_POSTGRESDB_PORT
+              value: "{{ n8n_db_port }}"
+            - name: DB_POSTGRESDB_DATABASE
+              value: "{{ n8n_db_name }}"
+            - name: DB_POSTGRESDB_USER
+              value: "{{ n8n_db_user }}"
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-worker-secrets
+                  key: DB_POSTGRESDB_PASSWORD
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"

@@ -1,0 +1,20 @@
+---
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
+
+# Must match the n8n version running on lw-s1
+n8n_version: "latest"
+
+n8n_worker_namespace: n8n
+n8n_worker_replicas: 2
+n8n_worker_image: "docker.n8n.io/n8nio/n8n"
+
+# Redis (lw-nas)
+n8n_redis_host: "10.0.1.2"
+n8n_redis_port: "6379"
+n8n_redis_db: "0"
+
+# Postgres (lw-nas)
+n8n_db_host: "10.0.1.2"
+n8n_db_port: "5432"
+n8n_db_name: "n8n"
+n8n_db_user: "n8n"

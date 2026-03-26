@@ -1,0 +1,24 @@
+---
+- name: Render chart repo secret
+  ansible.builtin.template:
+    src: repo-secret.yml.j2
+    dest: /tmp/argocd-repo-secret.yml
+    mode: "0600"
+  no_log: true
+
+- name: Register chart repo with ArgoCD
+  ansible.builtin.command: kubectl apply -f /tmp/argocd-repo-secret.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  no_log: true
+
+- name: Remove temp repo secret
+  ansible.builtin.file:
+    path: /tmp/argocd-repo-secret.yml
+    state: absent
+
+- name: Apply ArgoCD Applications
+  ansible.builtin.include_tasks: apply-app.yml
+  loop: "{{ argocd_applications }}"
+  loop_control:
+    label: "{{ item.name }}"

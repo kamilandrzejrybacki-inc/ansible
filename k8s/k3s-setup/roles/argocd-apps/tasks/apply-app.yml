@@ -1,0 +1,18 @@
+---
+- name: "Render Application {{ item.name }}"
+  ansible.builtin.template:
+    src: application.yml.j2
+    dest: "/tmp/argocd-app-{{ item.name }}.yml"
+    mode: "0644"
+
+- name: "Apply Application {{ item.name }}"
+  ansible.builtin.command: kubectl apply -f /tmp/argocd-app-{{ item.name }}.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _app
+  changed_when: "'created' in _app.stdout or 'configured' in _app.stdout"
+
+- name: "Remove temp file for {{ item.name }}"
+  ansible.builtin.file:
+    path: "/tmp/argocd-app-{{ item.name }}.yml"
+    state: absent

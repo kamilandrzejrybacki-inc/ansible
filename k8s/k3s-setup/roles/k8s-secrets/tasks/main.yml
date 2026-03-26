@@ -1,0 +1,6 @@
+---
+- name: Process each secret definition
+  ansible.builtin.include_tasks: apply-secret.yml
+  loop: "{{ k8s_secrets }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"

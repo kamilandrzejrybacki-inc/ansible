@@ -10,17 +10,52 @@ helm_version: "v3.16.4"
 # k9s
 k9s_version: "v0.32.7"
 
-# Headlamp
-headlamp_namespace: headlamp
-headlamp_chart_version: "0.41.0"
-headlamp_port: 4466
-headlamp_service_type: NodePort
-headlamp_health_check_retries: 15
-headlamp_health_check_delay: 5
-
 # ArgoCD
 argocd_namespace: argocd
 argocd_version: "v2.13.3"
 argocd_port: 8443
 argocd_health_check_retries: 20
 argocd_health_check_delay: 10
+
+# -- K8s Secrets (from Vault) ------------------------------------------------
+# Ansible creates these before ArgoCD deploys the charts.
+# Charts reference them via existingSecret.
+k8s_secrets:
+  - namespace: n8n
+    name: n8n-worker-secrets
+    vault_path: n8n-postgres
+    data:
+      DB_POSTGRESDB_PASSWORD: db_password
+      N8N_ENCRYPTION_KEY: encryption_key
+      QUEUE_BULL_REDIS_PASSWORD: redis_password
+
+  - namespace: github-runners
+    name: github-runner-secrets
+    vault_path: github
+    data:
+      GITHUB_TOKEN: runner_pat
+
+# -- ArgoCD Applications (Helm charts from chart repo) -----------------------
+argocd_apps_repo: "https://github.com/kamilandrzejrybacki-inc/helm.git"
+argocd_apps_target_revision: "main"
+
+argocd_applications:
+  - name: n8n-workers
+    chart_path: charts/n8n-workers
+    namespace: n8n
+    values: {}
+
+  - name: github-runners
+    chart_path: charts/github-runners
+    namespace: github-runners
+    values: {}
+
+  - name: headlamp
+    chart_path: charts/headlamp
+    namespace: headlamp
+    values: {}
+
+  - name: vcluster
+    chart_path: charts/vcluster
+    namespace: test
+    values: {}

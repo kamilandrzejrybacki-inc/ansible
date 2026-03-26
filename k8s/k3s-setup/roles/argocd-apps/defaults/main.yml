@@ -1,0 +1,12 @@
+---
+argocd_apps_repo: "https://github.com/kamilandrzejrybacki-inc/helm.git"
+argocd_apps_target_revision: "main"
+argocd_apps_namespace: "argocd"
+
+argocd_applications: []
+# Example:
+# argocd_applications:
+#   - name: n8n-workers
+#     chart_path: charts/n8n-workers
+#     namespace: n8n
+#     values: {}

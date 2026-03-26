@@ -2,27 +2,35 @@
 # =============================================================================
 # K3s Full Stack Setup — lw-c1
 # =============================================================================
-# Installs K3s on lw-c1, fetches kubeconfig, and deploys Helm, k9s,
-# Headlamp dashboard, and ArgoCD GitOps controller.
+# Installs K3s on lw-c1, deploys ArgoCD, creates K8s Secrets from Vault,
+# and registers ArgoCD Applications pointing to the Helm chart repo.
+#
+# ArgoCD then manages all workload deployments via GitOps:
+#   - n8n workers (queue mode)
+#   - GitHub Actions runners
+#   - Headlamp dashboard
+#   - vCluster test environment
 #
 # Usage:
 #   ansible-playbook k8s/k3s-setup/setup.yml \
-#     -i k8s/k3s-setup/inventory/hosts.ini \
-#     --ask-become-pass
+#     -i k8s/k3s-setup/inventory/hosts.ini
 # =============================================================================
 
+# -- Play 1: Install K3s on lw-c1 --------------------------------------------
 - name: Install K3s on lw-c1
   hosts: compute
   become: true
   roles:
     - k3s
 
+# -- Play 2: Fetch kubeconfig to control node --------------------------------
 - name: Fetch kubeconfig to control node
   hosts: compute
   become: true
   roles:
     - kubeconfig
 
+# -- Play 3: Install CLI tools on lw-c1 --------------------------------------
 - name: Install CLI tools on lw-c1
   hosts: compute
   become: true
@@ -30,16 +38,51 @@
     - helm
     - k9s
 
-- name: Deploy Headlamp dashboard
-  hosts: compute
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  roles:
-    - headlamp
-
+# -- Play 4: Deploy ArgoCD ---------------------------------------------------
 - name: Deploy ArgoCD GitOps controller
   hosts: compute
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   roles:
     - argocd
+
+# -- Play 5: Load Vault connection -------------------------------------------
+- name: Load Vault connection
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+# -- Play 6: Create K8s Secrets from Vault -----------------------------------
+- name: Create K8s Secrets from Vault
+  hosts: localhost
+  connection: local
+  roles:
+    - k8s-secrets
+
+# -- Play 7: Register ArgoCD Applications ------------------------------------
+- name: Register ArgoCD Applications
+  hosts: localhost
+  connection: local
+  vars:
+    argocd_apps_repo_token: "{{ hostvars['localhost']['_vault_secrets']['runner_pat'] | default('') }}"
+  pre_tasks:
+    - name: Load GitHub PAT for private repo access
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/github"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        return_content: true
+      register: _github_vault_resp
+      no_log: true
+      when: _vault_available | default(false) | bool
+
+    - name: Set repo token
+      ansible.builtin.set_fact:
+        argocd_apps_repo_token: "{{ (_github_vault_resp.content | from_json).data.data.runner_pat | default('') }}"
+      no_log: true
+      when: _github_vault_resp is not skipped
+  roles:
+    - argocd-apps

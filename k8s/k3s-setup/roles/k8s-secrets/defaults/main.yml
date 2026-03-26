@@ -1,0 +1,11 @@
+---
+k8s_secrets: []
+# Example:
+# k8s_secrets:
+#   - namespace: n8n
+#     name: n8n-worker-secrets
+#     vault_path: n8n-postgres
+#     data:
+#       DB_POSTGRESDB_PASSWORD: db_password
+#       N8N_ENCRYPTION_KEY: encryption_key
+#       QUEUE_BULL_REDIS_PASSWORD: redis_password

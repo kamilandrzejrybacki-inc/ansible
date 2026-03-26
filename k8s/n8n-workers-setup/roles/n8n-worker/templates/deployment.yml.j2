@@ -27,6 +27,11 @@ spec:
               value: "{{ n8n_redis_port }}"
             - name: QUEUE_BULL_REDIS_DB
               value: "{{ n8n_redis_db }}"
+            - name: QUEUE_BULL_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-worker-secrets
+                  key: QUEUE_BULL_REDIS_PASSWORD
             - name: DB_TYPE
               value: "postgresdb"
             - name: DB_POSTGRESDB_HOST
@@ -42,6 +47,11 @@ spec:
                 secretKeyRef:
                   name: n8n-worker-secrets
                   key: DB_POSTGRESDB_PASSWORD
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-worker-secrets
+                  key: N8N_ENCRYPTION_KEY
           resources:
             requests:
               memory: "512Mi"

@@ -22,7 +22,7 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "n8n"
+        vault_service_name: "n8n-postgres"
       when: _vault_available | bool
 
 - name: Deploy n8n workers to K3s

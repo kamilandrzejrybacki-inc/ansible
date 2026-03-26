@@ -212,8 +212,14 @@ def _build_env(secrets: dict, current_env: list[str]) -> list[str]:
     Also ensures N8N_BLOCK_ENV_ACCESS_IN_NODE=false is always present so that
     $env.* expressions in workflows can read N8N_VAR_* values (community edition).
     """
-    base = [e for e in current_env if not e.startswith("N8N_VAR_") and not e.startswith("N8N_BLOCK_ENV_ACCESS_IN_NODE=")]
+    base = [
+        e for e in current_env
+        if not e.startswith("N8N_VAR_")
+        and not e.startswith("N8N_BLOCK_ENV_ACCESS_IN_NODE=")
+        and not e.startswith("N8N_DEFAULT_BINARY_DATA_MODE=")
+    ]
     base.append("N8N_BLOCK_ENV_ACCESS_IN_NODE=false")
+    base.append("N8N_DEFAULT_BINARY_DATA_MODE=filesystem")
     for key, value in sorted(_desired_vars(secrets).items()):
         base.append(f"N8N_VAR_{key}={value}")
     return base

@@ -1,2 +1,83 @@
 ---
-# Populated in Task 3
+- name: Create Quartz data directory
+  ansible.builtin.file:
+    path: "{{ quartz_data_dir }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Template Quartz Dockerfile
+  ansible.builtin.template:
+    src: Dockerfile.j2
+    dest: "{{ quartz_data_dir }}/Dockerfile"
+    mode: "0644"
+    owner: root
+    group: root
+  register: _quartz_dockerfile
+
+- name: Template Quartz config
+  ansible.builtin.template:
+    src: quartz.config.ts.j2
+    dest: "{{ quartz_data_dir }}/quartz.config.ts"
+    mode: "0644"
+    owner: root
+    group: root
+  register: _quartz_config
+
+- name: Template Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ quartz_data_dir }}/docker-compose.yml"
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Create placeholder index if content dir is empty
+  ansible.builtin.copy:
+    content: |
+      ---
+      title: Welcome
+      ---
+
+      # Knowledge Vault
+
+      This vault is empty. Sync your Obsidian vault via Syncthing to see your notes here.
+    dest: "{{ vault_content_dir }}/index.md"
+    mode: "0644"
+    owner: "{{ syncthing_puid }}"
+    group: "{{ syncthing_pgid }}"
+    force: false
+
+- name: Build and deploy Quartz stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ quartz_data_dir }}"
+    state: present
+    build: always
+  when: _quartz_dockerfile.changed or _quartz_config.changed
+
+- name: Deploy Quartz stack (no rebuild)
+  community.docker.docker_compose_v2:
+    project_src: "{{ quartz_data_dir }}"
+    state: present
+  when: not (_quartz_dockerfile.changed or _quartz_config.changed)
+
+- name: Wait for Quartz to become healthy
+  ansible.builtin.uri:
+    url: "http://localhost:{{ quartz_port }}/"
+    status_code: [200]
+  register: quartz_health
+  until: quartz_health is not failed
+  retries: "{{ quartz_health_check_retries }}"
+  delay: "{{ quartz_health_check_delay }}"
+
+- name: Display Quartz access information
+  ansible.builtin.debug:
+    msg: |
+      Quartz is running at http://{{ inventory_hostname }}:{{ quartz_port }}
+
+      Site title: {{ quartz_page_title }}
+      Content directory: {{ vault_content_dir }}
+      Public URL: https://{{ vault_hostname }}.{{ hostvars['localhost']['saved_domain'] | default('your-domain') }}
+
+      The site will auto-rebuild when vault files change via Syncthing.

@@ -1,0 +1,17 @@
+services:
+  quartz:
+    container_name: {{ quartz_container_name }}
+    build:
+      context: {{ quartz_data_dir }}
+      dockerfile: Dockerfile
+    restart: {{ quartz_restart_policy }}
+    ports:
+      - "{{ quartz_port }}:8080"
+    volumes:
+      - {{ vault_content_dir }}:/usr/src/app/content:ro
+    networks:
+      - {{ docker_network_name }}
+
+networks:
+  {{ docker_network_name }}:
+    external: true

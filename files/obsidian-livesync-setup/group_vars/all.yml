@@ -1,0 +1,14 @@
+---
+couchdb_container_name: obsidian-couchdb
+couchdb_image: "couchdb:3.4"
+couchdb_port: 5984
+couchdb_data_dir: /opt/obsidian-couchdb
+couchdb_database_name: obsidian-livesync
+couchdb_restart_policy: unless-stopped
+couchdb_health_check_retries: 20
+couchdb_health_check_delay: 10
+couchdb_hostname: "couchdb"
+couchdb_bind_address: "0.0.0.0"
+couchdb_max_document_size: 50000000
+couchdb_compaction_db_fragmentation: "70%"
+couchdb_compaction_view_fragmentation: "60%"

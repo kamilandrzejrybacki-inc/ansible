@@ -1,2 +1,5 @@
 ---
-# Populated in Task 3
+- name: restart couchdb
+  community.docker.docker_compose_v2:
+    project_src: "{{ couchdb_data_dir }}"
+    state: restarted

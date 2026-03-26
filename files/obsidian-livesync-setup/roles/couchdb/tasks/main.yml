@@ -1,2 +1,147 @@
 ---
-# Populated in Task 3
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create CouchDB data directory
+  ansible.builtin.file:
+    path: "{{ couchdb_data_dir }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Ensure local secrets directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/obsidian-livesync"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Generate and persist CouchDB admin password (idempotent)
+  ansible.builtin.set_fact:
+    couchdb_admin_password: "{{ couchdb_admin_password | default(lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/obsidian-livesync/admin_password chars=ascii_letters,digits length=64')) }}"
+  no_log: true
+
+- name: Generate and persist CouchDB sync user password (idempotent)
+  ansible.builtin.set_fact:
+    couchdb_sync_password: "{{ couchdb_sync_password | default(lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/obsidian-livesync/sync_password chars=ascii_letters,digits length=64')) }}"
+  no_log: true
+
+- name: Restrict local secret files to owner-only
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0600"
+  loop:
+    - "{{ lookup('env', 'HOME') }}/.homelab-secrets/obsidian-livesync/admin_password"
+    - "{{ lookup('env', 'HOME') }}/.homelab-secrets/obsidian-livesync/sync_password"
+  delegate_to: localhost
+  become: false
+
+- name: Ensure databases-net Docker network exists
+  community.docker.docker_network:
+    name: databases-net
+    state: present
+
+- name: Template CouchDB local.ini
+  ansible.builtin.template:
+    src: local.ini.j2
+    dest: "{{ couchdb_data_dir }}/local.ini"
+    mode: "0600"
+    owner: root
+    group: root
+  notify: restart couchdb
+
+- name: Template Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ couchdb_data_dir }}/docker-compose.yml"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Deploy CouchDB stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ couchdb_data_dir }}"
+    state: present
+  no_log: true
+
+- name: Wait for CouchDB to become healthy
+  ansible.builtin.uri:
+    url: "http://localhost:{{ couchdb_port }}/_up"
+    user: "{{ couchdb_admin_user }}"
+    password: "{{ couchdb_admin_password }}"
+    force_basic_auth: true
+    status_code: [200]
+  register: couchdb_health
+  until: couchdb_health is not failed
+  retries: "{{ couchdb_health_check_retries }}"
+  delay: "{{ couchdb_health_check_delay }}"
+  no_log: true
+
+- name: Create obsidian-livesync database
+  ansible.builtin.uri:
+    url: "http://localhost:{{ couchdb_port }}/{{ couchdb_database_name }}"
+    method: PUT
+    user: "{{ couchdb_admin_user }}"
+    password: "{{ couchdb_admin_password }}"
+    force_basic_auth: true
+    status_code: [201, 412]
+  register: _db_create
+  changed_when: _db_create.status == 201
+  no_log: true
+
+- name: Create dedicated sync user
+  ansible.builtin.uri:
+    url: "http://localhost:{{ couchdb_port }}/_users/org.couchdb.user:{{ couchdb_sync_user }}"
+    method: PUT
+    user: "{{ couchdb_admin_user }}"
+    password: "{{ couchdb_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      name: "{{ couchdb_sync_user }}"
+      password: "{{ couchdb_sync_password }}"
+      roles: []
+      type: user
+    status_code: [201, 409]
+  register: _user_create
+  changed_when: _user_create.status == 201
+  no_log: true
+
+- name: Grant sync user access to livesync database
+  ansible.builtin.uri:
+    url: "http://localhost:{{ couchdb_port }}/{{ couchdb_database_name }}/_security"
+    method: PUT
+    user: "{{ couchdb_admin_user }}"
+    password: "{{ couchdb_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      admins:
+        names: []
+        roles: []
+      members:
+        names:
+          - "{{ couchdb_sync_user }}"
+        roles: []
+    status_code: [200]
+  no_log: true
+
+- name: Display CouchDB access information
+  ansible.builtin.debug:
+    msg: |
+      CouchDB is running at http://{{ inventory_hostname }}:{{ couchdb_port }}
+
+      Admin UI (Fauxton): http://{{ inventory_hostname }}:{{ couchdb_port }}/_utils
+      Database: {{ couchdb_database_name }}
+      Sync user: {{ couchdb_sync_user }}
+
+      Configure Obsidian LiveSync plugin:
+        URI: https://{{ couchdb_hostname }}.{{ hostvars['localhost']['saved_domain'] | default('your-domain') }}
+        Username: {{ couchdb_sync_user }}
+        Database: {{ couchdb_database_name }}
+        Enable E2E encryption and set a passphrase.

@@ -1,0 +1,26 @@
+---
+# K3s
+k3s_version: "v1.32.3+k3s1"
+k3s_node_ip: "192.168.0.107"
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
+
+# Helm
+helm_version: "v3.16.4"
+
+# k9s
+k9s_version: "v0.32.7"
+
+# Headlamp
+headlamp_namespace: headlamp
+headlamp_chart_version: "0.25.0"
+headlamp_port: 4466
+headlamp_service_type: NodePort
+headlamp_health_check_retries: 15
+headlamp_health_check_delay: 5
+
+# ArgoCD
+argocd_namespace: argocd
+argocd_version: "v2.13.3"
+argocd_port: 8443
+argocd_health_check_retries: 20
+argocd_health_check_delay: 10

@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# K3s Full Stack Setup — lw-c1
+# =============================================================================
+# Installs K3s on lw-c1, fetches kubeconfig, and deploys Helm, k9s,
+# Headlamp dashboard, and ArgoCD GitOps controller.
+#
+# Usage:
+#   ansible-playbook k8s/k3s-setup/setup.yml \
+#     -i k8s/k3s-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Install K3s on lw-c1
+  hosts: compute
+  become: true
+  roles:
+    - k3s
+
+- name: Fetch kubeconfig to control node
+  hosts: compute
+  become: true
+  roles:
+    - kubeconfig
+
+- name: Install CLI tools on lw-c1
+  hosts: compute
+  become: true
+  roles:
+    - helm
+    - k9s
+
+- name: Deploy Headlamp dashboard
+  hosts: localhost
+  connection: local
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  roles:
+    - headlamp
+
+- name: Deploy ArgoCD GitOps controller
+  hosts: localhost
+  connection: local
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  roles:
+    - argocd

@@ -1,2 +1,131 @@
 ---
-# Populated in Task 2
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name:
+      - python3-docker
+      - curl
+    state: present
+
+- name: Create Syncthing directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+  loop:
+    - { path: "{{ syncthing_data_dir }}", mode: "0755", owner: root, group: root }
+    - { path: "{{ syncthing_data_dir }}/config", mode: "0700", owner: "{{ syncthing_puid }}", group: "{{ syncthing_pgid }}" }
+    - { path: "{{ vault_content_dir }}", mode: "0755", owner: "{{ syncthing_puid }}", group: "{{ syncthing_pgid }}" }
+
+- name: Ensure local secrets directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/knowledge-vault"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Generate and persist Syncthing admin password (idempotent)
+  ansible.builtin.set_fact:
+    syncthing_admin_password: "{{ syncthing_admin_password | default(lookup('password', lookup('env', 'HOME') + '/.homelab-secrets/knowledge-vault/syncthing_admin_password chars=ascii_letters,digits length=32')) }}"
+  no_log: true
+
+- name: Restrict local secret file to owner-only
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.homelab-secrets/knowledge-vault/syncthing_admin_password"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+
+- name: Ensure vault-net Docker network exists
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    state: present
+
+- name: Template Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ syncthing_data_dir }}/docker-compose.yml"
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Deploy Syncthing stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ syncthing_data_dir }}"
+    state: present
+
+- name: Wait for Syncthing to become healthy
+  ansible.builtin.uri:
+    url: "http://localhost:{{ syncthing_ui_port }}/rest/noauth/health"
+    status_code: [200]
+  register: syncthing_health
+  until: syncthing_health is not failed
+  retries: "{{ syncthing_health_check_retries }}"
+  delay: "{{ syncthing_health_check_delay }}"
+
+- name: Get Syncthing API key from config
+  ansible.builtin.slurp:
+    src: "{{ syncthing_data_dir }}/config/config.xml"
+  register: _syncthing_config_raw
+
+- name: Extract API key from config
+  ansible.builtin.set_fact:
+    _syncthing_api_key: "{{ _syncthing_config_raw.content | b64decode | regex_search('<apikey>([^<]+)</apikey>', '\\1') | first }}"
+  no_log: true
+
+- name: Set Syncthing admin password via API
+  ansible.builtin.uri:
+    url: "http://localhost:{{ syncthing_ui_port }}/rest/config/gui"
+    method: PATCH
+    headers:
+      X-API-Key: "{{ _syncthing_api_key }}"
+    body_format: json
+    body:
+      user: admin
+      password: "{{ syncthing_admin_password }}"
+    status_code: [200]
+  no_log: true
+
+- name: Set default folder path to vault directory via API
+  ansible.builtin.uri:
+    url: "http://localhost:{{ syncthing_ui_port }}/rest/config/defaults/folder"
+    method: PATCH
+    headers:
+      X-API-Key: "{{ _syncthing_api_key }}"
+    body_format: json
+    body:
+      path: /var/syncthing/vault
+    status_code: [200]
+
+- name: Get Syncthing device ID
+  ansible.builtin.uri:
+    url: "http://localhost:{{ syncthing_ui_port }}/rest/system/status"
+    headers:
+      X-API-Key: "{{ _syncthing_api_key }}"
+    return_content: true
+  register: _syncthing_status
+
+- name: Display Syncthing setup information
+  ansible.builtin.debug:
+    msg: |
+      Syncthing is running at http://{{ inventory_hostname }}:{{ syncthing_ui_port }}
+
+      ══════════════════════════════════════════════════════════
+      DEVICE ID (copy this to your desktop Syncthing):
+
+      {{ _syncthing_status.json.myID }}
+
+      ══════════════════════════════════════════════════════════
+
+      Admin UI: http://127.0.0.1:{{ syncthing_ui_port }} (localhost only)
+      Admin user: admin
+      Sync port: {{ syncthing_sync_port }}
+      Vault folder: {{ vault_content_dir }}
+
+      Next steps:
+        1. Install Syncthing on your desktop (apt install syncthing)
+        2. Add this device ID in desktop Syncthing UI
+        3. Share your Obsidian vault folder with this device
+        4. Accept the share on this server

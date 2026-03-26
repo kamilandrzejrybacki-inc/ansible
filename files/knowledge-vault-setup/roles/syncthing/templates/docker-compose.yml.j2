@@ -1,0 +1,27 @@
+services:
+  syncthing:
+    container_name: {{ syncthing_container_name }}
+    image: {{ syncthing_image }}
+    restart: {{ syncthing_restart_policy }}
+    environment:
+      PUID: "{{ syncthing_puid }}"
+      PGID: "{{ syncthing_pgid }}"
+    ports:
+      - "{{ syncthing_sync_port }}:22000/tcp"
+      - "{{ syncthing_sync_port }}:22000/udp"
+      - "127.0.0.1:{{ syncthing_ui_port }}:8384"
+    volumes:
+      - {{ syncthing_data_dir }}/config:/var/syncthing/config
+      - {{ vault_content_dir }}:/var/syncthing/vault
+    networks:
+      - {{ docker_network_name }}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8384/rest/noauth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  {{ docker_network_name }}:
+    driver: bridge

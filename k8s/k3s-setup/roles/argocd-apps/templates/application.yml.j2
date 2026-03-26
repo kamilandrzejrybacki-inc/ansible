@@ -9,6 +9,14 @@ spec:
     repoURL: {{ argocd_apps_repo }}
     targetRevision: {{ argocd_apps_target_revision }}
     path: {{ item.chart_path }}
+{% if item.helm_parameters | default([]) %}
+    helm:
+      parameters:
+{% for p in item.helm_parameters %}
+        - name: "{{ p.name }}"
+          value: "{{ p.value }}"
+{% endfor %}
+{% endif %}
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ item.namespace }}

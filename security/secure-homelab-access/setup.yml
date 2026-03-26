@@ -332,29 +332,44 @@
       when: not _oidc_secrets_stat.stat.exists
       tags: [always]
 
-    - name: Ensure nexterm OIDC secret file exists (added after initial deploy)
+    - name: Check which late-added OIDC secret files are missing
+      ansible.builtin.stat:
+        path: "{{ authelia_data_dir }}/secrets/oidc_client_secret_{{ item }}"
+      register: _late_oidc_stat
+      loop:
+        - nexterm
+        - headlamp
+        - argocd
+      tags: [always]
+
+    - name: Generate late-added OIDC secrets for missing files
       ansible.builtin.shell: |
         python3 -c "
         import secrets, string
         chars = string.ascii_letters + string.digits
         print(''.join(secrets.choice(chars) for _ in range(64)))
         "
-      register: _nexterm_secret_gen
+      register: _late_oidc_secrets_gen
       changed_when: true
       no_log: true
-      args:
-        creates: "{{ authelia_data_dir }}/secrets/oidc_client_secret_nexterm"
+      when: not item.stat.exists
+      loop: "{{ _late_oidc_stat.results }}"
+      loop_control:
+        label: "{{ item.item }}"
       tags: [always]
 
-    - name: Write nexterm OIDC secret file if missing
+    - name: Write late-added OIDC secret files
       ansible.builtin.copy:
-        content: "{{ _nexterm_secret_gen.stdout | trim }}"
-        dest: "{{ authelia_data_dir }}/secrets/oidc_client_secret_nexterm"
+        content: "{{ item.stdout | trim }}"
+        dest: "{{ authelia_data_dir }}/secrets/oidc_client_secret_{{ item.item.item }}"
         owner: root
         group: root
         mode: "0600"
       no_log: true
-      when: _nexterm_secret_gen is changed
+      when: item is changed and item.stdout is defined
+      loop: "{{ _late_oidc_secrets_gen.results }}"
+      loop_control:
+        label: "{{ item.item.item }}"
       tags: [always]
 
     - name: Generate OIDC JWK RSA private key (first run only)
@@ -381,15 +396,21 @@
         - oidc_client_secret_grafana
         - oidc_client_secret_outline
         - oidc_client_secret_vault
+        - oidc_client_secret_nexterm
+        - oidc_client_secret_headlamp
+        - oidc_client_secret_argocd
       no_log: true
       tags: [always]
 
     - name: Set OIDC plaintext secrets as facts
       ansible.builtin.set_fact:
-        authelia_oidc_hmac_secret:           "{{ _oidc_secrets_slurp.results[0].content | b64decode | trim }}"
-        authelia_oidc_client_secret_grafana: "{{ _oidc_secrets_slurp.results[1].content | b64decode | trim }}"
-        authelia_oidc_client_secret_outline: "{{ _oidc_secrets_slurp.results[2].content | b64decode | trim }}"
-        authelia_oidc_client_secret_vault:   "{{ _oidc_secrets_slurp.results[3].content | b64decode | trim }}"
+        authelia_oidc_hmac_secret:            "{{ _oidc_secrets_slurp.results[0].content | b64decode | trim }}"
+        authelia_oidc_client_secret_grafana:  "{{ _oidc_secrets_slurp.results[1].content | b64decode | trim }}"
+        authelia_oidc_client_secret_outline:  "{{ _oidc_secrets_slurp.results[2].content | b64decode | trim }}"
+        authelia_oidc_client_secret_vault:    "{{ _oidc_secrets_slurp.results[3].content | b64decode | trim }}"
+        authelia_oidc_client_secret_nexterm:  "{{ _oidc_secrets_slurp.results[4].content | b64decode | trim }}"
+        authelia_oidc_client_secret_headlamp: "{{ _oidc_secrets_slurp.results[5].content | b64decode | trim }}"
+        authelia_oidc_client_secret_argocd:   "{{ _oidc_secrets_slurp.results[6].content | b64decode | trim }}"
       no_log: true
       tags: [always]
 
@@ -399,18 +420,24 @@
         --password '{{ item.secret }}' 2>/dev/null | grep 'Digest:' | awk '{print $2}'
       register: _oidc_hashes
       loop:
-        - { key: grafana, secret: "{{ authelia_oidc_client_secret_grafana }}" }
-        - { key: outline, secret: "{{ authelia_oidc_client_secret_outline }}" }
-        - { key: vault,   secret: "{{ authelia_oidc_client_secret_vault }}" }
+        - { key: grafana,  secret: "{{ authelia_oidc_client_secret_grafana }}" }
+        - { key: outline,  secret: "{{ authelia_oidc_client_secret_outline }}" }
+        - { key: vault,    secret: "{{ authelia_oidc_client_secret_vault }}" }
+        - { key: nexterm,  secret: "{{ authelia_oidc_client_secret_nexterm }}" }
+        - { key: headlamp, secret: "{{ authelia_oidc_client_secret_headlamp }}" }
+        - { key: argocd,   secret: "{{ authelia_oidc_client_secret_argocd }}" }
       changed_when: false
       no_log: true
       tags: [always]
 
     - name: Set OIDC hash facts
       ansible.builtin.set_fact:
-        authelia_oidc_client_secret_grafana_hash: "{{ _oidc_hashes.results[0].stdout | trim }}"
-        authelia_oidc_client_secret_outline_hash: "{{ _oidc_hashes.results[1].stdout | trim }}"
-        authelia_oidc_client_secret_vault_hash:   "{{ _oidc_hashes.results[2].stdout | trim }}"
+        authelia_oidc_client_secret_grafana_hash:  "{{ _oidc_hashes.results[0].stdout | trim }}"
+        authelia_oidc_client_secret_outline_hash:  "{{ _oidc_hashes.results[1].stdout | trim }}"
+        authelia_oidc_client_secret_vault_hash:    "{{ _oidc_hashes.results[2].stdout | trim }}"
+        authelia_oidc_client_secret_nexterm_hash:  "{{ _oidc_hashes.results[3].stdout | trim }}"
+        authelia_oidc_client_secret_headlamp_hash: "{{ _oidc_hashes.results[4].stdout | trim }}"
+        authelia_oidc_client_secret_argocd_hash:   "{{ _oidc_hashes.results[5].stdout | trim }}"
       no_log: true
       tags: [always]
 

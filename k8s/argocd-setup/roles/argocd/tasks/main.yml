@@ -23,6 +23,12 @@
     --timeout=300s
   changed_when: false
 
+- name: Expose ArgoCD server as NodePort
+  ansible.builtin.command: >-
+    kubectl patch svc argocd-server -n {{ argocd_namespace }}
+    --type merge -p '{"spec":{"type":"NodePort","ports":[{"port":443,"targetPort":8080,"nodePort":{{ argocd_nodeport }},"name":"https"},{"port":80,"targetPort":8080,"nodePort":{{ argocd_nodeport_http }},"name":"http"}]}}'
+  changed_when: true
+
 - name: Get initial admin password
   ansible.builtin.command: >-
     kubectl get secret argocd-initial-admin-secret
@@ -37,18 +43,76 @@
     _argocd_password: "{{ _argocd_password_b64.stdout | b64decode }}"
   no_log: true
 
+- name: Run ArgoCD server in insecure mode (TLS handled by Caddy)
+  ansible.builtin.command: >-
+    kubectl patch deployment argocd-server -n {{ argocd_namespace }}
+    --type json -p '[{"op":"replace","path":"/spec/template/spec/containers/0/args","value":["/usr/local/bin/argocd-server","--insecure"]},{"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"ARGOCD_MAX_HEADER_LIST_SIZE","value":"65536"}}]'
+  changed_when: true
+
+- name: Configure ArgoCD OIDC (Authelia)
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cm
+        namespace: {{ argocd_namespace }}
+        labels:
+          app.kubernetes.io/name: argocd-cm
+          app.kubernetes.io/part-of: argocd
+      data:
+        url: "https://{{ argocd_domain }}"
+        oidc.config: |
+          name: Authelia
+          issuer: {{ authelia_issuer_url }}
+          clientID: argocd
+          clientSecret: $oidc.authelia.clientSecret
+          requestedScopes:
+            - openid
+            - profile
+            - email
+            - groups
+  when: argocd_oidc_client_secret | default('') | length > 0
+
+- name: Store ArgoCD OIDC client secret
+  ansible.builtin.command: >-
+    kubectl patch secret argocd-secret -n {{ argocd_namespace }}
+    --type merge -p '{"stringData":{"oidc.authelia.clientSecret":"{{ argocd_oidc_client_secret }}"}}'
+  no_log: true
+  when: argocd_oidc_client_secret | default('') | length > 0
+
+- name: Configure ArgoCD RBAC for OIDC groups
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-rbac-cm
+        namespace: {{ argocd_namespace }}
+        labels:
+          app.kubernetes.io/name: argocd-rbac-cm
+          app.kubernetes.io/part-of: argocd
+      data:
+        policy.default: role:admin
+  when: argocd_oidc_client_secret | default('') | length > 0
+
+- name: Restart ArgoCD server to pick up OIDC config
+  ansible.builtin.command: >-
+    kubectl rollout restart deployment/argocd-server -n {{ argocd_namespace }}
+  when: argocd_oidc_client_secret | default('') | length > 0
+
 - name: Display ArgoCD access information
   ansible.builtin.debug:
     msg: |
       ArgoCD is deployed in the '{{ argocd_namespace }}' namespace.
 
-      To access ArgoCD, run:
-        kubectl port-forward -n {{ argocd_namespace }} svc/argocd-server {{ argocd_port }}:443
+      URL: https://{{ argocd_domain }}
 
-      Then open https://localhost:{{ argocd_port }}
-
-      Username: admin
-      Password: {{ _argocd_password }}
+      Login options:
+        - OIDC: Click "Log in via Authelia" (if OIDC configured)
+        - Local: admin / {{ _argocd_password }}
 
       IMPORTANT: Change the admin password after first login:
         argocd account update-password

@@ -17,8 +17,56 @@
         href: "https://{{ subdomain_pihole }}.{{ domain }}"
         description: "DNS ad-blocking & local DNS"
 
-- Applications:
-    - Home Assistant:
-        icon: home-assistant.png
-        href: "https://ha.{{ domain }}"
-        description: "Home automation"
+- Kubernetes:
+    - ArgoCD:
+        icon: argo-cd.png
+        href: "https://{{ subdomain_argocd }}.{{ domain }}"
+        description: "GitOps continuous delivery"
+    - Headlamp:
+        icon: headlamp.png
+        href: "https://{{ subdomain_headlamp }}.{{ domain }}"
+        description: "Kubernetes dashboard"
+
+- Monitoring:
+    - Grafana:
+        icon: grafana.png
+        href: "https://{{ subdomain_grafana }}.{{ domain }}"
+        description: "Metrics & log dashboards"
+    - Netbox:
+        icon: netbox.png
+        href: "https://{{ subdomain_netbox }}.{{ domain }}"
+        description: "Network documentation & IPAM"
+
+- Automation:
+    - n8n:
+        icon: n8n.png
+        href: "https://{{ subdomain_n8n }}.{{ domain }}"
+        description: "Workflow automation"
+
+- Dev Tools:
+    - Nexterm:
+        icon: nexterm.png
+        href: "https://{{ subdomain_nexterm }}.{{ domain }}"
+        description: "SSH & RDP terminal"
+    - OpenClaw:
+        icon: openclaw.png
+        href: "https://{{ subdomain_openclaw }}.{{ domain }}"
+        description: "AI gateway"
+    - HashiCorp Vault:
+        icon: vault.png
+        href: "https://{{ subdomain_vault }}.{{ domain }}"
+        description: "Secrets management"
+
+- Files & Documents:
+    - Paperless:
+        icon: paperless-ngx.png
+        href: "https://{{ subdomain_paperless }}.{{ domain }}"
+        description: "Document management"
+    - Stirling PDF:
+        icon: stirling-pdf.png
+        href: "https://{{ subdomain_pdf }}.{{ domain }}"
+        description: "PDF tools"
+    - Filebrowser:
+        icon: filebrowser.png
+        href: "https://{{ subdomain_filebrowser }}.{{ domain }}"
+        description: "File management"

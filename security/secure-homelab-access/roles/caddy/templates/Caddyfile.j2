@@ -143,3 +143,110 @@
 	import authelia
 	reverse_proxy openclaw:{{ openclaw_proxy_port | default(18790) }}
 }
+
+# Grafana (monitoring stack on lw-main)
+{{ _scheme }}{{ subdomain_grafana }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ docker_gateway_ip }}:{{ grafana_port | default(3000) }}
+}
+
+# Netbox (IPAM on lw-main)
+{{ _scheme }}{{ subdomain_netbox }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ docker_gateway_ip }}:{{ netbox_port | default(8081) }}
+}
+
+# n8n (workflow automation on lw-s1) — no Authelia, n8n has own auth
+{{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ n8n_host_ip | default('192.168.0.108') }}:{{ n8n_port | default(5678) }}
+}
+
+# HashiCorp Vault — no Authelia (Vault uses own OIDC auth)
+{{ _scheme }}{{ subdomain_vault }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://vault:{{ vault_port | default(8200) }}
+}
+
+# Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)
+{{ _scheme }}{{ subdomain_nexterm }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy nexterm:{{ nexterm_port | default(6989) }}
+}
+
+# Paperless (document management on lw-nas)
+{{ _scheme }}{{ subdomain_paperless }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ paperless_port | default(8000) }}
+}
+
+# Stirling PDF (PDF tools on lw-nas)
+{{ _scheme }}{{ subdomain_pdf }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ stirling_port | default(8080) }}
+}
+
+# Filebrowser (file management on lw-nas)
+{{ _scheme }}{{ subdomain_filebrowser }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ filebrowser_port | default(8082) }}
+}
+
+# ArgoCD UI (K8s on lw-c1)
+{{ _scheme }}{{ subdomain_argocd }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy {{ k8s_node_ip }}:{{ argocd_nodeport_http }}
+}
+
+# Headlamp K8s dashboard (K8s on lw-c1)
+{{ _scheme }}{{ subdomain_headlamp }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy {{ k8s_node_ip }}:{{ headlamp_nodeport }}
+}

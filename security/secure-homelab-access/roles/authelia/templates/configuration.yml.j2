@@ -3,6 +3,9 @@ theme: "dark"
 
 server:
   address: "tcp://0.0.0.0:9091"
+  buffers:
+    read: 65536
+    write: 65536
 
 log:
   level: "info"
@@ -158,6 +161,35 @@ identity_providers:
         response_types: [code]
         grant_types: [authorization_code]
         token_endpoint_auth_method: client_secret_post
+        userinfo_signed_response_alg: none
+
+      # Headlamp — Kubernetes dashboard OIDC
+      - client_id: headlamp
+        client_name: Headlamp
+        client_secret: "{{ authelia_oidc_client_secret_headlamp_hash | default('') }}"
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        scopes: [openid, profile, email, groups]
+        redirect_uris:
+          - "https://{{ subdomain_headlamp | default('headlamp') }}.{{ domain }}/oidc-callback"
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none
+
+      # ArgoCD — GitOps continuous delivery
+      - client_id: argocd
+        client_name: ArgoCD
+        client_secret: "{{ authelia_oidc_client_secret_argocd_hash | default('') }}"
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        scopes: [openid, profile, email, groups]
+        redirect_uris:
+          - "https://{{ subdomain_argocd | default('argocd') }}.{{ domain }}/auth/callback"
+        response_types: [code]
+        grant_types: [authorization_code]
         userinfo_signed_response_alg: none
 
 {% endif %}

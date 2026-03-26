@@ -63,6 +63,22 @@ subdomain_cockpit: "cockpit"
 subdomain_wireguard: "wg"
 subdomain_pihole: "pihole"
 subdomain_openclaw: "openclaw"
+subdomain_grafana: "grafana"
+subdomain_vault: "hashi-vault"
+subdomain_nexterm: "nexterm"
+subdomain_netbox: "netbox"
+subdomain_n8n: "n8n"
+subdomain_paperless: "paperless"
+subdomain_pdf: "pdf"
+subdomain_filebrowser: "files"
+subdomain_argocd: "argocd"
+subdomain_headlamp: "headlamp"
+
+# -- K8s Node (lw-c1) ---------------------------------------------------------
+k8s_node_ip: "192.168.0.107"
+argocd_nodeport: 30443
+argocd_nodeport_http: 30080
+headlamp_nodeport: 31991
 
 # -- CrowdSec -----------------------------------------------------------------
 crowdsec_container_name: "crowdsec"

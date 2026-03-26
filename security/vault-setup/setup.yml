@@ -137,8 +137,7 @@
             block: |
               http://{{ vault_hostname }}.{{ saved_domain }} {
                 import rate_limit
-                import authelia
-                reverse_proxy http://{{ docker_gateway_ip | default('172.20.0.1') }}:{{ vault_port | default(8200) }}
+                reverse_proxy http://vault:{{ vault_port | default(8200) }}
               }
           notify: reload caddy
 

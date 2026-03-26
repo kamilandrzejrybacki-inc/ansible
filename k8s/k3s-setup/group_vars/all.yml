@@ -14,6 +14,8 @@ k9s_version: "v0.32.7"
 argocd_namespace: argocd
 argocd_version: "v2.13.3"
 argocd_port: 8443
+argocd_nodeport: 30443
+argocd_nodeport_http: 30080
 argocd_health_check_retries: 20
 argocd_health_check_delay: 10
 
@@ -35,6 +37,13 @@ k8s_secrets:
     data:
       GITHUB_TOKEN: runner_pat
 
+# -- OIDC secrets (created from Authelia secrets on control node) -------------
+# These are NOT from Vault; they're injected at runtime from setup.yml facts.
+headlamp_oidc_client_secret: ""  # Set at runtime via extra-vars
+argocd_oidc_client_secret: ""    # Set at runtime via extra-vars
+argocd_domain: "argocd.kamilandrzejrybacki.dpdns.org"
+authelia_issuer_url: "https://auth.kamilandrzejrybacki.dpdns.org"
+
 # -- ArgoCD Applications (Helm charts from chart repo) -----------------------
 argocd_apps_repo: "https://github.com/kamilandrzejrybacki-inc/helm.git"
 argocd_apps_target_revision: "main"
@@ -54,6 +63,10 @@ argocd_applications:
     chart_path: charts/headlamp
     namespace: headlamp
     values: {}
+    helm_parameters:
+      - { name: "config.oidc.clientID", value: "headlamp" }
+      - { name: "config.oidc.issuerURL", value: "https://auth.{{ domain | default('kamilandrzejrybacki.dpdns.org') }}" }
+      - { name: "config.oidc.scopes", value: "openid profile email groups" }
 
   - name: vcluster
     chart_path: charts/vcluster

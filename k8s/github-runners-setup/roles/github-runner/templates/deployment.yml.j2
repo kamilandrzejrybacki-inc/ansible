@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-runner
+  namespace: {{ runner_namespace }}
+spec:
+  replicas: {{ runner_replicas }}
+  selector:
+    matchLabels:
+      app: github-runner
+  template:
+    metadata:
+      labels:
+        app: github-runner
+    spec:
+      containers:
+        - name: github-runner
+          image: {{ runner_image }}
+          env:
+            - name: RUNNER_NAME_PREFIX
+              value: "{{ runner_name_prefix }}"
+            - name: RUNNER_WORKDIR
+              value: "/tmp/runner"
+            - name: REPO_URL
+              value: "{{ runner_repo_url }}"
+            - name: LABELS
+              value: "{{ runner_labels }}"
+            - name: ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-runner-secrets
+                  key: GITHUB_TOKEN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"

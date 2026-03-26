@@ -1,0 +1,27 @@
+---
+# =============================================================================
+# GitHub Actions Runners Setup — lw-c1 K3s
+# =============================================================================
+# Usage:
+#   ansible-playbook k8s/github-runners-setup/setup.yml \
+#     -i k8s/github-runners-setup/inventory/localhost.ini
+# =============================================================================
+
+- name: Load runner PAT from Vault
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+    - name: Load secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "github"
+      when: _vault_available | bool
+
+- name: Deploy GitHub runners to K3s
+  hosts: localhost
+  connection: local
+  roles:
+    - github-runner

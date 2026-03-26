@@ -1,0 +1,9 @@
+---
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
+
+runner_namespace: github-runners
+runner_replicas: 2
+runner_image: "myoung34/github-runner:latest"
+runner_repo_url: "https://github.com/kamilandrzejrybacki-inc/n8n-workflows"
+runner_name_prefix: "lw-c1"
+runner_labels: "lw-c1,k8s,compute"

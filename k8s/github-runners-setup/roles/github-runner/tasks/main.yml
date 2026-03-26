@@ -1,0 +1,50 @@
+---
+- name: Create github-runners namespace
+  ansible.builtin.command: kubectl create namespace {{ runner_namespace }}
+  register: _ns
+  changed_when: _ns.rc == 0
+  failed_when: _ns.rc != 0 and 'already exists' not in _ns.stderr
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+
+- name: Apply runner Secret
+  ansible.builtin.template:
+    src: secret.yml.j2
+    dest: /tmp/runner-secret.yml
+    mode: "0600"
+  no_log: true
+
+- name: Apply Secret to cluster
+  ansible.builtin.command: kubectl apply -f /tmp/runner-secret.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  no_log: true
+
+- name: Remove temp secret file
+  ansible.builtin.file:
+    path: /tmp/runner-secret.yml
+    state: absent
+
+- name: Apply runner Deployment
+  ansible.builtin.template:
+    src: deployment.yml.j2
+    dest: /tmp/runner-deployment.yml
+    mode: "0644"
+
+- name: Apply Deployment to cluster
+  ansible.builtin.command: kubectl apply -f /tmp/runner-deployment.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+
+- name: Remove temp deployment file
+  ansible.builtin.file:
+    path: /tmp/runner-deployment.yml
+    state: absent
+
+- name: Wait for runners to be ready
+  ansible.builtin.command: >
+    kubectl rollout status deployment/github-runner
+    -n {{ runner_namespace }} --timeout=120s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  changed_when: false

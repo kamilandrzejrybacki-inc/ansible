@@ -1,0 +1,28 @@
+; CouchDB local configuration for Obsidian LiveSync
+; Managed by Ansible — do not edit manually
+
+[couchdb]
+single_node = true
+max_document_size = {{ couchdb_max_document_size }}
+
+[chttpd]
+bind_address = 0.0.0.0
+port = 5984
+require_valid_user = true
+
+[chttpd_auth]
+require_valid_user = true
+authentication_redirect = /_utils/session.html
+
+[httpd]
+WWW-Authenticate = Basic realm="couchdb"
+enable_cors = true
+
+[cors]
+origins = app://obsidian.md,capacitor://localhost,http://localhost
+credentials = true
+methods = GET, PUT, POST, HEAD, DELETE
+headers = accept, authorization, content-type, origin, referer, x-csrf-token
+
+[compactions]
+_default = [{db_fragmentation, "{{ couchdb_compaction_db_fragmentation }}"}, {view_fragmentation, "{{ couchdb_compaction_view_fragmentation }}"}]

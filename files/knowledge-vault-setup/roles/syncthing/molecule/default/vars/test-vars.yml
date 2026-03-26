@@ -1,0 +1,14 @@
+---
+syncthing_container_name: syncthing
+syncthing_image: "syncthing/syncthing:1.29"
+syncthing_sync_port: 22000
+syncthing_ui_port: 8384
+syncthing_data_dir: /opt/knowledge-vault/syncthing
+syncthing_restart_policy: unless-stopped
+syncthing_health_check_retries: 30
+syncthing_health_check_delay: 10
+syncthing_puid: "1000"
+syncthing_pgid: "1000"
+syncthing_admin_password: testpassword
+vault_content_dir: /opt/knowledge-vault/content
+docker_network_name: vault-net

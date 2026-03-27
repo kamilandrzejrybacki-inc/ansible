@@ -1,0 +1,13 @@
+---
+services:
+  obsidian-rest-api:
+    image: {{ obsidian_rest_api_image }}
+    container_name: {{ obsidian_rest_api_container_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ obsidian_rest_api_port }}:27124"
+    volumes:
+      - {{ obsidian_rest_api_vault_dir }}:/vault
+    environment:
+      VAULT_ROOT: /vault
+      API_KEY: {{ _obsidian_api_key }}

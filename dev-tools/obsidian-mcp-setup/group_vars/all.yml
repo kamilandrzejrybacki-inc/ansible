@@ -1,0 +1,15 @@
+---
+# Obsidian MCP Server — https://github.com/MarkusPfundstein/mcp-obsidian
+# Uses a standalone REST API server on lw-nas (no Obsidian desktop app needed).
+
+# Standalone REST API on lw-nas (deployed by files/obsidian-rest-api/setup.yml)
+obsidian_host: "10.0.1.2"
+obsidian_port: "27124"
+obsidian_protocol: "http"
+
+# Local fallback secret file
+obsidian_local_api_key_file: "{{ ansible_env.HOME }}/.homelab-secrets/obsidian/api_key"
+
+# Claude Code MCP registration
+claude_mcp_name: "obsidian"
+claude_mcp_scope: "user"

@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# Obsidian MCP Server Setup
+# =============================================================================
+# 1. Deploys a standalone Obsidian-compatible REST API on lw-nas that serves
+#    the knowledge vault (/opt/knowledge-vault/content) as HTTP.
+# 2. Generates an API key and stores it in Vault (secret/homelab/obsidian).
+# 3. Registers mcp-obsidian in Claude Code pointing at http://10.0.1.2:27124.
+#
+# Prerequisites:
+#   - Docker running on lw-nas
+#   - uvx installed locally (comes with uv)
+#   - Vault token in ~/.vault-ansible.yml (generates & saves key automatically)
+#
+# Usage:
+#   ansible-playbook dev-tools/obsidian-mcp-setup/setup.yml \
+#     -i dev-tools/obsidian-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Load Vault config and prepare API key
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load Obsidian secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "obsidian"
+      when: _vault_available | bool
+
+    - name: Use existing API key from Vault
+      ansible.builtin.set_fact:
+        _obsidian_api_key: "{{ _vault_secrets['api_key'] }}"
+      when: _vault_secrets['api_key'] | default('') | length > 0
+      no_log: true
+
+    - name: Generate random API key
+      ansible.builtin.command: openssl rand -hex 32
+      register: _generated_key
+      changed_when: true
+      when: _obsidian_api_key is not defined
+
+    - name: Set generated API key fact
+      ansible.builtin.set_fact:
+        _obsidian_api_key: "{{ _generated_key.stdout | trim }}"
+        _obsidian_api_key_is_new: true
+      when: _generated_key is not skipped
+      no_log: true
+
+    - name: Store new API key in Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/obsidian"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body_format: json
+        body:
+          data:
+            api_key: "{{ _obsidian_api_key }}"
+        status_code: [200, 204]
+        timeout: 10
+      when: (_obsidian_api_key_is_new | default(false)) and (_vault_available | bool)
+      no_log: true
+
+- name: Deploy Obsidian REST API on lw-nas
+  hosts: nas
+  become: false
+  gather_facts: true
+  vars:
+    _obsidian_api_key: "{{ hostvars['localhost']['_obsidian_api_key'] }}"
+    obsidian_rest_api_install_dir: /home/kamil/obsidian-rest-api
+    obsidian_rest_api_vault_dir: /opt/knowledge-vault/content
+    obsidian_rest_api_port: 27124
+    obsidian_rest_api_image: obsidian-rest-api:latest
+    obsidian_rest_api_container_name: obsidian-rest-api
+  roles:
+    - role: "{{ playbook_dir }}/../../files/obsidian-rest-api/roles/obsidian-rest-api"
+
+- name: Register Obsidian MCP in Claude Code
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - obsidian-mcp

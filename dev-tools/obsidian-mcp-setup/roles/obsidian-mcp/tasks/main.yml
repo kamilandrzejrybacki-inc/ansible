@@ -1,0 +1,130 @@
+---
+# =============================================================================
+# Obsidian MCP Server — install and register in Claude Code
+# Connects to the standalone REST API on lw-nas (no Obsidian desktop needed).
+# =============================================================================
+
+- name: Ensure uvx is available
+  ansible.builtin.command: uvx --version
+  register: _uvx_version
+  changed_when: false
+  failed_when: _uvx_version.rc != 0
+
+# ── API key (written to Vault by files/obsidian-rest-api/setup.yml) ───────────
+
+- name: Use Vault API key when available
+  ansible.builtin.set_fact:
+    _obsidian_api_key: "{{ _vault_secrets['api_key'] }}"
+  when:
+    - _vault_secrets is defined
+    - _vault_secrets['api_key'] | default('') | length > 0
+  no_log: true
+
+- name: Fall back to local secret file
+  when: _obsidian_api_key is not defined
+  block:
+    - name: Check local API key file exists
+      ansible.builtin.stat:
+        path: "{{ obsidian_local_api_key_file }}"
+      register: _local_key_stat
+
+    - name: Read API key from local file
+      ansible.builtin.slurp:
+        src: "{{ obsidian_local_api_key_file }}"
+      register: _local_key_raw
+      when: _local_key_stat.stat.exists
+      no_log: true
+
+    - name: Set API key fact from local file
+      ansible.builtin.set_fact:
+        _obsidian_api_key: "{{ _local_key_raw.content | b64decode | trim }}"
+      when: _local_key_stat.stat.exists
+      no_log: true
+
+    - name: Fail if no API key available
+      ansible.builtin.fail:
+        msg: >-
+          No Obsidian API key found in Vault (secret/homelab/obsidian) or
+          {{ obsidian_local_api_key_file }}.
+          Run files/obsidian-rest-api/setup.yml first — it generates and stores the key.
+      when: not _local_key_stat.stat.exists
+
+# ── Connectivity check ────────────────────────────────────────────────────────
+
+- name: Verify standalone REST API is reachable on lw-nas
+  ansible.builtin.uri:
+    url: "{{ obsidian_protocol }}://{{ obsidian_host }}:{{ obsidian_port }}/"
+    status_code: [200]
+    timeout: 5
+  register: _obsidian_check
+  failed_when: false
+
+- name: Warn if REST API unreachable
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Obsidian REST API at {{ obsidian_protocol }}://{{ obsidian_host }}:{{ obsidian_port }}
+      is not reachable (status: {{ _obsidian_check.status | default('no response') }}).
+      Run files/obsidian-rest-api/setup.yml to deploy the API server on lw-nas.
+  when: _obsidian_check.status is not defined or _obsidian_check.status != 200
+
+# ── Patch mcp-obsidian to honour OBSIDIAN_HOST/PORT/PROTOCOL env vars ─────────
+# The upstream package hardcodes https://127.0.0.1:27124; this patch makes it
+# read the three env vars so our standalone REST API on lw-nas is used instead.
+
+- name: Locate mcp-obsidian tools.py in uv cache
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.cache/uv/archive-v0"
+    patterns: "tools.py"
+    recurse: true
+    contains: "OBSIDIAN_API_KEY"
+  register: _mcp_obsidian_tools_files
+
+- name: Ensure mcp-obsidian tools.py reads OBSIDIAN_HOST/PORT/PROTOCOL
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: >-
+      (api_key = os\.getenv\("OBSIDIAN_API_KEY".*?\n(?:if api_key.*?\n)?)
+    replace: |
+      \1
+      _obsidian_host = os.getenv("OBSIDIAN_HOST", "127.0.0.1")
+      _obsidian_port = int(os.getenv("OBSIDIAN_PORT", "27124"))
+      _obsidian_protocol = os.getenv("OBSIDIAN_PROTOCOL", "https")
+  loop: "{{ _mcp_obsidian_tools_files.files }}"
+  when: >-
+    item.path is search('mcp_obsidian')
+    and '_obsidian_host' not in lookup('file', item.path)
+
+- name: Ensure mcp-obsidian Obsidian() calls pass host/port/protocol
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: 'obsidian\.Obsidian\(api_key=api_key\)'
+    replace: 'obsidian.Obsidian(api_key=api_key, host=_obsidian_host, port=_obsidian_port, protocol=_obsidian_protocol)'
+  loop: "{{ _mcp_obsidian_tools_files.files }}"
+  when: item.path is search('mcp_obsidian')
+
+# ── Claude Code registration ──────────────────────────────────────────────────
+
+- name: Register obsidian-mcp in Claude Code
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"
+  vars:
+    mcp_name: "{{ claude_mcp_name }}"
+    mcp_scope: "{{ claude_mcp_scope }}"
+    mcp_command: "uvx"
+    mcp_args:
+      - "mcp-obsidian"
+    mcp_env:
+      OBSIDIAN_API_KEY: "{{ _obsidian_api_key }}"
+      OBSIDIAN_HOST: "{{ obsidian_host }}"
+      OBSIDIAN_PORT: "{{ obsidian_port }}"
+      OBSIDIAN_PROTOCOL: "{{ obsidian_protocol }}"
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      Obsidian MCP server registered in Claude Code.
+
+      REST API:  {{ obsidian_protocol }}://{{ obsidian_host }}:{{ obsidian_port }}
+      MCP name:  {{ claude_mcp_name }} (scope: {{ claude_mcp_scope }})
+      Vault key: secret/homelab/obsidian → api_key
+
+      Restart Claude Code for the MCP to load.

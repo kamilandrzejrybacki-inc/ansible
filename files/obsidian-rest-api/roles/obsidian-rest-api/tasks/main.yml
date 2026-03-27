@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# Obsidian REST API — deploy standalone vault API server on lw-nas
+# =============================================================================
+
+# ── API key ───────────────────────────────────────────────────────────────────
+
+- name: Use Vault API key when available
+  ansible.builtin.set_fact:
+    _obsidian_api_key: "{{ _vault_secrets['api_key'] }}"
+  when:
+    - _vault_secrets is defined
+    - _vault_secrets['api_key'] | default('') | length > 0
+  no_log: true
+
+- name: Fail if API key was not provided
+  ansible.builtin.fail:
+    msg: >-
+      _obsidian_api_key must be set before this role runs.
+      Key generation and Vault storage happen in setup.yml on localhost.
+  when: _obsidian_api_key is not defined
+
+# ── Deploy app ────────────────────────────────────────────────────────────────
+
+- name: Create install directory
+  ansible.builtin.file:
+    path: "{{ obsidian_rest_api_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy application files
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../app/"
+    dest: "{{ obsidian_rest_api_install_dir }}/app/"
+    mode: "0644"
+  register: _app_files
+
+- name: Build Docker image
+  community.docker.docker_image:
+    name: "{{ obsidian_rest_api_image }}"
+    build:
+      path: "{{ obsidian_rest_api_install_dir }}/app"
+      pull: false
+    source: build
+    force_source: "{{ _app_files.changed }}"
+
+- name: Write docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ obsidian_rest_api_install_dir }}/docker-compose.yml"
+    mode: "0600"
+  no_log: true
+  register: _compose_file
+
+- name: Start obsidian-rest-api container
+  community.docker.docker_compose_v2:
+    project_src: "{{ obsidian_rest_api_install_dir }}"
+    state: present
+    recreate: "{{ 'always' if (_app_files.changed or _compose_file.changed) else 'auto' }}"
+
+# ── Health check ──────────────────────────────────────────────────────────────
+
+- name: Wait for API to be ready
+  ansible.builtin.uri:
+    url: "http://localhost:{{ obsidian_rest_api_port }}/"
+    status_code: [200]
+    timeout: 5
+  register: _health
+  retries: 10
+  delay: 2
+  until: _health.status == 200
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      Obsidian REST API deployed on lw-nas.
+
+      URL:      http://10.0.1.2:{{ obsidian_rest_api_port }}
+      Vault:    {{ obsidian_rest_api_vault_dir }}
+      API key:  stored in Vault at secret/homelab/obsidian (key: api_key)

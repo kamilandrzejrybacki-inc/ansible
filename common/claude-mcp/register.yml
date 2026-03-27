@@ -74,18 +74,20 @@
           -e {{ key }}={{ value }}
           {% endfor %}
           {% for key, value in (mcp_headers | default({})).items() %}
-          -H "{{ key }}: {{ value }}"
+          --header "{{ key }}: {{ value }}"
           {% endfor %}
           {{ mcp_name }}
-          {% if mcp_transport | default('stdio') == 'stdio' and (mcp_args | default([])) | length > 0 %}
+          {% if mcp_transport | default('stdio') == 'stdio' %}
+          {% if (mcp_args | default([])) | length > 0 %}
           -- {{ mcp_command }} {{ (mcp_args | default([])) | join(' ') }}
           {% else %}
+          -- {{ mcp_command }}
+          {% endif %}
+          {% else %}
           {{ mcp_command }}
-          {% if mcp_transport | default('stdio') != 'stdio' %}
           {% for arg in (mcp_args | default([])) %}
           {{ arg }}
           {% endfor %}
-          {% endif %}
           {% endif %}
       no_log: true
 

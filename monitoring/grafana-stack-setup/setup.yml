@@ -26,6 +26,15 @@
         file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
       when: _homelab_vars_stat.stat.exists
 
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "grafana-stack"
+      when: _vault_available | bool
+
 - name: Gather host details
   hosts: localhost
   connection: local
@@ -74,6 +83,7 @@
             if hostvars['localhost']['_homelab_vars_stat'].stat.exists
             else ''
           }}
+        vault_metrics_token: "{{ hostvars['localhost']['_vault_secrets']['vault_metrics_token'] | default('') }}"
 
 - name: Install Docker and deploy Grafana stack
   hosts: grafana_stack_hosts

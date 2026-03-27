@@ -63,6 +63,14 @@ services:
     image: {{ alloy_image }}
     container_name: alloy
     restart: {{ grafana_restart_policy }}
+    dns:
+      - {{ pihole_dns_ip | default('1.1.1.1') }}
+{% if probe_extra_hosts | default([]) | length > 0 %}
+    extra_hosts:
+{% for domain in probe_extra_hosts %}
+      - "{{ domain }}:{{ caddy_homelab_ip }}"
+{% endfor %}
+{% endif %}
 {% if vault_metrics_token | default('') | length > 0 %}
     environment:
       VAULT_METRICS_TOKEN: "{{ vault_metrics_token }}"
@@ -77,6 +85,9 @@ services:
     command: run /etc/alloy/config.alloy
     pid: host
     privileged: true
+    networks:
+      - default
+      - homelab-net
     depends_on:
       - loki
       - mimir
@@ -91,3 +102,8 @@ services:
 
 volumes:
   grafana_data:
+
+networks:
+  default:
+  homelab-net:
+    external: true

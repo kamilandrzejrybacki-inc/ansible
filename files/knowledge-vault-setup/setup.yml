@@ -69,6 +69,7 @@
         ansible_user: "{{ target_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
         syncthing_admin_password: "{{ syncthing_admin_password }}"
+        saved_domain: "{{ saved_domain | default('localhost') }}"
       no_log: true
 
 - name: Store secrets to Vault

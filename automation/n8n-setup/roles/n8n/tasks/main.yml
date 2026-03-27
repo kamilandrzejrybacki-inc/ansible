@@ -38,6 +38,7 @@
       N8N_SOURCE_CONTROL_ENABLED: "true"
       N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL: "{{ n8n_external_secrets_update_interval }}"
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_RUNNERS_ALLOWED_ENV_VARS: "*"
     _n8n_public_url_env: "{{ {'N8N_EDITOR_BASE_URL': n8n_public_url, 'WEBHOOK_URL': n8n_public_url} if n8n_public_url | default('') != '' else {} }}"
     _n8n_queue_env: >-
       {{

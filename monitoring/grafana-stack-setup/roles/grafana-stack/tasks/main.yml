@@ -51,6 +51,18 @@
     src: 192.168.0.0/16
     comment: "Mimir for Grafana Alloy agents"
 
+- name: Look up Caddy container IP on homelab-net for blackbox probe routing
+  community.docker.docker_container_info:
+    name: caddy
+  register: _caddy_info
+  failed_when: false
+
+- name: Set caddy_homelab_ip fact
+  ansible.builtin.set_fact:
+    caddy_homelab_ip: >-
+      {{ _caddy_info.container.NetworkSettings.Networks['homelab-net'].IPAddress
+         | default(caddy_metrics_host) }}
+
 - name: Template docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.yml.j2

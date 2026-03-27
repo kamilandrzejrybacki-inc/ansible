@@ -128,6 +128,21 @@
   when: vault_init_data is defined
   no_log: true
 
+- name: Write vault unseal script
+  ansible.builtin.copy:
+    dest: "{{ vault_install_dir }}/unseal.sh"
+    owner: root
+    group: root
+    mode: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      KEYS=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); [print(k) for k in d["unseal_keys_b64"][:2]]' "{{ vault_keys_file }}")
+      for key in $KEYS; do
+        docker exec -e VAULT_ADDR=http://127.0.0.1:{{ vault_port }} vault vault operator unseal "$key" >/dev/null 2>&1 || true
+      done
+  when: vault_auto_unseal | bool
+
 - name: Install vault-unseal systemd service for automatic unseal on restart
   ansible.builtin.copy:
     dest: /etc/systemd/system/vault-unseal.service
@@ -143,11 +158,7 @@
       [Service]
       Type=oneshot
       ExecStartPre=/bin/sleep 10
-      ExecStart=/bin/bash -c '\
-        KEYS=$(python3 -c "import json; d=json.load(open(\"{{ vault_keys_file }}\")); [print(k) for k in d[\"unseal_keys_b64\"][:2]]"); \
-        for key in $KEYS; do \
-          docker exec -e VAULT_ADDR=http://127.0.0.1:{{ vault_port }} vault vault operator unseal "$key" >/dev/null 2>&1 || true; \
-        done'
+      ExecStart={{ vault_install_dir }}/unseal.sh
       RemainAfterExit=yes
 
       [Install]

@@ -23,28 +23,9 @@ prometheus.scrape "host_metrics" {
   scrape_interval = "60s"
 }
 
-// ── Docker container metrics ─────────────────────────────────────────────────
+// ── Docker container discovery ───────────────────────────────────────────────
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
-}
-
-prometheus.relabel "docker_labels" {
-  forward_to = [prometheus.remote_write.mimir.receiver]
-
-  rule {
-    target_label = "job"
-    replacement  = "docker"
-  }
-  rule {
-    target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('localhost') }}"
-  }
-}
-
-prometheus.scrape "docker_metrics" {
-  targets         = discovery.docker.containers.targets
-  forward_to      = [prometheus.relabel.docker_labels.receiver]
-  scrape_interval = "60s"
 }
 
 // ── Docker container logs ─────────────────────────────────────────────────────

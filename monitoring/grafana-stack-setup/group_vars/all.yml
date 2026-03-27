@@ -25,19 +25,22 @@ docker_exporter_image: "ghcr.io/davidborzek/docker-exporter:v0.3.0"
 openclaw_metrics_host: "openclaw-metrics"
 openclaw_metrics_port: 9101
 
-# Security service metrics — Alloy must be on homelab-net; use container IPs (not names) — Alloy resolves DNS via grafana-stack_default
-caddy_metrics_host: "172.20.0.3"   # caddy on homelab-net
+# Security service metrics — Alloy is on homelab-net, so use container names directly
+caddy_metrics_host: "caddy"
 caddy_metrics_port: 2019
 
-authelia_metrics_host: "172.20.0.4"   # authelia on homelab-net; requires telemetry.metrics.enabled: true in authelia config
+authelia_metrics_host: "authelia"   # requires telemetry.metrics.enabled: true in authelia config
 authelia_metrics_port: 9959
 
-crowdsec_metrics_host: "172.20.0.6"   # crowdsec on homelab-net
+crowdsec_metrics_host: "crowdsec"
 crowdsec_metrics_port: 6060
 
 vault_metrics_host: "172.19.0.1"   # Vault is on vault_default; reach via Docker gateway (0.0.0.0:8200 published)
 vault_metrics_port: 8200
-vault_metrics_token: ""   # Vault token with sys/metrics read policy (see spec prerequisites)
+vault_metrics_token: ""   # Loaded from Vault at deploy time via vault-integration (secret/grafana-stack → vault_metrics_token)
+
+# DNS for Alloy container — Pi-hole port 53 is published on 0.0.0.0, reachable via Docker gateway
+pihole_dns_ip: "172.19.0.1"
 
 pihole_exporter_host: ""   # Enable after running pihole role with pihole_exporter_enabled: true
 pihole_exporter_port: 9617
@@ -46,9 +49,16 @@ wireguard_exporter_host: ""   # Enable after running wireguard role with wiregua
 wireguard_exporter_port: 9586
 
 # Application service probe URLs — HTTPS via public domain to get SSL cert expiry metrics
-probe_n8n_url: "https://n8n.kamilandrzejrybacki.dpdns.org"
-probe_paperless_url: "https://paperless.kamilandrzejrybacki.dpdns.org"
-probe_netbox_url: "https://netbox.kamilandrzejrybacki.dpdns.org"
+# Alloy resolves these via Pi-hole to LAN IP, but Docker hairpin NAT prevents reaching
+# host-published ports from inside containers. extra_hosts maps them to Caddy's homelab-net IP.
+probe_extra_hosts:
+  - "n8n.kamilandrzejrybacki.dpdns.org"
+  - "paperless.kamilandrzejrybacki.dpdns.org"
+  - "netbox.kamilandrzejrybacki.dpdns.org"
+
+probe_n8n_url: "http://n8n.kamilandrzejrybacki.dpdns.org"
+probe_paperless_url: "http://paperless.kamilandrzejrybacki.dpdns.org"
+probe_netbox_url: "http://netbox.kamilandrzejrybacki.dpdns.org"
 probe_outline_url: ""
 probe_vaultwarden_url: ""   # removed from homelab
 probe_seafile_url: ""

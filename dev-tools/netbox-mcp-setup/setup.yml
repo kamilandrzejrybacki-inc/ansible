@@ -1,0 +1,40 @@
+---
+# =============================================================================
+# Netbox MCP Server Setup
+# =============================================================================
+# Clones the netbox-mcp-server repository, installs its dependencies via uv,
+# loads the API token from Vault (or local secret file), and registers the
+# MCP server in Claude Code so the AI can query Netbox infrastructure data.
+#
+# Prerequisites:
+#   - uv installed (https://docs.astral.sh/uv/getting-started/installation/)
+#   - Netbox running and accessible at netbox_url
+#   - API token in Vault at secret/homelab/netbox OR ~/.homelab-secrets/netbox/api_token
+#   - Vault token in ~/.vault-ansible.yml (optional — falls back to local secret)
+#
+# Usage:
+#   ansible-playbook dev-tools/netbox-mcp-setup/setup.yml \
+#     -i dev-tools/netbox-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Load Vault configuration (if available)
+  hosts: local
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load Netbox secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "netbox"
+      when: _vault_available | bool
+
+- name: Register Netbox MCP in Claude Code
+  hosts: local
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - netbox-mcp

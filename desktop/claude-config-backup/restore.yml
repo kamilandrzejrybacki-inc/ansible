@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# Claude Code Config Restore ← Vault
+# =============================================================================
+# Restores ~/.claude.json from Vault backup at secret/homelab/claude-config.
+# Creates a timestamped local backup before overwriting.
+#
+# Usage:
+#   ansible-playbook desktop/claude-config-backup/restore.yml \
+#     -i desktop/claude-config-backup/inventory/hosts.ini
+#
+# To restore only the mcpServers (safer — merges into current config):
+#   ansible-playbook desktop/claude-config-backup/restore.yml \
+#     -i desktop/claude-config-backup/inventory/hosts.ini \
+#     -e mcp_only=true
+# =============================================================================
+
+- name: Restore Claude Code config from Vault
+  hosts: local
+  connection: local
+  gather_facts: false
+  vars:
+    mcp_only: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Fail if Vault unavailable
+      ansible.builtin.fail:
+        msg: "Vault is not reachable — cannot restore backup."
+      when: not (_vault_available | bool)
+
+    - name: Fetch backup from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/claude-config"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200]
+        timeout: 10
+      register: _vault_backup
+      no_log: true
+
+    - name: Back up current config before overwriting
+      ansible.builtin.copy:
+        src: "{{ ansible_env.HOME }}/.claude.json"
+        dest: "{{ ansible_env.HOME }}/.claude.json.pre-restore-{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}"
+        mode: "0600"
+        remote_src: true
+      failed_when: false
+
+    - name: Restore full config from Vault
+      when: not (mcp_only | bool)
+      ansible.builtin.copy:
+        content: "{{ _vault_backup.json.data.data.claude_json_b64 | b64decode }}"
+        dest: "{{ ansible_env.HOME }}/.claude.json"
+        mode: "0600"
+      no_log: true
+
+    - name: Restore only mcpServers (merge into current config)
+      when: mcp_only | bool
+      block:
+        - name: Read current config
+          ansible.builtin.slurp:
+            src: "{{ ansible_env.HOME }}/.claude.json"
+          register: _current_raw
+          no_log: true
+
+        - name: Merge mcpServers into current config
+          ansible.builtin.copy:
+            content: >-
+              {{
+                (_current_raw.content | b64decode | from_json)
+                | combine({'mcpServers': _vault_backup.json.data.data.mcp_servers | from_json})
+                | to_nice_json(indent=2)
+              }}
+            dest: "{{ ansible_env.HOME }}/.claude.json"
+            mode: "0600"
+          no_log: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: |
+          Claude Code config restored from Vault backup.
+
+          Backed up at: {{ _vault_backup.json.data.data.backed_up_at }}
+          MCPs restored: {{ (_vault_backup.json.data.data.mcp_servers | from_json) | list | join(', ') }}
+          Mode: {{ 'mcpServers only (merged)' if (mcp_only | bool) else 'full config' }}
+
+          Restart Claude Code for changes to take effect.

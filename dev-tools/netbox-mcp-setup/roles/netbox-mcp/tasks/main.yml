@@ -1,0 +1,113 @@
+---
+# =============================================================================
+# Netbox MCP Server — install and register in Claude Code
+# =============================================================================
+
+- name: Ensure uv is available
+  ansible.builtin.command: uv --version
+  register: _uv_version
+  changed_when: false
+  failed_when: _uv_version.rc != 0
+
+- name: Clone or update netbox-mcp-server repository
+  ansible.builtin.git:
+    repo: "{{ netbox_mcp_repo_url }}"
+    dest: "{{ netbox_mcp_install_dir }}"
+    version: main
+    update: true
+  register: _repo_clone
+
+- name: Install Python dependencies via uv
+  ansible.builtin.command:
+    cmd: uv sync
+    chdir: "{{ netbox_mcp_install_dir }}"
+  register: _uv_sync
+  changed_when: _repo_clone.changed or _uv_sync.rc == 0
+
+# ── API token ────────────────────────────────────────────────────────────────
+
+- name: Use Vault token when available
+  ansible.builtin.set_fact:
+    _netbox_api_token: "{{ _vault_secrets['api_token'] }}"
+  when:
+    - _vault_secrets is defined
+    - _vault_secrets['api_token'] | default('') | length > 0
+  no_log: true
+
+- name: Fall back to local secret file
+  when: _netbox_api_token is not defined
+  block:
+    - name: Check local token file exists
+      ansible.builtin.stat:
+        path: "{{ netbox_local_token_file }}"
+      register: _local_token_stat
+
+    - name: Read token from local file
+      ansible.builtin.slurp:
+        src: "{{ netbox_local_token_file }}"
+      register: _local_token_raw
+      when: _local_token_stat.stat.exists
+      no_log: true
+
+    - name: Set token fact from local file
+      ansible.builtin.set_fact:
+        _netbox_api_token: "{{ _local_token_raw.content | b64decode | trim }}"
+      when: _local_token_stat.stat.exists
+      no_log: true
+
+    - name: Fail if no token available
+      ansible.builtin.fail:
+        msg: >-
+          No Netbox API token found. Either:
+            1. Ensure Vault is reachable with secret/homelab/netbox.api_token, or
+            2. Run monitoring/netbox-setup/setup.yml first to generate the token at
+               {{ netbox_local_token_file }}
+      when: not _local_token_stat.stat.exists
+
+# ── Connectivity check ───────────────────────────────────────────────────────
+
+- name: Verify Netbox API is reachable
+  ansible.builtin.uri:
+    url: "{{ netbox_url }}/api/"
+    headers:
+      Authorization: "Token {{ _netbox_api_token }}"
+    status_code: [200]
+    timeout: 10
+  register: _netbox_check
+  failed_when: false
+  no_log: true
+
+- name: Warn if Netbox API unreachable
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Netbox API at {{ netbox_url }} is not reachable (status: {{ _netbox_check.status | default('no response') }}).
+      The MCP server will be registered but may not work until Netbox is accessible.
+  when: _netbox_check.status is not defined or _netbox_check.status != 200
+
+# ── Claude Code registration ─────────────────────────────────────────────────
+
+- name: Register netbox-mcp in Claude Code
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"
+  vars:
+    mcp_name: "{{ claude_mcp_name }}"
+    mcp_scope: "{{ claude_mcp_scope }}"
+    mcp_command: "uv"
+    mcp_args:
+      - "--directory"
+      - "{{ netbox_mcp_install_dir }}"
+      - "run"
+      - "netbox-mcp-server"
+    mcp_env:
+      NETBOX_URL: "{{ netbox_url }}"
+      NETBOX_TOKEN: "{{ _netbox_api_token }}"
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      Netbox MCP server registered in Claude Code.
+
+      Install dir: {{ netbox_mcp_install_dir }}
+      Netbox URL:  {{ netbox_url }}
+      MCP name:    {{ claude_mcp_name }} (scope: {{ claude_mcp_scope }})
+
+      Restart Claude Code for the MCP to load.

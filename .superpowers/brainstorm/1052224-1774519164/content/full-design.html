@@ -1,0 +1,97 @@
+<h2>lw-c1 Full Architecture Design</h2>
+<p class="subtitle">Proxmox + K8s cluster + workloads + vCluster test environment</p>
+
+<div class="section">
+  <h3>Node Overview</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem">
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-c1 — 192.168.0.107 (NEW)</div>
+      <p style="margin:0.5rem 0 0.25rem"><strong>Proxmox VE</strong> (bare metal, replaces Windows 11)</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>VM: <strong>k8s-cp</strong> — 2 cores, 3GB, 40GB (control plane)</li>
+        <li>VM: <strong>k8s-w1</strong> — 2 cores, 4GB, 50GB (n8n workers)</li>
+        <li>VM: <strong>k8s-w2</strong> — 2 cores, 4GB, 50GB (GitHub runners)</li>
+        <li><strong>vCluster</strong> (test) — deployed via Helm, ~300MB, ephemeral</li>
+      </ul>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem">RAM: 13GB used / 16GB total</div>
+    </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-s1 — 192.168.0.108 (MODIFIED)</div>
+      <p style="margin:0.5rem 0 0.25rem"><strong>n8n main</strong> — queue mode enabled</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>n8n (main instance, UI + webhooks)</li>
+        <li>n8n-vault-shim (unchanged)</li>
+        <li>claude-backup-redis (unchanged)</li>
+        <li><del style="opacity:0.5">github-runner</del> — moved to lw-c1</li>
+      </ul>
+    </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-main — 192.168.0.105 (UNCHANGED)</div>
+      <p style="margin:0.5rem 0 0.25rem">All existing services stay</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>OpenClaw, Vault, Caddy, Authelia, etc.</li>
+        <li>NAS gateway (UFW NAT for 10.0.1.0/24)</li>
+        <li style="color:var(--text-muted);font-size:0.8rem">Add 192.168.0.110–112 to NAS allowed clients</li>
+      </ul>
+    </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-nas — 10.0.1.2 (MINOR CHANGE)</div>
+      <p style="margin:0.5rem 0 0.25rem">Storage node unchanged</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>Redis — serves n8n queue (main + workers)</li>
+        <li>Postgres — serves n8n, Netbox, Paperless</li>
+        <li style="color:var(--text-muted);font-size:0.8rem">Allow K8s VM IPs in DB firewall</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>VM Network</h3>
+  <p>K8s VMs bridge to <strong>vmbr0</strong> (physical LAN NIC) and get static IPs on <code>192.168.0.0/24</code> — same LAN as all other nodes. This avoids NAT complexity and lets workers reach lw-nas via the existing routing on lw-main.</p>
+  <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-secondary);padding:0.75rem;border-radius:6px;margin-top:0.5rem;border:1px solid var(--border)">
+    k8s-cp:  192.168.0.110<br>
+    k8s-w1:  192.168.0.111<br>
+    k8s-w2:  192.168.0.112<br>
+    Pod CIDR: 10.244.0.0/16 (no conflict)<br>
+    Svc CIDR: 10.96.0.0/12 (no conflict)
+  </div>
+</div>
+
+<div class="section">
+  <h3>n8n Queue Mode</h3>
+  <p><strong>lw-s1</strong>: main instance enabled with <code>EXECUTIONS_MODE=queue</code>, <code>QUEUE_BULL_REDIS_HOST=10.0.1.2</code></p>
+  <p><strong>k8s-w1 (K8s Deployment)</strong>: n8n worker containers with same env vars, <code>N8N_WORKER_MODE=true</code>. Vault shim stays on lw-s1 — workers inherit env from K8s Secrets (populated by Ansible from Vault).</p>
+</div>
+
+<div class="section">
+  <h3>GitHub Actions Runners</h3>
+  <p>Two options — decide before implementation:</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.5rem">
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:0.75rem">
+      <strong>Simple: myoung34 Deployment</strong><br>
+      <span style="font-size:0.875rem">Same image as lw-s1, runs as K8s Deployment on k8s-w2. Shell executor. Easy to manage via Ansible.</span>
+    </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:0.75rem">
+      <strong>K8s-native: Actions Runner Controller</strong><br>
+      <span style="font-size:0.875rem">Operator that spins up ephemeral pods per workflow job. More complex, but each job is fully isolated.</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>vCluster (test environment)</h3>
+  <p>Deployed via Helm into a <code>test</code> namespace on the main cluster. Provides a full isolated K8s API for integration/e2e tests. Ephemeral — can be torn down and recreated per test suite run via ArgoCD or Ansible.</p>
+</div>
+
+<div class="section">
+  <h3>Ansible Playbook Changes</h3>
+  <ul>
+    <li>Update <code>proxmox-k8s-setup/group_vars/all.yml</code> — Proxmox IP → 192.168.0.107, VM IPs → 192.168.0.110–112</li>
+    <li>New <code>k8s/n8n-workers-setup/</code> — K8s Deployment + Secret for n8n workers</li>
+    <li>New <code>k8s/github-runners-setup/</code> — K8s Deployment for GitHub runners on k8s-w2</li>
+    <li>New <code>k8s/vcluster-setup/</code> — Helm-based vCluster deploy</li>
+    <li>Update <code>automation/n8n-setup/</code> — enable queue mode on lw-s1</li>
+    <li>Update <code>infrastructure/nas-link-setup/</code> — allow K8s VM IPs in DB firewall</li>
+  </ul>
+</div>

@@ -1,0 +1,48 @@
+<h2>K8s Distribution for lw-c1</h2>
+<p class="subtitle">Single bare-metal Ubuntu node — which K8s flavour fits best?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>K3s — lightweight single binary</h3>
+      <p>Designed for single-node and edge. Installs in 30 seconds, runs as a systemd service. Built-in containerd, Flannel CNI, Traefik ingress.</p>
+      <p><strong>Memory:</strong> ~500MB for K3s itself + workloads</p>
+      <p><strong>Playbook:</strong> New <code>k8s/k3s-setup/</code> — simple, ~50 lines</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Lowest overhead of any option</li><li>Single binary, systemd-managed — survives reboots cleanly</li><li>vCluster works on K3s</li><li>Near-zero ops burden</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Not vanilla K8s (minor API differences)</li><li>New playbook needed</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>kind — K8s in Docker (existing playbook)</h3>
+      <p>Runs K8s nodes as Docker containers. Already implemented in <code>k8s-full-setup</code> with Helm, k9s, Headlamp, ArgoCD. Just retarget inventory to lw-c1.</p>
+      <p><strong>Memory:</strong> Docker daemon + containers (~1-1.5GB overhead)</p>
+      <p><strong>Playbook:</strong> Extend existing <code>k8s-full-setup</code> — change inventory + connection</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Already fully built — Helm, k9s, Headlamp, ArgoCD included</li><li>Minimal new Ansible work</li><li>Easy to reset (delete + recreate cluster)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Docker-in-Docker for workloads is awkward (GitHub runners)</li><li>Doesn't survive reboots by default — needs extra setup</li><li>kind is designed for local dev, not persistent workloads</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>kubeadm — vanilla K8s bare metal</h3>
+      <p>Production-grade K8s bootstrapped directly on Ubuntu. Uses the roles already written in <code>proxmox-k8s-setup</code> (k8s-prereqs, k8s-controlplane) — just remove the Proxmox VM provisioning step.</p>
+      <p><strong>Memory:</strong> ~1.5-2GB for control plane components</p>
+      <p><strong>Playbook:</strong> New <code>k8s/kubeadm-setup/</code> — reuse existing roles</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>100% vanilla K8s — no surprises</li><li>Roles already exist (k8s-prereqs, k8s-controlplane)</li><li>Systemd-managed, survives reboots</li><li>Easiest to extend to multi-node later</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More memory than K3s</li><li>More complex bootstrap than K3s</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">My recommendation: <strong>A (K3s)</strong> for a single persistent node running real workloads. Survives reboots, lowest overhead, vCluster-compatible. The existing Helm/ArgoCD playbooks still apply on top.</p>

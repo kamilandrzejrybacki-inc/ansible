@@ -1,0 +1,45 @@
+<h2>Test Cluster Strategy</h2>
+<p class="subtitle">16GB RAM is already 13GB used — how to fit a test environment</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>vCluster — Virtual K8s inside the main cluster</h3>
+      <p>Runs a full K8s API server as a pod inside your existing cluster. Looks and behaves like a real cluster from the outside, but shares the underlying nodes.</p>
+      <p><strong>RAM overhead:</strong> ~200–400MB per vCluster</p>
+      <p><strong>How:</strong> Deploy via Helm into a <code>test</code> namespace. Point your kubeconfig at it. Tear down and recreate in seconds.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Full API isolation (own namespaces, RBAC, CRDs)</li><li>Near-zero extra RAM</li><li>Ephemeral — perfect for CI/test teardowns</li><li>Already supported by Helm (which we're deploying anyway)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Shares worker node resources — noisy neighbour possible</li><li>Some cluster-level resources aren't fully isolated (nodes, storage classes)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Dedicated lightweight VM — single-node K3s</h3>
+      <p>Drop prod to Option A (1 CP + 1 worker) to free up ~4GB, then add a small K3s VM for test.</p>
+      <p><strong>Budget:</strong> Prod CP (3GB) + Prod W1 (6GB) + Test VM K3s (3GB) + Proxmox (2GB) = 14GB</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Fully separate cluster — real isolation</li><li>K3s is lightweight, installs in minutes</li><li>Different K8s version possible for compatibility testing</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Prod loses a worker node</li><li>Still tight on RAM</li><li>K3s ≠ kubeadm K8s (minor behavioural differences)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Namespaces + RBAC — no extra infrastructure</h3>
+      <p>Use separate namespaces (<code>prod</code>, <code>staging</code>, <code>test</code>) with RBAC and NetworkPolicy for isolation within the same cluster.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Zero RAM cost</li><li>Simplest to manage</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Not a real cluster boundary — CRDs, cluster-scoped resources are shared</li><li>Weak isolation for destructive integration tests</li><li>Less realistic for mock infra testing</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">My recommendation: <strong>A (vCluster)</strong> — you get a real K8s API surface for integration/e2e tests, costs almost nothing in RAM, and fits perfectly with the existing Helm-based setup. Keep prod at Option B.</p>

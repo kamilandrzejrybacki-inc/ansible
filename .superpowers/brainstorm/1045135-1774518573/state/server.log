@@ -1,0 +1,2 @@
+{"type":"server-started","port":50581,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:50581","screen_dir":"/home/kamil-rybacki/Code/ansible/.superpowers/brainstorm/1045135-1774518573/content","state_dir":"/home/kamil-rybacki/Code/ansible/.superpowers/brainstorm/1045135-1774518573/state"}
+{"type":"server-stopped","reason":"idle timeout"}

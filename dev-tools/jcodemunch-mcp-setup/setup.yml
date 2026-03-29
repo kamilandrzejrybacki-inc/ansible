@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# jCodeMunch MCP Server Setup
+# =============================================================================
+# Registers jcodemunch-mcp in Claude Code for token-efficient codebase
+# exploration using tree-sitter AST parsing (symbol-level retrieval, BM25
+# search, dependency graphs, blast-radius analysis).
+#
+# Runs locally via uvx — no external service required.
+# ANTHROPIC_API_KEY is optional; enables AI-powered symbol summaries.
+#
+# Prerequisites:
+#   - uvx installed locally (comes with uv)
+#   - Optional: ANTHROPIC_API_KEY in Vault (secret/homelab/anthropic → api_key)
+#     or in ~/.homelab-secrets/anthropic/api_key
+#
+# Usage:
+#   ansible-playbook dev-tools/jcodemunch-mcp-setup/setup.yml \
+#     -i dev-tools/jcodemunch-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Load Vault config and resolve ANTHROPIC_API_KEY
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load Anthropic secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "anthropic"
+      when: _vault_available | bool
+
+- name: Register jCodeMunch MCP in Claude Code
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  roles:
+    - jcodemunch-mcp

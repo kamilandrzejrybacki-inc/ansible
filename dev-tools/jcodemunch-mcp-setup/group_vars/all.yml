@@ -1,0 +1,11 @@
+---
+# jCodeMunch MCP — https://github.com/jgravelle/jcodemunch-mcp
+# Token-efficient codebase exploration via tree-sitter AST parsing.
+# Runs locally via uvx; no external service needed.
+
+# Local fallback secret file (optional — only needed for AI summaries)
+jcodemunch_local_api_key_file: "{{ ansible_env.HOME }}/.homelab-secrets/anthropic/api_key"
+
+# Claude Code MCP registration
+claude_mcp_name: "jcodemunch"
+claude_mcp_scope: "user"

@@ -1,0 +1,48 @@
+<h2>lw-c1 Cluster Topology</h2>
+<p class="subtitle">16GB RAM / 256GB NVMe — pick a VM layout that fits</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Lean: 1 Control Plane + 1 Worker</h3>
+      <p><strong>VMs:</strong> CP (2 cores, 3GB) + W1 (2 cores, 6GB) + Proxmox (2GB) = 11GB used</p>
+      <p><strong>Disk:</strong> CP 40GB + W1 60GB + template 32GB + OS 20GB ≈ 152GB</p>
+      <p><strong>Workloads on W1:</strong> n8n workers, GitHub Actions runners</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>5GB headroom for growth</li><li>Simple, reliable</li><li>All workloads on dedicated worker</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>No worker redundancy</li><li>Single point of compute failure</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Balanced: 1 Control Plane + 2 Workers</h3>
+      <p><strong>VMs:</strong> CP (2 cores, 3GB) + W1 (2 cores, 4GB) + W2 (2 cores, 4GB) + Proxmox (2GB) = 13GB used</p>
+      <p><strong>Disk:</strong> CP 40GB + W1 50GB + W2 50GB + template 32GB + OS 20GB ≈ 192GB</p>
+      <p><strong>Workloads split:</strong> n8n workers on W1, GitHub runners on W2</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Workload isolation</li><li>Worker redundancy via K8s scheduling</li><li>Room to scale per workload type</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Only 3GB headroom</li><li>Tight on RAM under load</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Compact: Control Plane doubles as Worker</h3>
+      <p><strong>VMs:</strong> CP+W (4 cores, 10GB, taints removed) + Proxmox (2GB) = 12GB used</p>
+      <p><strong>Disk:</strong> CP+W 80GB + template 32GB + OS 20GB ≈ 132GB</p>
+      <p><strong>Workloads:</strong> all on single VM (single-node K8s)</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Most RAM per workload</li><li>Simplest to manage</li><li>Most disk headroom</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>No K8s node separation</li><li>Control plane + workload compete for RAM</li><li>Less realistic cluster experience</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">My recommendation: <strong>B (Balanced)</strong> — workload isolation is worth the tight headroom on a homelab that won't run all workloads at full capacity simultaneously.</p>

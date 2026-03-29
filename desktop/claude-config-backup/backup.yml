@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# Claude Code Config Backup → Vault
+# =============================================================================
+# Backs up ~/.claude.json to Vault at secret/homelab/claude-config.
+# Stores the full file as base64 + a human-readable mcpServers snapshot.
+#
+# Usage:
+#   ansible-playbook desktop/claude-config-backup/backup.yml \
+#     -i desktop/claude-config-backup/inventory/hosts.ini
+# =============================================================================
+
+- name: Back up Claude Code config to Vault
+  hosts: local
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Fail if Vault unavailable
+      ansible.builtin.fail:
+        msg: "Vault is not reachable — cannot store backup."
+      when: not (_vault_available | bool)
+
+    - name: Read ~/.claude.json
+      ansible.builtin.slurp:
+        src: "{{ ansible_env.HOME }}/.claude.json"
+      register: _claude_config_raw
+      no_log: true
+
+    - name: Parse config
+      ansible.builtin.set_fact:
+        _claude_config: "{{ _claude_config_raw.content | b64decode | from_json }}"
+      no_log: true
+
+    - name: Store backup in Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/claude-config"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body_format: json
+        body:
+          data:
+            claude_json_b64: "{{ _claude_config_raw.content }}"
+            mcp_servers: "{{ _claude_config.mcpServers | default({}) | to_json }}"
+            backed_up_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+        status_code: [200, 204]
+        timeout: 10
+      no_log: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: |
+          Claude Code config backed up to Vault.
+
+          Path:  secret/homelab/claude-config
+          MCPs:  {{ _claude_config.mcpServers | default({}) | list | join(', ') }}
+          Time:  {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}

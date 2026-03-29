@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# jCodeMunch MCP Server — install and register in Claude Code
+# Token-efficient codebase exploration via tree-sitter AST parsing.
+# =============================================================================
+
+- name: Ensure uvx is available
+  ansible.builtin.command: uvx --version
+  register: _uvx_version
+  changed_when: false
+  failed_when: _uvx_version.rc != 0
+
+# ── ANTHROPIC_API_KEY (optional — enables AI-powered symbol summaries) ────────
+
+- name: Use Vault API key when available
+  ansible.builtin.set_fact:
+    _anthropic_api_key: "{{ _vault_secrets['api_key'] }}"
+  when:
+    - _vault_secrets is defined
+    - _vault_secrets['api_key'] | default('') | length > 0
+  no_log: true
+
+- name: Fall back to local secret file
+  when: _anthropic_api_key is not defined
+  block:
+    - name: Check local API key file exists
+      ansible.builtin.stat:
+        path: "{{ jcodemunch_local_api_key_file }}"
+      register: _local_key_stat
+
+    - name: Read API key from local file
+      ansible.builtin.slurp:
+        src: "{{ jcodemunch_local_api_key_file }}"
+      register: _local_key_raw
+      when: _local_key_stat.stat.exists
+      no_log: true
+
+    - name: Set API key fact from local file
+      ansible.builtin.set_fact:
+        _anthropic_api_key: "{{ _local_key_raw.content | b64decode | trim }}"
+      when: _local_key_stat.stat.exists
+      no_log: true
+
+- name: Note that AI summaries will be disabled
+  ansible.builtin.debug:
+    msg: >-
+      No ANTHROPIC_API_KEY found — jcodemunch will run without AI-powered summaries.
+      Store the key in Vault at secret/homelab/anthropic → api_key
+      or in {{ jcodemunch_local_api_key_file }} to enable them.
+  when: _anthropic_api_key is not defined
+
+# ── Claude Code registration ──────────────────────────────────────────────────
+
+- name: Register jcodemunch-mcp in Claude Code (with AI summaries)
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"
+  vars:
+    mcp_name: "{{ claude_mcp_name }}"
+    mcp_scope: "{{ claude_mcp_scope }}"
+    mcp_command: "uvx"
+    mcp_args:
+      - "jcodemunch-mcp"
+    mcp_env:
+      ANTHROPIC_API_KEY: "{{ _anthropic_api_key }}"
+  when: _anthropic_api_key is defined
+
+- name: Register jcodemunch-mcp in Claude Code (without AI summaries)
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"
+  vars:
+    mcp_name: "{{ claude_mcp_name }}"
+    mcp_scope: "{{ claude_mcp_scope }}"
+    mcp_command: "uvx"
+    mcp_args:
+      - "jcodemunch-mcp"
+  when: _anthropic_api_key is not defined
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: |
+      jCodeMunch MCP server registered in Claude Code.
+
+      MCP name:      {{ claude_mcp_name }} (scope: {{ claude_mcp_scope }})
+      Transport:     stdio via uvx jcodemunch-mcp
+      AI summaries:  {{ 'enabled (ANTHROPIC_API_KEY set)' if _anthropic_api_key is defined else 'disabled (no API key)' }}
+      Vault key:     secret/homelab/anthropic → api_key
+
+      Restart Claude Code for the MCP to load.
+      First run: jcodemunch-mcp config --init   (creates ~/.code-index/config.jsonc)

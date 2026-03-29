@@ -92,9 +92,49 @@ Plain `docker compose restart` leaves the proxy with a stale namespace. Always u
 docker compose down && docker compose up -d
 ```
 
+### Kubernetes / k3s Deployment
+
+OpenClaw defaults to `ws://127.0.0.1:18789` (loopback only). In Kubernetes, the kubelet's pod-IP healthcheck probe and NodePort DNAT cannot reach loopback. Fix:
+
+1. Set `gateway.bind: "lan"` in `openclaw.json` (not `0.0.0.0` — use the bind mode values):
+```json
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789
+  }
+}
+```
+
+2. **ConfigMap override caveat:** When OpenClaw uses `mode: merge` with a ConfigMap-mounted base config + a PVC user config, the merge is **shallow at the top-level object level**. If the PVC config has a `"gateway"` key, it overrides the entire ConfigMap `gateway` section. You cannot set `gateway.bind` via ConfigMap alone if the PVC config has any `gateway` settings. Patch the PVC's `openclaw.json` directly:
+```bash
+kubectl exec -n openclaw <pod> -- python3 -c "
+import json
+with open('/home/node/.openclaw/openclaw.json') as f:
+    c = json.load(f)
+c.setdefault('gateway', {})['bind'] = 'lan'
+with open('/home/node/.openclaw/openclaw.json', 'w') as f:
+    json.dump(c, f, indent=2)
+"
+```
+
+3. Liveness/readiness probes must use `exec` with `127.0.0.1`, not `httpGet` (which uses pod IP):
+```yaml
+livenessProbe:
+  exec:
+    command: ['wget', '-qO-', 'http://127.0.0.1:18789/health', '|', 'grep', '-q', 'ok']
+```
+
+4. The BROWSER_USER_DATA_DIR env var must point inside the PVC mount:
+```yaml
+- name: BROWSER_USER_DATA_DIR
+  value: "/home/node/.openclaw/browser-data"
+```
+
 ## When to Use
 - Adding/removing/modifying OpenClaw agents
 - Writing Ansible tasks for OpenClaw agent provisioning
 - Investigating OpenClaw routing or agent config
 - Configuring new LLM providers or debugging model 404/400 errors
 - Troubleshooting Docker restart failures with the socat proxy
+- Deploying OpenClaw to Kubernetes/k3s (bind and probe configuration)

@@ -1,0 +1,112 @@
+<h2>lw-c1 Setup — Final Design</h2>
+<p class="subtitle">K3s bare-metal · n8n workers · GitHub runners · vCluster test env</p>
+
+<div class="section">
+  <h3>Architecture Overview</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem">
+
+    <div style="background:var(--bg-secondary);border:2px solid #4ade80;border-radius:8px;padding:1rem">
+      <div class="label" style="color:#4ade80">lw-c1 — 192.168.0.107 · NEW</div>
+      <p style="margin:0.5rem 0 0.25rem"><strong>K3s</strong> (systemd, single-node, taint removed)</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li><strong>n8n-workers</strong> — Deployment, 2 replicas, queue mode</li>
+        <li><strong>github-runner</strong> — Deployment, 2 replicas</li>
+        <li><strong>vCluster</strong> — Helm, <code>test</code> namespace, ephemeral</li>
+        <li><strong>Headlamp</strong> — web dashboard</li>
+        <li><strong>ArgoCD</strong> — GitOps controller</li>
+        <li style="color:var(--text-muted);font-size:0.8rem">Helm, k9s CLI on host</li>
+      </ul>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem">~14GB available for workloads</div>
+    </div>
+
+    <div style="background:var(--bg-secondary);border:2px solid #f59e0b;border-radius:8px;padding:1rem">
+      <div class="label" style="color:#f59e0b">lw-s1 — 192.168.0.108 · MODIFIED</div>
+      <p style="margin:0.5rem 0 0.25rem"><strong>n8n main</strong> — queue mode enabled</p>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>n8n: <code>EXECUTIONS_MODE=queue</code></li>
+        <li>n8n-vault-shim (unchanged)</li>
+        <li>claude-backup-redis (unchanged)</li>
+        <li><del style="opacity:0.4">github-runner</del> → moved to lw-c1</li>
+      </ul>
+    </div>
+
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-main — 192.168.0.105 · UNCHANGED</div>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>All existing services untouched</li>
+        <li>OpenClaw stays here</li>
+        <li style="color:var(--text-muted);font-size:0.8rem">UFW: allow 192.168.0.107 forward to NAS</li>
+      </ul>
+    </div>
+
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <div class="label">lw-nas — 10.0.1.2 · MINOR CHANGE</div>
+      <ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.875rem">
+        <li>Redis — n8n job queue (main ↔ workers)</li>
+        <li>Postgres — n8n state (shared with workers)</li>
+        <li style="color:var(--text-muted);font-size:0.8rem">Add 192.168.0.107 to DB allowed clients</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>n8n Queue Mode Flow</h3>
+  <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-secondary);padding:0.75rem;border-radius:6px;border:1px solid var(--border);line-height:1.8">
+    lw-s1: n8n main (UI + webhooks + API)<br>
+    &nbsp;&nbsp;→ enqueues jobs to Redis (10.0.1.2:6379)<br>
+    &nbsp;&nbsp;→ reads/writes state to Postgres (10.0.1.2:5432)<br>
+    <br>
+    lw-c1: n8n-workers Deployment (2 replicas)<br>
+    &nbsp;&nbsp;→ polls Redis queue for jobs<br>
+    &nbsp;&nbsp;→ executes workflows<br>
+    &nbsp;&nbsp;→ writes results to Postgres<br>
+    &nbsp;&nbsp;→ env vars from K8s Secret (Ansible populates from Vault)
+  </div>
+</div>
+
+<div class="section">
+  <h3>GitHub Runners on K8s</h3>
+  <p>Simple approach: <code>myoung34/github-runner</code> as a K8s Deployment (2 replicas) on lw-c1. Same image as lw-s1 today, targets same repo. Shell executor inside pods. Registration token from Vault → K8s Secret.</p>
+  <p style="font-size:0.875rem;color:var(--text-muted)">Actions Runner Controller (ARC) left as a future upgrade path if job isolation becomes a requirement.</p>
+</div>
+
+<div class="section">
+  <h3>vCluster (test environment)</h3>
+  <p>Deployed via Helm into <code>test</code> namespace on the K3s cluster. Full isolated K8s API surface. Ephemeral — tear down and recreate per test suite. ArgoCD can manage its lifecycle.</p>
+</div>
+
+<div class="section">
+  <h3>Ansible Playbooks — What Changes</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+    <tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:0.4rem 0.6rem;color:var(--text-muted)">Playbook</th>
+      <th style="text-align:left;padding:0.4rem 0.6rem;color:var(--text-muted)">Action</th>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.4rem 0.6rem"><code>k8s/k3s-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">NEW — K3s install on lw-c1, Helm/k9s/Headlamp/ArgoCD on top</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.4rem 0.6rem"><code>k8s/n8n-workers-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">NEW — K8s Deployment + Secret for n8n queue workers</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.4rem 0.6rem"><code>k8s/github-runners-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">NEW — K8s Deployment + Secret for GitHub runners</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.4rem 0.6rem"><code>k8s/vcluster-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">NEW — Helm vCluster in test namespace</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.4rem 0.6rem"><code>automation/n8n-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">UPDATE — enable queue mode env vars on lw-s1</td>
+    </tr>
+    <tr>
+      <td style="padding:0.4rem 0.6rem"><code>infrastructure/nas-link-setup/</code></td>
+      <td style="padding:0.4rem 0.6rem">UPDATE — add 192.168.0.107 to NAS DB allowed clients</td>
+    </tr>
+  </table>
+</div>

@@ -1,0 +1,16 @@
+---
+# Netbox MCP Server — https://github.com/netboxlabs/netbox-mcp-server
+netbox_mcp_repo_url: "https://github.com/netboxlabs/netbox-mcp-server.git"
+netbox_mcp_install_dir: "{{ ansible_env.HOME }}/.local/lib/netbox-mcp-server"
+
+# Netbox API endpoint reachable from this machine.
+# Use the internal LAN address to bypass Authelia (API calls with a token
+# are blocked at the Cloudflare Tunnel + Authelia layer).
+netbox_url: "http://192.168.0.105:8081"
+
+# Local fallback secret file (written by monitoring/netbox-setup playbook)
+netbox_local_token_file: "{{ ansible_env.HOME }}/.homelab-secrets/netbox/api_token"
+
+# Claude Code MCP registration
+claude_mcp_name: "netbox"
+claude_mcp_scope: "user"

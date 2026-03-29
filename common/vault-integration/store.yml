@@ -11,10 +11,10 @@
 #   - name: Store secrets to Vault
 #     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
 #     vars:
-#       vault_service_name: "openclaw"
+#       vault_service_name: "portkey"
 #       vault_secrets_data:
-#         nvidia_api_key: "{{ openclaw_nvidia_api_key }}"
-#         groq_api_key: "{{ openclaw_groq_api_key }}"
+#         groq_api_key: "{{ groq_api_key }}"
+#         nvidia_api_key: "{{ nvidia_api_key }}"
 
 - name: Store secrets to Vault
   when:

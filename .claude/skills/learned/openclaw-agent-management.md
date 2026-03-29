@@ -32,11 +32,13 @@ openclaw agents bind --agent <id> --bind <channel[:accountId]>
 # Other: delete, set-identity, unbind, bindings
 ```
 
-### Ansible Idempotent Pattern
+### Ansible/K8s Idempotent Pattern
 ```yaml
 - name: List existing OpenClaw agents
   ansible.builtin.command:
-    cmd: docker exec openclaw openclaw agents list --json
+    cmd: kubectl exec -n openclaw deploy/openclaw -- openclaw agents list --json
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
   register: _openclaw_agents_raw
   changed_when: false
   failed_when: false
@@ -51,10 +53,13 @@ openclaw agents bind --agent <id> --bind <channel[:accountId]>
 - name: Create OpenClaw agents
   ansible.builtin.command:
     cmd: >-
-      docker exec openclaw openclaw agents add {{ item.name | quote }}
+      kubectl exec -n openclaw deploy/openclaw --
+      openclaw agents add {{ item.name | quote }}
       --model {{ item.model | quote }}
       --non-interactive
       --workspace /home/node/.openclaw/workspace
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
   loop: "{{ openclaw_agents }}"
   when: item.name not in _openclaw_existing_agents
 ```
@@ -84,13 +89,6 @@ Three-part format: `{provider}/{vendor}/{model}` for OpenClaw routing.
 - Config `models[].id`: `moonshotai/kimi-k2.5` (what the upstream API receives)
 - OpenClaw model ref: `nvidia/moonshotai/kimi-k2.5` (provider prefix + API model ID)
 - The `agents.defaults.model` and agent `--model` flags use the full prefixed form
-
-### Docker Compose Restart
-The socat proxy sidecar shares OpenClaw's network namespace (`network_mode: service:openclaw`).
-Plain `docker compose restart` leaves the proxy with a stale namespace. Always use:
-```bash
-docker compose down && docker compose up -d
-```
 
 ### Kubernetes / k3s Deployment
 

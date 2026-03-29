@@ -1,0 +1,11 @@
+---
+# KEDA Setup — Install event-driven autoscaler on K3s
+#
+# Usage:
+#   ansible-playbook k8s/keda-setup/setup.yml
+- name: Install KEDA on K3s
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - keda

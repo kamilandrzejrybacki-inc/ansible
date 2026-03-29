@@ -1,0 +1,5 @@
+---
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
+k3s_host: "kamil@192.168.0.107"
+n8n_host: "kamil-rybacki@192.168.0.108"
+n8n_compose_dir: "/opt/n8n"

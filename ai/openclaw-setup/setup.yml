@@ -1,183 +1,78 @@
 ---
-# OpenClaw K8s Setup Playbook
-# Writes API keys to Vault, creates K8s secret on lw-c1, applies ArgoCD Application,
-# and tears down the legacy Docker Compose deployment on lw-main.
-#
-# Prerequisites:
-#   - ~/.vault-ansible.yml with vault_addr and vault_token
-#   - kubectl configured on lw-c1 (192.168.0.107) with cluster access
-#   - ArgoCD running in the cluster
+# OpenClaw Secret Bootstrap Playbook
+# Writes Portkey gateway key to Vault and creates the K8s Secret.
+# All deployment config lives in charts/openclaw (managed by ArgoCD).
 #
 # Usage:
 #   ansible-playbook ai/openclaw-setup/setup.yml
 
-# Play 1: Prompt for API keys and write to Vault
-- name: Write OpenClaw API keys to Vault
+# -- Play 1: Write keys to Vault ---------------------------------------------
+- name: Write OpenClaw secrets to Vault
   hosts: localhost
   connection: local
   gather_facts: false
   vars_prompt:
-    - name: nvidia_api_key
-      prompt: "NVIDIA NIM API key (build.nvidia.com, leave empty to skip)"
-      private: true
-
-    - name: groq_api_key
-      prompt: "Groq API key (console.groq.com, leave empty to skip)"
-      private: true
-
-    - name: google_api_key
-      prompt: "Google Gemini API key (aistudio.google.dev, leave empty to skip)"
-      private: true
-
-    - name: deepseek_api_key
-      prompt: "DeepSeek API key (platform.deepseek.com, leave empty to skip)"
+    - name: portkey_gateway_key
+      prompt: "Portkey gateway auth key (same value as portkey_api_key from portkey-setup)"
       private: true
 
   tasks:
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
-    - name: Validate at least one provider key is provided
+    - name: Validate gateway key is provided
       ansible.builtin.assert:
         that:
-          - >-
-            (nvidia_api_key | default('') | length > 0) or
-            (groq_api_key | default('') | length > 0) or
-            (google_api_key | default('') | length > 0) or
-            (deepseek_api_key | default('') | length > 0)
-        fail_msg: >-
-          At least one provider API key must be provided.
+          - portkey_gateway_key | default('') | length > 0
+        fail_msg: "Portkey gateway key is required."
 
-    - name: Store API keys to Vault
+    - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
         vault_service_name: "openclaw"
         vault_secrets_data:
-          nvidia_api_key: "{{ nvidia_api_key | default('') }}"
-          groq_api_key: "{{ groq_api_key | default('') }}"
-          google_api_key: "{{ google_api_key | default('') }}"
-          deepseek_api_key: "{{ deepseek_api_key | default('') }}"
+          portkey_gateway_key: "{{ portkey_gateway_key }}"
       when: _vault_available | bool
 
-    - name: Warn if Vault is unavailable
-      ansible.builtin.debug:
-        msg: "WARNING: Vault not available — API keys will not be persisted. K8s secret will still be created."
-      when: not (_vault_available | bool)
-
-# Play 2: Create K8s secret and apply ArgoCD Application on lw-c1
-- name: Deploy OpenClaw to Kubernetes via ArgoCD
+# -- Play 2: Create K8s Secret -----------------------------------------------
+- name: Create OpenClaw K8s Secret
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
   tasks:
-    - name: Create openclaw namespace (idempotent)
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.107
-        "kubectl create namespace openclaw --dry-run=client -o yaml | kubectl apply -f -"
-      register: _ns_result
-      changed_when: "'created' in _ns_result.stdout"
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
-    - name: Create openclaw-secrets K8s secret (idempotent)
+    - name: Load OpenClaw secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "openclaw"
+
+    - name: Create openclaw namespace
       ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.107
-        "kubectl create secret generic openclaw-secrets
-         --namespace openclaw
-         --from-literal=nvidia_api_key={{ nvidia_api_key | default('') | quote }}
-         --from-literal=groq_api_key={{ groq_api_key | default('') | quote }}
-         --from-literal=google_api_key={{ google_api_key | default('') | quote }}
-         --from-literal=deepseek_api_key={{ deepseek_api_key | default('') | quote }}
-         --dry-run=client -o yaml | kubectl apply -f -"
-      register: _secret_result
-      changed_when: "'configured' in _secret_result.stdout or 'created' in _secret_result.stdout"
+        kubectl create namespace openclaw --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _ns
+      changed_when: "'created' in _ns.stdout"
+
+    - name: Create openclaw-secrets K8s Secret
+      ansible.builtin.command: >
+        kubectl create secret generic openclaw-secrets
+        --namespace openclaw
+        --from-literal=portkey_gateway_key={{ _vault_secrets.portkey_gateway_key | quote }}
+        --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _secret
+      changed_when: "'configured' in _secret.stdout or 'created' in _secret.stdout"
       no_log: true
 
-    - name: Write ArgoCD Application manifest to temp file
-      ansible.builtin.copy:
-        dest: /tmp/openclaw-argocd-app.yml
-        content: |
-          apiVersion: argoproj.io/v1alpha1
-          kind: Application
-          metadata:
-            name: openclaw
-            namespace: argocd
-          spec:
-            project: default
-            source:
-              repoURL: https://github.com/kamilandrzejrybacki-inc/helm.git
-              targetRevision: main
-              path: charts/openclaw
-            destination:
-              server: https://kubernetes.default.svc
-              namespace: openclaw
-            syncPolicy:
-              automated:
-                prune: true
-                selfHeal: true
-              syncOptions:
-                - CreateNamespace=true
-        mode: "0600"
-
-    - name: Copy ArgoCD Application manifest to lw-c1
-      ansible.builtin.command: >
-        scp /tmp/openclaw-argocd-app.yml kamil-rybacki@192.168.0.107:/tmp/openclaw-argocd-app.yml
-      changed_when: true
-
-    - name: Apply ArgoCD Application manifest
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.107 "kubectl apply -f /tmp/openclaw-argocd-app.yml"
-      register: _argocd_result
-      changed_when: "'configured' in _argocd_result.stdout or 'created' in _argocd_result.stdout"
-
-    - name: Clean up temp manifest on lw-c1
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.107 "rm -f /tmp/openclaw-argocd-app.yml"
-      changed_when: false
-
-    - name: Clean up local temp manifest
-      ansible.builtin.file:
-        path: /tmp/openclaw-argocd-app.yml
-        state: absent
-
-    - name: Report ArgoCD Application status
+    - name: Display completion
       ansible.builtin.debug:
-        msg: "ArgoCD Application result: {{ _argocd_result.stdout }}"
-
-# Play 3: Teardown lw-main Docker Compose (idempotent)
-- name: Teardown legacy Docker Compose deployment on lw-main
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Stop Docker Compose stack in /opt/openclaw (if present)
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.110
-        "[ -d /opt/openclaw ] && cd /opt/openclaw && docker compose down || true"
-      register: _compose_down
-      changed_when: "'Removed' in _compose_down.stdout or 'Stopping' in _compose_down.stdout"
-      ignore_errors: true
-
-    - name: Remove openclaw-lan-relay container (if present)
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.110 "docker rm -f openclaw-lan-relay 2>/dev/null || true"
-      register: _rm_relay
-      changed_when: _rm_relay.stdout | trim | length > 0
-      ignore_errors: true
-
-    - name: Remove UFW rule for openclaw port 18790
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.110
-        "sudo ufw delete allow from 192.168.0.0/16 to any port 18790 proto tcp 2>/dev/null || true"
-      register: _ufw_result
-      changed_when: "'Rule deleted' in _ufw_result.stdout"
-      ignore_errors: true
-
-    - name: Remove /opt/openclaw directory
-      ansible.builtin.command: >
-        ssh kamil-rybacki@192.168.0.110 "sudo rm -rf /opt/openclaw"
-      register: _rm_dir
-      changed_when: true
-      ignore_errors: true
-
-    - name: Report teardown completion
-      ansible.builtin.debug:
-        msg: "lw-main Docker Compose teardown complete (errors ignored — may have already been removed)."
+        msg: |
+          OpenClaw secret updated. ArgoCD will sync the new config automatically.
+          Secret: openclaw-secrets in namespace openclaw
+          Vault path: secret/homelab/openclaw

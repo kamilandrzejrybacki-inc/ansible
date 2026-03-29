@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: keda
+  author: kamilrybacki
+  description: Install KEDA event-driven autoscaler via Helm
+  min_ansible_version: "2.10"
+dependencies: []

@@ -37,6 +37,21 @@ k8s_secrets:
     data:
       GITHUB_TOKEN: runner_pat
 
+  - namespace: portkey
+    name: portkey-secrets
+    vault_path: portkey
+    data:
+      GROQ_API_KEY: groq_api_key
+      OPENAI_API_KEY: nvidia_api_key
+      DEEPSEEK_API_KEY: deepseek_api_key
+      PORTKEY_API_KEY: portkey_api_key
+
+  - namespace: openclaw
+    name: openclaw-secrets
+    vault_path: openclaw
+    data:
+      portkey_gateway_key: portkey_gateway_key
+
 # -- OIDC secrets (created from Authelia secrets on control node) -------------
 # These are NOT from Vault; they're injected at runtime from setup.yml facts.
 headlamp_oidc_client_secret: ""  # Set at runtime via extra-vars
@@ -67,6 +82,11 @@ argocd_applications:
       - { name: "config.oidc.clientID", value: "headlamp" }
       - { name: "config.oidc.issuerURL", value: "https://auth.{{ domain | default('kamilandrzejrybacki.dpdns.org') }}" }
       - { name: "config.oidc.scopes", value: "openid profile email groups" }
+
+  - name: portkey
+    chart_path: charts/portkey
+    namespace: portkey
+    values: {}
 
   - name: vcluster
     chart_path: charts/vcluster

@@ -112,16 +112,17 @@ Playbooks for deploying AI and LLM infrastructure.
 
 | Playbook | Description | Roles |
 |----------|-------------|-------|
-| [`ai/openclaw-setup`](./ai/openclaw-setup/) | OpenClaw — multi-provider AI agent framework with complexity-tiered routing + optional Ollama | 2 |
+| [`ai/openclaw-setup`](./ai/openclaw-setup/) | OpenClaw — K8s Secret bootstrap for ArgoCD-managed LLM agent framework | 0 |
 | [`ai/swe-af-setup`](./ai/swe-af-setup/) | SWE-AF — autonomous software engineering agent runtime | 2 |
+| [`k8s/portkey-setup`](./k8s/portkey-setup/) | Portkey AI Gateway — bootstrap Secret and Vault for ArgoCD-managed LLM proxy | 0 |
+| [`k8s/keda-setup`](./k8s/keda-setup/) | KEDA — event-driven autoscaler for K3s workloads | 1 |
 
 ### ai/openclaw-setup
 
-Deploys [OpenClaw](https://openclaw.com/) with 4 cloud providers + optional Ollama local provider. Complexity-tiered routing sends 90%+ traffic to free models (~$0-5/month).
+Manages the K8s Secret for [OpenClaw](https://openclaw.com/). Deployment and configuration are handled by ArgoCD via the `charts/openclaw` Helm chart.
 
-- **Providers:** NVIDIA NIM (free, 6 models), Groq (free, fast), Google Gemini (free, 1M context), DeepSeek (paid), Ollama (local, optional)
-- **Routing:** heartbeat → free models, simple tasks → free primary, complex → DeepSeek (if configured)
-- **Vault path:** `secret/homelab/openclaw` (nvidia_api_key, groq_api_key, gemini_api_key, deepseek_api_key)
+- **LLM routing:** via Portkey AI Gateway (free-tier fallback: Groq → NVIDIA, paid: DeepSeek, local: Ollama)
+- **Vault path:** `secret/homelab/openclaw` (portkey_gateway_key)
 
 ### ai/swe-af-setup
 

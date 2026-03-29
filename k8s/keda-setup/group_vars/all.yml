@@ -1,0 +1,4 @@
+---
+keda_version: "2.16.1"
+keda_namespace: "keda"
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"

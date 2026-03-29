@@ -1,0 +1,4 @@
+---
+keda_version: "2.16.1"
+keda_namespace: "keda"
+keda_helm_repo: "https://kedacore.github.io/charts"

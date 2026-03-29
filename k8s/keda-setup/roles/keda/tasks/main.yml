@@ -1,0 +1,54 @@
+---
+- name: Check if KEDA CRDs already exist
+  ansible.builtin.command: kubectl get crd scaledobjects.keda.sh
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _keda_crd_check
+  changed_when: false
+  failed_when: false
+
+- name: Add KEDA Helm repo
+  ansible.builtin.command: helm repo add kedacore {{ keda_helm_repo }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  changed_when: "'has been added' in _helm_repo.stdout"
+  register: _helm_repo
+  when: _keda_crd_check.rc != 0
+
+- name: Update Helm repos
+  ansible.builtin.command: helm repo update
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  changed_when: false
+  when: _keda_crd_check.rc != 0
+
+- name: Install KEDA via Helm
+  ansible.builtin.command: >
+    helm upgrade --install keda kedacore/keda
+    --namespace {{ keda_namespace }}
+    --create-namespace
+    --version {{ keda_version }}
+    --wait
+    --timeout 5m
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _keda_install
+  changed_when: "'has been upgraded' in _keda_install.stdout or 'has been installed' in _keda_install.stdout"
+  when: _keda_crd_check.rc != 0
+
+- name: Wait for KEDA operator to be ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=ready pod
+    -l app=keda-operator
+    -n {{ keda_namespace }}
+    --timeout=120s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  changed_when: false
+  when: _keda_crd_check.rc != 0
+
+- name: Display KEDA status
+  ansible.builtin.debug:
+    msg: >
+      KEDA {{ 'already installed' if _keda_crd_check.rc == 0 else 'installed successfully' }}
+      in namespace {{ keda_namespace }}.

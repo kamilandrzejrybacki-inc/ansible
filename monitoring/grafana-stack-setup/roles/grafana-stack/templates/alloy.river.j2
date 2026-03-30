@@ -249,13 +249,15 @@ prometheus.relabel "wireguard_labels" {
 {% if probe_seafile_url | default('') | length > 0 %}{% set _ = _probe_list.append(('seafile', probe_seafile_url)) %}{% endif %}
 {% if _probe_list | length > 0 %}
 prometheus.exporter.blackbox "apps" {
-  config = "modules:\n  http_2xx:\n    prober: http\n    timeout: 10s\n    http:\n      preferred_ip_protocol: ip4"
+  // http_2xx_or_auth: accepts 200 or 401 — Authelia returns 401 for non-browser clients
+  // Use for services behind Authelia SSO (paperless, netbox, outline, etc.)
+  config = "modules:\n  http_2xx:\n    prober: http\n    timeout: 10s\n    http:\n      preferred_ip_protocol: ip4\n  http_2xx_or_auth:\n    prober: http\n    timeout: 10s\n    http:\n      preferred_ip_protocol: ip4\n      valid_status_codes: [200, 401]"
 
 {% for name, url in _probe_list %}
   target {
     name    = "{{ name }}"
     address = "{{ url }}"
-    module  = "http_2xx"
+    module  = "{{ 'http_2xx_or_auth' if name in (probe_authelia_services | default([])) else 'http_2xx' }}"
     labels  = { service = "{{ name }}" }
   }
 {% endfor %}

@@ -61,6 +61,13 @@ probe_outline_url: ""
 probe_vaultwarden_url: ""   # removed from homelab
 probe_seafile_url: ""
 
+# Services behind Authelia SSO — use http_2xx_or_auth module (accepts 401 as "up")
+# Authelia returns 401 (not 302) to non-browser HTTP clients
+probe_authelia_services:
+  - paperless
+  - netbox
+  - outline
+
 # Remote Mimir/Loki endpoints (on lw-nas)
 mimir_remote_host: "10.0.1.2"
 mimir_remote_port: 9009

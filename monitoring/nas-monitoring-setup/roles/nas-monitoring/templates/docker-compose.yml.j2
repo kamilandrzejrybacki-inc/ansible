@@ -25,6 +25,10 @@ services:
       - "127.0.0.1:{{ smartctl_exporter_port }}:9633"
     volumes:
       - /dev:/dev:ro
+    user: "0:0"
+    command:
+      - "--smartctl.path=/usr/sbin/smartctl"
+      - "--smartctl.rescan=5m"
 
   postgres-exporter:
     image: {{ postgres_exporter_image }}

@@ -1,0 +1,18 @@
+---
+# =============================================================================
+# Mimir + Loki Setup (on lw-nas)
+# =============================================================================
+# Deploys Mimir and Loki as a Docker Compose stack on the NAS, storing data
+# on the mergerfs pool with SnapRAID protection.
+#
+# Usage:
+#   ansible-playbook monitoring/mimir-loki-setup/setup.yml \
+#     -i monitoring/mimir-loki-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Deploy Mimir + Loki on NAS
+  hosts: nas
+  become: true
+  roles:
+    - mimir-loki

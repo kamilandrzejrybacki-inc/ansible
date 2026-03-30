@@ -1,0 +1,24 @@
+services:
+  loki:
+    image: {{ loki_image }}
+    container_name: loki
+    restart: {{ restart_policy }}
+    user: "0:0"
+    ports:
+      - "0.0.0.0:{{ loki_port }}:3100"
+    volumes:
+      - {{ data_dir }}/loki/loki.yml:/etc/loki/loki.yml:ro
+      - {{ loki_storage_dir }}:/data/loki
+    command: -config.file=/etc/loki/loki.yml
+
+  mimir:
+    image: {{ mimir_image }}
+    container_name: mimir
+    restart: {{ restart_policy }}
+    user: "0:0"
+    ports:
+      - "0.0.0.0:{{ mimir_port }}:9009"
+    volumes:
+      - {{ data_dir }}/mimir/mimir.yml:/etc/mimir/mimir.yml:ro
+      - {{ mimir_storage_dir }}:/data/mimir
+    command: -config.file=/etc/mimir/mimir.yml

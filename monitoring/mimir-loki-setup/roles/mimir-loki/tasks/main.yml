@@ -1,0 +1,104 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ data_dir }}"
+    - "{{ data_dir }}/loki"
+    - "{{ data_dir }}/mimir"
+
+- name: Create storage directories on mergerfs pool
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "0"
+    group: "0"
+    mode: "0755"
+  loop:
+    - "{{ mimir_storage_dir }}"
+    - "{{ mimir_storage_dir }}/blocks"
+    - "{{ mimir_storage_dir }}/compactor"
+    - "{{ loki_storage_dir }}"
+    - "{{ loki_storage_dir }}/chunks"
+    - "{{ loki_storage_dir }}/rules"
+
+- name: Allow Mimir from monitoring clients
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ mimir_port }}"
+    proto: tcp
+    comment: "Mimir from {{ item }}"
+  loop: "{{ allowed_clients }}"
+
+- name: Allow Loki from monitoring clients
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ loki_port }}"
+    proto: tcp
+    comment: "Loki from {{ item }}"
+  loop: "{{ allowed_clients }}"
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ data_dir }}/docker-compose.yml"
+    mode: "0640"
+
+- name: Template Mimir configuration
+  ansible.builtin.template:
+    src: mimir.yml.j2
+    dest: "{{ data_dir }}/mimir/mimir.yml"
+    mode: "0644"
+
+- name: Template Loki configuration
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: "{{ data_dir }}/loki/loki.yml"
+    mode: "0644"
+
+- name: Deploy Mimir + Loki stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ data_dir }}"
+    state: present
+
+- name: Wait for Mimir to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ mimir_port }}/ready"
+    status_code: [200]
+  register: mimir_health
+  until: mimir_health is not failed
+  retries: 20
+  delay: 5
+
+- name: Wait for Loki to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ loki_port }}/ready"
+    status_code: [200]
+  register: loki_health
+  until: loki_health is not failed
+  retries: 20
+  delay: 5
+
+- name: Display access information
+  ansible.builtin.debug:
+    msg: |
+      Mimir + Loki are running on lw-nas ({{ inventory_hostname }})
+
+      Endpoints:
+        Mimir push: http://{{ inventory_hostname }}:{{ mimir_port }}/api/v1/push
+        Mimir query: http://{{ inventory_hostname }}:{{ mimir_port }}/prometheus
+        Loki push:  http://{{ inventory_hostname }}:{{ loki_port }}/loki/api/v1/push
+        Loki query: http://{{ inventory_hostname }}:{{ loki_port }}
+
+      Storage:
+        Mimir: {{ mimir_storage_dir }} (mergerfs pool)
+        Loki:  {{ loki_storage_dir }} (mergerfs pool)

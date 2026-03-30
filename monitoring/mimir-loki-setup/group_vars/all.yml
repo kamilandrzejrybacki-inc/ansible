@@ -1,0 +1,20 @@
+---
+mimir_image: "grafana/mimir:2.14.0"
+mimir_port: 9009
+
+loki_image: "grafana/loki:3.3.2"
+loki_port: 3100
+
+restart_policy: unless-stopped
+
+# Storage on mergerfs pool with SnapRAID protection
+data_dir: /opt/mimir-loki
+mimir_storage_dir: /mnt/pool/monitoring/mimir
+loki_storage_dir: /mnt/pool/monitoring/loki
+
+# Firewall: which IPs can push metrics/logs
+allowed_clients:
+  - "10.0.1.1"        # lw-main via direct link
+  - "192.168.0.105"   # lw-main via LAN
+  - "192.168.0.108"   # lw-s1
+  - "192.168.0.107"   # lw-c1

@@ -56,9 +56,9 @@ probe_extra_hosts:
   - "paperless.kamilandrzejrybacki.dpdns.org"
   - "netbox.kamilandrzejrybacki.dpdns.org"
 
-probe_n8n_url: "http://n8n.kamilandrzejrybacki.dpdns.org"
-probe_paperless_url: "http://paperless.kamilandrzejrybacki.dpdns.org"
-probe_netbox_url: "http://netbox.kamilandrzejrybacki.dpdns.org"
+probe_n8n_url: "https://n8n.kamilandrzejrybacki.dpdns.org"
+probe_paperless_url: "https://paperless.kamilandrzejrybacki.dpdns.org"
+probe_netbox_url: "https://netbox.kamilandrzejrybacki.dpdns.org"
 probe_outline_url: ""
 probe_vaultwarden_url: ""   # removed from homelab
 probe_seafile_url: ""

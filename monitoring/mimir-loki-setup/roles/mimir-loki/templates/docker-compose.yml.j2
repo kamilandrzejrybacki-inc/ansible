@@ -5,7 +5,7 @@ services:
     restart: {{ restart_policy }}
     user: "0:0"
     ports:
-      - "0.0.0.0:{{ loki_port }}:3100"
+      - "{{ nas_bind_ip }}:{{ loki_port }}:3100"
     volumes:
       - {{ data_dir }}/loki/loki.yml:/etc/loki/loki.yml:ro
       - {{ loki_storage_dir }}:/data/loki
@@ -17,7 +17,7 @@ services:
     restart: {{ restart_policy }}
     user: "0:0"
     ports:
-      - "0.0.0.0:{{ mimir_port }}:9009"
+      - "{{ nas_bind_ip }}:{{ mimir_port }}:9009"
     volumes:
       - {{ data_dir }}/mimir/mimir.yml:/etc/mimir/mimir.yml:ro
       - {{ mimir_storage_dir }}:/data/mimir

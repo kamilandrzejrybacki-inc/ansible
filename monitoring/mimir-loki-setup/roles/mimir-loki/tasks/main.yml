@@ -58,12 +58,14 @@
     src: mimir.yml.j2
     dest: "{{ data_dir }}/mimir/mimir.yml"
     mode: "0644"
+  notify: Restart mimir-loki stack
 
 - name: Template Loki configuration
   ansible.builtin.template:
     src: loki.yml.j2
     dest: "{{ data_dir }}/loki/loki.yml"
     mode: "0644"
+  notify: Restart mimir-loki stack
 
 - name: Deploy Mimir + Loki stack
   community.docker.docker_compose_v2:

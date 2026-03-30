@@ -1,5 +1,9 @@
 // ── Host metrics (node_exporter-compatible) ──────────────────────────────────
-prometheus.exporter.unix "host" {}
+prometheus.exporter.unix "host" {
+  enable_collectors = ["cpu", "diskstats", "filesystem", "loadavg", "meminfo",
+                       "netdev", "netstat", "stat", "time", "uname", "vmstat",
+                       "systemd", "hwmon", "pressure", "processes", "interrupts"]
+}
 
 prometheus.relabel "host_labels" {
   forward_to = [prometheus.remote_write.mimir.receiver]

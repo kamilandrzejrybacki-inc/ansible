@@ -1,5 +1,8 @@
 // ── Host metrics (node_exporter-compatible) ──────────────────────────────────
 prometheus.exporter.unix "host" {
+  enable_collectors = ["cpu", "diskstats", "filesystem", "loadavg", "meminfo",
+                       "netdev", "netstat", "stat", "time", "uname", "vmstat",
+                       "systemd", "hwmon", "pressure", "processes", "interrupts"]
   procfs_path          = "/host/proc"
   sysfs_path           = "/host/sys"
   textfile {

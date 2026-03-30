@@ -39,8 +39,9 @@ vault_metrics_host: "172.19.0.1"   # Vault is on vault_default; reach via Docker
 vault_metrics_port: 8200
 vault_metrics_token: ""   # Loaded from Vault at deploy time via vault-integration (secret/grafana-stack → vault_metrics_token)
 
-# DNS for Alloy container — Pi-hole port 53 is published on 0.0.0.0, reachable via Docker gateway
-pihole_dns_ip: "172.19.0.1"
+# DNS for Alloy container — use public DNS (not Pi-hole) so blackbox probe domains resolve to
+# real Cloudflare IPs. Docker internal resolver (127.0.0.11) still handles container names.
+pihole_dns_ip: "1.1.1.1"
 
 pihole_exporter_host: ""   # Enable after running pihole role with pihole_exporter_enabled: true
 pihole_exporter_port: 9617
@@ -49,12 +50,9 @@ wireguard_exporter_host: ""   # Enable after running wireguard role with wiregua
 wireguard_exporter_port: 9586
 
 # Application service probe URLs — HTTPS via public domain to get SSL cert expiry metrics
-# Alloy resolves these via Pi-hole to LAN IP, but Docker hairpin NAT prevents reaching
-# host-published ports from inside containers. extra_hosts maps them to Caddy's homelab-net IP.
-probe_extra_hosts:
-  - "n8n.kamilandrzejrybacki.dpdns.org"
-  - "paperless.kamilandrzejrybacki.dpdns.org"
-  - "netbox.kamilandrzejrybacki.dpdns.org"
+# extra_hosts disabled: Caddy doesn't serve HTTPS on its Docker IP. Public DNS (1.1.1.1)
+# resolves probe domains to Cloudflare IPs which are reachable from the Docker container.
+probe_extra_hosts: []
 
 probe_n8n_url: "https://n8n.kamilandrzejrybacki.dpdns.org"
 probe_paperless_url: "https://paperless.kamilandrzejrybacki.dpdns.org"

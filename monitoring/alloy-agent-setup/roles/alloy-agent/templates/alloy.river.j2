@@ -70,6 +70,29 @@ loki.source.docker "containers" {
   }
 }
 
+{% if n8n_metrics_enabled | default(false) | bool %}
+// ── n8n metrics ──────────────────────────────────────────────────────────────
+prometheus.scrape "n8n" {
+  targets         = [{"__address__" = "localhost:{{ n8n_metrics_port }}"}]
+  metrics_path    = "/metrics"
+  forward_to      = [prometheus.relabel.n8n_labels.receiver]
+  scrape_interval = "{{ alloy_scrape_interval }}"
+}
+
+prometheus.relabel "n8n_labels" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "n8n"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "{{ ansible_hostname | default('localhost') }}"
+  }
+}
+{% endif %}
+
 // ── Remote write endpoints ────────────────────────────────────────────────────
 prometheus.remote_write "mimir" {
   endpoint {

@@ -27,7 +27,7 @@
     volumes: "{{ [n8n_volume_name + ':/home/node/.n8n'] + n8n_extra_volumes }}"
     networks:
       - name: "{{ n8n_network_name }}"
-    env: "{{ _n8n_env | combine(_n8n_public_url_env) | combine(_n8n_queue_env) | combine(_n8n_db_env) }}"
+    env: "{{ _n8n_env | combine(_n8n_public_url_env) | combine(_n8n_queue_env) | combine(_n8n_db_env) | combine(_n8n_metrics_env) }}"
     comparisons:
       env: ignore   # vault-n8n-sync daemon owns N8N_VAR_* — Ansible must not fight it
   vars:
@@ -68,6 +68,13 @@
         }
         if n8n_db_type | default('') == 'postgresdb' else {}
       }}
+    _n8n_metrics_env:
+      N8N_METRICS: "true"
+      N8N_METRICS_INCLUDE_DEFAULT_METRICS: "true"
+      N8N_METRICS_INCLUDE_QUEUE_METRICS: "{{ 'true' if n8n_queue_mode | default(false) | bool else 'false' }}"
+      N8N_METRICS_QUEUE_METRICS_INTERVAL: "10"
+      N8N_METRICS_INCLUDE_WORKFLOW_EXECUTION_DURATION: "true"
+      N8N_METRICS_INCLUDE_CACHE_METRICS: "true"
 
 - name: Wait for n8n to become reachable
   ansible.builtin.uri:

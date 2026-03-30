@@ -18,9 +18,9 @@ redis_exporter_port: 9121
 docker_exporter_port: 9338
 
 # Remote write targets (Mimir/Loki on same host)
-mimir_host: "localhost"
+mimir_host: "10.0.1.2"
 mimir_port: 9009
-loki_host: "localhost"
+loki_host: "10.0.1.2"
 loki_port: 3100
 
 # Database connections (from Vault or vars_prompt)

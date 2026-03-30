@@ -52,6 +52,11 @@ access_control:
     # Nexterm: one-factor from any network — Nexterm has its own OIDC auth layer
     - domain: "{{ nexterm_hostname | default('nexterm') }}.{{ domain }}"
       policy: "one_factor"
+    # Grafana API: bypass for token auth (Grizzly, GitHub Actions CI/CD)
+    - domain: "grafana.{{ domain }}"
+      resources:
+        - "^/api/.*"
+      policy: "bypass"
     # WAN: full two-factor
     - domain: "*.{{ domain }}"
       policy: "two_factor"

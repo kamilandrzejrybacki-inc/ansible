@@ -1,0 +1,8 @@
+---
+infravision_data_dir: /opt/infravision
+infravision_port: 8090
+infravision_repo: "https://github.com/kamilandrzejrybacki-inc/infravision.git"
+infravision_ansible_repo: "https://github.com/kamilandrzejrybacki-inc/ansible.git"
+infravision_container_name: infravision
+infravision_rebuild_hour: "0"
+infravision_rebuild_minute: "0"

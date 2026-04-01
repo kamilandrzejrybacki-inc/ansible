@@ -1,0 +1,27 @@
+---
+# =============================================================================
+# n8n secret proxy sidecar
+# =============================================================================
+# Runs the same secret-injecting proxy used by k8s workers alongside the
+# main n8n Docker container. Uses network_mode: container:<n8n> so the proxy
+# is accessible at 127.0.0.1:8787 from within n8n (matching k8s behavior).
+#
+# Secrets are sourced from Vault via the vault-shim's n8n variables, which
+# are then passed as env vars to this container.
+# =============================================================================
+
+- name: Pull secret proxy image
+  community.docker.docker_image:
+    name: "{{ n8n_secret_proxy_image }}"
+    source: pull
+    state: present
+
+- name: Start n8n secret proxy sidecar
+  community.docker.docker_container:
+    name: "{{ n8n_secret_proxy_container_name }}"
+    image: "{{ n8n_secret_proxy_image }}"
+    state: started
+    restart_policy: "{{ n8n_restart_policy }}"
+    network_mode: "container:{{ n8n_container_name }}"
+    env: "{{ n8n_secret_proxy_env }}"
+  no_log: true

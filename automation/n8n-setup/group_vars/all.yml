@@ -49,6 +49,12 @@ n8n_db_name: "n8n"
 n8n_db_user: "n8n"
 # n8n_db_password and n8n_encryption_key come from Vault (secret/homelab/n8n-postgres)
 
+# Secret proxy sidecar (shares network namespace with n8n container → 127.0.0.1:8787)
+n8n_secret_proxy_container_name: n8n-secret-proxy
+n8n_secret_proxy_image: "ghcr.io/kamilrybacki/n8n-secret-proxy:latest"
+# Secrets are injected from Vault at deploy time (see setup.yml vault_read tasks)
+n8n_secret_proxy_env: {}  # populated by setup.yml from Vault
+
 # Mount host SSH key read-only so Execute Command nodes can SSH to homelab nodes
 n8n_extra_volumes:
   - "/home/kamil/.ssh/n8n-backup-key:/home/node/.ssh/n8n-backup-key:ro"

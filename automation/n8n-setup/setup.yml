@@ -183,13 +183,49 @@
         _n8n_vault_reader_token: "{{ _n8n_vault_token_resp.json.auth.client_token }}"
       no_log: true
 
+- name: Load secret proxy env from Vault
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  when: _vault_available | default(false) | bool
+  tasks:
+    - name: Read n8n secrets from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/secret/data/homelab/n8n"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200]
+      register: _n8n_vault_data
+      no_log: true
+
+    - name: Build secret proxy env from Vault data
+      ansible.builtin.set_fact:
+        _secret_proxy_env:
+          GROQ_API_KEY: "{{ _n8n_vault_data.json.data.data.groq_api_key | default('') }}"
+          NVIDIA_API_KEY: "{{ _n8n_vault_data.json.data.data.nvidia_api_key | default('') }}"
+          DEEPSEEK_API_KEY: "{{ _n8n_vault_data.json.data.data.deepseek_api_key | default('') }}"
+          OBSIDIAN_API_KEY: "{{ _n8n_vault_data.json.data.data.obsidian_api_key | default('') }}"
+          TELEGRAM_BOT_TOKEN: "{{ _n8n_vault_data.json.data.data.telegram_bot_token | default('') }}"
+          PAPERLESS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.paperless_api_token | default('') }}"
+          NETBOX_API_TOKEN: "{{ _n8n_vault_data.json.data.data.netbox_token | default('') }}"
+          LIBRENMS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.librenms_token | default('') }}"
+          PORTKEY_UPSTREAM: "http://192.168.0.107:30787"
+          OBSIDIAN_URL: "http://10.0.1.2:27124"
+          PAPERLESS_URL: "http://10.0.1.2:8000"
+          NETBOX_URL: "http://192.168.0.105:8081"
+          LIBRENMS_URL: "http://192.168.0.105:8080"
+      no_log: true
+
 - name: Install Docker and deploy n8n
   hosts: n8n_hosts
   become: true
+  vars:
+    n8n_secret_proxy_env: "{{ hostvars['localhost']['_secret_proxy_env'] | default({}) }}"
   roles:
     - docker
     - n8n
     - n8n-vault-shim
+    - n8n-secret-proxy
 
 - name: Integrate n8n with secure homelab (Caddy + Cloudflare Tunnel + Pi-hole + Homepage)
   hosts: localhost

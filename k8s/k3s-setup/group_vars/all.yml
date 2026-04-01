@@ -52,6 +52,11 @@ k8s_secrets:
     data:
       portkey_gateway_key: portkey_gateway_key
 
+  # distillery-secrets is managed by k8s/distillery-setup/setup.yml
+  # (Vault stores all env vars; the playbook assembles the full secret including
+  # Redis URL with password and in-cluster service URLs.)
+  # Not listed here because the data shape is complex — handled by the setup playbook.
+
 # -- OIDC secrets (created from Authelia secrets on control node) -------------
 # These are NOT from Vault; they're injected at runtime from setup.yml facts.
 headlamp_oidc_client_secret: ""  # Set at runtime via extra-vars
@@ -91,6 +96,16 @@ argocd_applications:
   - name: vcluster
     chart_path: charts/vcluster
     namespace: test
+    values: {}
+
+  - name: qdrant
+    chart_path: charts/qdrant
+    namespace: qdrant
+    values: {}
+
+  - name: distillery
+    chart_path: charts/distillery
+    namespace: distillery
     values: {}
 
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo

@@ -1,0 +1,155 @@
+---
+# Distillery Bootstrap Playbook
+# One-time: writes secrets to Vault, creates K8s Secret, registers ArgoCD Applications
+# for both distillery and qdrant.
+#
+# After this playbook runs, ArgoCD manages both charts entirely.
+# Config changes go through git commits to kamilandrzejrybacki-inc/helm.
+#
+# Prerequisites:
+#   - k3s running with ArgoCD deployed (run k8s/k3s-setup/setup.yml first)
+#   - ~/.vault-ansible.yml with vault_addr and vault_token
+#   - ~/.homelab-secrets/shared-redis/password must exist
+#
+# Usage:
+#   ansible-playbook k8s/distillery-setup/setup.yml
+
+# -- Play 1: Write secrets to Vault ------------------------------------------
+- name: Write Distillery secrets to Vault
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: distillery_api_key
+      prompt: "Distillery API key (leave blank to auto-generate)"
+      private: true
+      default: ""
+
+    - name: groq_api_key
+      prompt: "Groq API key (optional, press Enter to skip)"
+      private: true
+      default: ""
+
+    - name: nvidia_api_key
+      prompt: "NVIDIA NIM API key (optional, press Enter to skip)"
+      private: true
+      default: ""
+
+    - name: deepseek_api_key
+      prompt: "DeepSeek API key (optional, press Enter to skip)"
+      private: true
+      default: ""
+
+    - name: obsidian_api_key
+      prompt: "Obsidian Local REST API key (optional, press Enter to skip)"
+      private: true
+      default: ""
+
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load shared Redis password from file
+      ansible.builtin.set_fact:
+        _redis_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-redis/password') | trim }}"
+      no_log: true
+
+    - name: Auto-generate API key if not provided
+      ansible.builtin.set_fact:
+        _api_key: "{{ distillery_api_key if distillery_api_key | length > 0 else lookup('password', '/dev/null chars=ascii_letters,digits,_- length=44') }}"
+      no_log: true
+
+    - name: Store secrets to Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
+      vars:
+        vault_service_name: "distillery"
+        vault_secrets_data:
+          api_key: "{{ _api_key }}"
+          redis_password: "{{ _redis_password }}"
+          groq_api_key: "{{ groq_api_key | default('') }}"
+          nvidia_api_key: "{{ nvidia_api_key | default('') }}"
+          deepseek_api_key: "{{ deepseek_api_key | default('') }}"
+          obsidian_api_key: "{{ obsidian_api_key | default('') }}"
+      when: _vault_available | bool
+
+    - name: Display generated API key
+      ansible.builtin.debug:
+        msg: "Distillery API key: {{ _api_key }}"
+      no_log: false
+      when: distillery_api_key | length == 0
+
+# -- Play 2: Create K8s Secrets and namespaces --------------------------------
+- name: Create K8s resources
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    redis_host: "10.0.1.2"
+    redis_port: "6379"
+    redis_db: "0"
+    qdrant_url: "http://qdrant.qdrant.svc.cluster.local:6333"
+    ollama_url: "http://ollama.ollama.svc.cluster.local:11434"
+    portkey_url: "http://portkey-free.portkey.svc.cluster.local:8787"
+    obsidian_url: "http://10.0.1.2:27124"
+    embedding_model: "nomic-embed-text"
+    collection_name: "knowledge"
+    stream_name: "knowledge:ingest"
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load Distillery secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "distillery"
+
+    - name: Create distillery namespace
+      ansible.builtin.command: >
+        kubectl create namespace distillery --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _ns
+      changed_when: "'created' in _ns.stdout"
+
+    - name: Create distillery-secrets K8s Secret
+      ansible.builtin.command: >
+        kubectl create secret generic distillery-secrets
+        --namespace distillery
+        --from-literal=DISTILLERY_API_KEY={{ _vault_secrets.api_key | quote }}
+        --from-literal=DISTILLERY_REDIS_URL=redis://:{{ _vault_secrets.redis_password | quote }}@{{ redis_host }}:{{ redis_port }}/{{ redis_db }}
+        --from-literal=DISTILLERY_QDRANT_URL={{ qdrant_url | quote }}
+        --from-literal=DISTILLERY_OLLAMA_URL={{ ollama_url | quote }}
+        --from-literal=DISTILLERY_PORTKEY_URL={{ portkey_url | quote }}
+        --from-literal=DISTILLERY_OBSIDIAN_URL={{ obsidian_url | quote }}
+        --from-literal=DISTILLERY_OBSIDIAN_API_KEY={{ (_vault_secrets.obsidian_api_key | default('')) | quote }}
+        --from-literal=DISTILLERY_GROQ_API_KEY={{ (_vault_secrets.groq_api_key | default('')) | quote }}
+        --from-literal=DISTILLERY_NVIDIA_API_KEY={{ (_vault_secrets.nvidia_api_key | default('')) | quote }}
+        --from-literal=DISTILLERY_DEEPSEEK_API_KEY={{ (_vault_secrets.deepseek_api_key | default('')) | quote }}
+        --from-literal=DISTILLERY_EMBEDDING_MODEL={{ embedding_model | quote }}
+        --from-literal=DISTILLERY_COLLECTION_NAME={{ collection_name | quote }}
+        --from-literal=DISTILLERY_STREAM_NAME={{ stream_name | quote }}
+        --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _secret
+      changed_when: "'configured' in _secret.stdout or 'created' in _secret.stdout"
+      no_log: true
+
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          Distillery bootstrap complete!
+
+          - Vault: secrets stored at secret/homelab/distillery
+          - K8s: distillery-secrets created in distillery namespace
+          - ArgoCD: will sync distillery + qdrant charts from kamilandrzejrybacki-inc/helm
+
+          Next: run k8s/k3s-setup/setup.yml (Plays 6-7 only) to register ArgoCD Applications,
+          or add distillery and qdrant to argocd_applications in
+          k8s/k3s-setup/group_vars/all.yml and re-run.
+
+          For local dev, Qdrant will be accessible at:
+            http://192.168.0.107:30633
+          Update your local .env:
+            DISTILLERY_QDRANT_URL=http://192.168.0.107:30633
+            DISTILLERY_REDIS_URL=redis://:<redis_password>@10.0.1.2:6379/0

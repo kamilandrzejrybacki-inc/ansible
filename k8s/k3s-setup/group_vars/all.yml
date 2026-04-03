@@ -62,6 +62,7 @@ k8s_secrets:
       obsidian_api_key: obsidian_api_key
       netbox_token: netbox_token
       vault_token: vault_token
+      n8n_mcp_token: n8n_mcp_token
       grafana_sa_token: grafana_sa_token
 
   # distillery-secrets is managed by k8s/distillery-setup/setup.yml

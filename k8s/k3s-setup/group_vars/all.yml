@@ -52,6 +52,15 @@ k8s_secrets:
     data:
       portkey_gateway_key: portkey_gateway_key
 
+  - namespace: mcp-bridges
+    name: mcp-bridges-secrets
+    vault_path: mcp-bridges
+    data:
+      obsidian_api_key: obsidian_api_key
+      netbox_token: netbox_token
+      vault_token: vault_token
+      grafana_sa_token: grafana_sa_token
+
   # distillery-secrets is managed by k8s/distillery-setup/setup.yml
   # (Vault stores all env vars; the playbook assembles the full secret including
   # Redis URL with password and in-cluster service URLs.)
@@ -106,6 +115,11 @@ argocd_applications:
   - name: distillery
     chart_path: charts/distillery
     namespace: distillery
+    values: {}
+
+  - name: mcp-bridges
+    chart_path: charts/mcp-bridges
+    namespace: mcp-bridges
     values: {}
 
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo

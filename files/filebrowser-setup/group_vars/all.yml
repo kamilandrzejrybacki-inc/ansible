@@ -1,0 +1,13 @@
+---
+filebrowser_container_name: filebrowser
+filebrowser_image: "filebrowser/filebrowser:latest"
+filebrowser_port: 8082
+filebrowser_config_dir: /opt/filebrowser
+filebrowser_data_dir: /mnt/storage/files
+filebrowser_restart_policy: unless-stopped
+filebrowser_health_check_retries: 12
+filebrowser_health_check_delay: 5
+filebrowser_hostname: "files"
+filebrowser_bind_address: "0.0.0.0"
+filebrowser_uid: 1000
+filebrowser_gid: 1000

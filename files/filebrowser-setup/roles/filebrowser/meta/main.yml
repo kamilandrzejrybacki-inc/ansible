@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: filebrowser
+  author: kamilrybacki
+  description: Deploy Filebrowser file management UI in Docker
+  min_ansible_version: "2.10"
+dependencies:
+  - docker

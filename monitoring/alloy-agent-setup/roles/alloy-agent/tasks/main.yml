@@ -60,6 +60,13 @@
     state: started
   when: docker_exporter_enabled | default(true) | bool
 
+- name: Add alloy user to docker group
+  ansible.builtin.user:
+    name: alloy
+    groups: docker
+    append: true
+  notify: restart alloy
+
 - name: Enable and start Alloy service
   ansible.builtin.systemd:
     name: alloy

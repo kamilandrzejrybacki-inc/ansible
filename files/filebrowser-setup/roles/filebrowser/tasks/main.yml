@@ -1,0 +1,71 @@
+---
+- name: Install Python Docker SDK
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+
+- name: Create Filebrowser config directory
+  ansible.builtin.file:
+    path: "{{ filebrowser_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create Filebrowser data directory with correct ownership
+  ansible.builtin.file:
+    path: "{{ filebrowser_data_dir }}"
+    state: directory
+    owner: "{{ filebrowser_uid }}"
+    group: "{{ filebrowser_gid }}"
+    mode: "0755"
+
+- name: Write Filebrowser settings file
+  ansible.builtin.copy:
+    dest: "{{ filebrowser_config_dir }}/settings.json"
+    content: |
+      {
+        "port": 80,
+        "address": "",
+        "database": "/database/filebrowser.db",
+        "root": "/srv",
+        "auth": {
+          "method": "noauth"
+        }
+      }
+    mode: "0644"
+  notify: restart filebrowser
+
+- name: Start Filebrowser container
+  community.docker.docker_container:
+    name: "{{ filebrowser_container_name }}"
+    image: "{{ filebrowser_image }}"
+    state: started
+    restart_policy: "{{ filebrowser_restart_policy }}"
+    env:
+      UID: "{{ filebrowser_uid | string }}"
+      GID: "{{ filebrowser_gid | string }}"
+    published_ports:
+      - "{{ filebrowser_bind_address }}:{{ filebrowser_port }}:80"
+    volumes:
+      - "{{ filebrowser_config_dir }}:/database"
+      - "{{ filebrowser_config_dir }}/settings.json:/config/settings.json:ro"
+      - "{{ filebrowser_data_dir }}:/srv"
+
+- name: Wait for Filebrowser to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ filebrowser_port }}"
+    status_code: [200, 302]
+  register: filebrowser_health
+  until: filebrowser_health is not failed
+  retries: "{{ filebrowser_health_check_retries }}"
+  delay: "{{ filebrowser_health_check_delay }}"
+
+- name: Display Filebrowser access information
+  ansible.builtin.debug:
+    msg: |
+      Filebrowser is running at http://{{ inventory_hostname }}:{{ filebrowser_port }}
+
+      Files are served from {{ filebrowser_data_dir }}.
+      Config and database persist in {{ filebrowser_config_dir }}.
+
+      To put behind a reverse proxy, configure your proxy to forward
+      to {{ filebrowser_bind_address }}:{{ filebrowser_port }}.

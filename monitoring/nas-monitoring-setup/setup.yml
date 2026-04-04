@@ -57,6 +57,7 @@
           postgresql://postgres_exporter:{{ postgres_password or hostvars['localhost']['_vault_secrets']['exporter_password'] | default('') }}@10.0.1.2:5432/postgres?sslmode=disable
         mariadb_dsn: >-
           exporter:{{ mariadb_password or hostvars['localhost']['_vault_secrets']['mariadb_exporter_password'] | default('') }}@tcp(10.0.1.2:3306)/
+        mariadb_password: "{{ mariadb_password or hostvars['localhost']['_vault_secrets']['mariadb_exporter_password'] | default('') }}"
         redis_password: "{{ redis_password or hostvars['localhost']['_vault_secrets']['redis_password'] | default('') }}"
 
 - name: Deploy NAS monitoring

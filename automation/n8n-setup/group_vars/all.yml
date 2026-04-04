@@ -58,3 +58,4 @@ n8n_secret_proxy_env: {}  # populated by setup.yml from Vault
 # Mount host SSH key read-only so Execute Command nodes can SSH to homelab nodes
 n8n_extra_volumes:
   - "/home/kamil/.ssh/n8n-backup-key:/home/node/.ssh/n8n-backup-key:ro"
+  - "/opt/n8n/binary-data:/data/binary-data:rw"

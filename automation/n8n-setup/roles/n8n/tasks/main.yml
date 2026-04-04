@@ -36,6 +36,8 @@
       N8N_HOST: "{{ n8n_hostname }}"
       N8N_PORT: "5678"
       N8N_PROTOCOL: "{{ 'https' if n8n_public_url | default('') != '' else 'http' }}"
+      N8N_DEFAULT_BINARY_DATA_MODE: "filesystem"
+      N8N_BINARY_DATA_STORAGE_PATH: "/data/binary-data"
       N8N_SOURCE_CONTROL_ENABLED: "true"
       N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL: "{{ n8n_external_secrets_update_interval }}"
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"

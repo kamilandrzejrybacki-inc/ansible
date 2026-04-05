@@ -11,7 +11,8 @@
 #     -e openai_access_token=XXX \
 #     -e openai_refresh_token=XXX \
 #     -e groq_api_key=XXX \
-#     -e n8n_mcp_token=XXX
+#     -e n8n_mcp_token=XXX \
+#     -e github_pat=XXX
 # =============================================================================
 
 - name: Deploy Hermes to Pi
@@ -39,7 +40,7 @@
           - openai_refresh_token is defined
           - groq_api_key is defined
           - n8n_mcp_token is defined
-        fail_msg: "Pass secrets via -e or vars_prompt"
+        fail_msg: "Pass secrets via -e flags"
 
   tasks:
     # ── Create directory structure ────────────────────────────────
@@ -54,6 +55,43 @@
         - "{{ hermes_install_dir }}"
         - "{{ hermes_install_dir }}/data"
         - "{{ hermes_install_dir }}/data/memories"
+        - "{{ hermes_install_dir }}/data/.ssh"
+
+    # ── SSH key for lw-main access ────────────────────────────────
+    - name: Generate SSH key for Hermes (if not present)
+      community.crypto.openssh_keypair:
+        path: "{{ hermes_install_dir }}/data/.ssh/id_ed25519"
+        type: ed25519
+        comment: "hermes@lw-pi"
+        owner: "{{ ansible_user }}"
+        mode: "0600"
+      register: hermes_ssh_key
+
+    - name: Read Hermes public key
+      ansible.builtin.slurp:
+        src: "{{ hermes_install_dir }}/data/.ssh/id_ed25519.pub"
+      register: hermes_pubkey
+
+    - name: Authorize Hermes key on lw-main
+      ansible.posix.authorized_key:
+        user: kamil-rybacki
+        key: "{{ hermes_pubkey.content | b64decode }}"
+        state: present
+      delegate_to: lw-main
+
+    - name: Add lw-main to SSH known_hosts
+      ansible.builtin.known_hosts:
+        path: "{{ hermes_install_dir }}/data/.ssh/known_hosts"
+        name: "192.168.0.105"
+        key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 192.168.0.105 2>/dev/null') }}"
+        state: present
+
+    - name: Fix SSH dir ownership
+      ansible.builtin.file:
+        path: "{{ hermes_install_dir }}/data/.ssh"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: true
 
     # ── Deploy templates ──────────────────────────────────────────
     - name: Deploy telegram bridge
@@ -118,7 +156,7 @@
         mode: "0644"
         force: false
 
-    # ── Build and start ───────────────────────────────────────────
+    # ── Start stack ───────────────────────────────────────────────
     - name: Start Hermes stack
       community.docker.docker_compose_v2:
         project_src: "{{ hermes_install_dir }}"

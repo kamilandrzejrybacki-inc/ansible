@@ -141,7 +141,12 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy {{ hermes_webui_host | default('192.168.0.107') }}:{{ hermes_webui_port | default(30788) }}
+	reverse_proxy {{ hermes_webui_host | default('192.168.0.107') }}:{{ hermes_webui_port | default(30788) }} {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+		}
+	}
 }
 
 # Grafana (monitoring stack on lw-main)

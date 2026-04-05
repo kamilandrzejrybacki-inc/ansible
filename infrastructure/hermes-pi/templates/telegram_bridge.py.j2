@@ -55,7 +55,7 @@ async def _get_or_create_session(user_id: int) -> str:
     async with httpx.AsyncClient(base_url=WEBUI_URL, timeout=30) as client:
         resp = await client.post("/api/session/new", json={})
         resp.raise_for_status()
-        sid = resp.json()["session_id"]
+        sid = resp.json()["session"]["session_id"]
     _sessions[user_id] = sid
     _save_sessions()
     log.info("Created session %s for user %d", sid, user_id)

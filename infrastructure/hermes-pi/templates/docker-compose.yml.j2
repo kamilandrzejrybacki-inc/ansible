@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     command: >
       sh -c "
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client nodejs npm git 2>/dev/null;
         pip install --no-cache-dir -q openai anthropic fire rich python-dotenv httpx pyyaml tiktoken 2>/dev/null;
         sed -i \"s/'openai-codex': \\[/'openai-codex': [\\n        {'id': '{{ hermes_model }}', 'label': '{{ hermes_model }}'},/\" /app/api/config.py;
         exec python server.py
@@ -14,6 +15,7 @@ services:
     volumes:
       - ./data:/opt/data
       - ./agent-code:/agent-code/hermes:ro
+      - ./data/.ssh:/root/.ssh
       - ./data/.ssh:/root/.ssh:ro
     environment:
       - HERMES_HOME=/opt/data

@@ -62,10 +62,56 @@ async def _get_or_create_session(user_id: int) -> str:
     return sid
 
 
+def _read_sse_sync(stream_id: str) -> str:
+    """Read SSE stream using urllib (handles HTTP/1.0 servers correctly)."""
+    import urllib.request
+
+    url = f"{WEBUI_URL}/api/chat/stream?stream_id={stream_id}"
+    req = urllib.request.Request(url)
+    tokens = []
+    tool_calls = []
+
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        event_type = ""
+        data_str = ""
+        for raw_line in resp:
+            line = raw_line.decode("utf-8", errors="replace").rstrip("\n\r")
+
+            if line.startswith("event:"):
+                event_type = line[6:].strip()
+            elif line.startswith("data:"):
+                data_str = line[5:].strip()
+            elif line == "":
+                # Empty line = end of SSE block, dispatch
+                if event_type and data_str:
+                    try:
+                        data = json.loads(data_str)
+                    except json.JSONDecodeError:
+                        event_type = data_str = ""
+                        continue
+
+                    if event_type == "token":
+                        tokens.append(data.get("text", ""))
+                    elif event_type == "tool":
+                        tool_calls.append(f"🔧 {data.get('name', 'unknown')}")
+                    elif event_type in ("done", "error", "apperror", "cancel"):
+                        if event_type in ("error", "apperror"):
+                            return f"⚠️ Error: {data.get('message', 'unknown error')}"
+                        if event_type == "cancel":
+                            return "❌ Cancelled"
+                        break
+
+                event_type = data_str = ""
+
+    response = "".join(tokens).strip()
+    if not response and tool_calls:
+        response = "Executed: " + ", ".join(tool_calls)
+    return response or "(no response)"
+
+
 async def _stream_response(session_id: str, message: str) -> str:
     """Send message to webui and collect the full streamed response."""
-    async with httpx.AsyncClient(base_url=WEBUI_URL, timeout=300) as client:
-        # Start the chat
+    async with httpx.AsyncClient(base_url=WEBUI_URL, timeout=30) as client:
         start_resp = await client.post("/api/chat/start", json={
             "session_id": session_id,
             "message": message,
@@ -75,47 +121,9 @@ async def _stream_response(session_id: str, message: str) -> str:
         start_resp.raise_for_status()
         stream_id = start_resp.json()["stream_id"]
 
-        # Read SSE stream
-        tokens = []
-        tool_calls = []
-        async with client.stream("GET", f"/api/chat/stream?stream_id={stream_id}") as stream:
-            buf = ""
-            async for chunk in stream.aiter_text():
-                buf += chunk
-                while "\n\n" in buf:
-                    block, buf = buf.split("\n\n", 1)
-                    event_type = ""
-                    data_str = ""
-                    for line in block.split("\n"):
-                        if line.startswith("event:"):
-                            event_type = line[6:].strip()
-                        elif line.startswith("data:"):
-                            data_str = line[5:].strip()
-
-                    if not event_type or not data_str:
-                        continue
-
-                    try:
-                        data = json.loads(data_str)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if event_type == "token":
-                        tokens.append(data.get("text", ""))
-                    elif event_type == "tool":
-                        name = data.get("name", "unknown")
-                        tool_calls.append(f"🔧 {name}")
-                    elif event_type in ("done", "error", "apperror", "cancel"):
-                        if event_type in ("error", "apperror"):
-                            return f"⚠️ Error: {data.get('message', 'unknown error')}"
-                        if event_type == "cancel":
-                            return "❌ Cancelled"
-                        break
-
-    response = "".join(tokens).strip()
-    if not response and tool_calls:
-        response = "Executed: " + ", ".join(tool_calls)
-    return response or "(no response)"
+    # Read SSE in a thread (urllib is blocking but handles HTTP/1.0 correctly)
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _read_sse_sync, stream_id)
 
 
 def _truncate(text: str, max_len: int = 4096) -> str:

@@ -1,0 +1,188 @@
+"""Telegram ↔ Hermes WebUI bridge.
+
+Forwards Telegram messages to the webui /api/chat/start endpoint,
+streams the SSE response, and sends the result back to Telegram.
+Both web UI and Telegram see the same sessions.
+"""
+
+import asyncio
+import json
+import logging
+import os
+import re
+import time
+
+import httpx
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
+log = logging.getLogger("tg-bridge")
+
+WEBUI_URL = os.environ.get("WEBUI_URL", "http://hermes-webui:8788")
+BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+ALLOWED_USERS = {int(u) for u in os.environ.get("TELEGRAM_ALLOWED_USERS", "").split(",") if u.strip()}
+MODEL = os.environ.get("HERMES_MODEL", "gpt-5.3-codex")
+
+# Telegram user_id → webui session_id
+_sessions: dict[int, str] = {}
+_sessions_file = "/opt/data/telegram_sessions.json"
+
+
+def _load_sessions():
+    global _sessions
+    try:
+        with open(_sessions_file) as f:
+            _sessions = {int(k): v for k, v in json.load(f).items()}
+    except (FileNotFoundError, json.JSONDecodeError):
+        _sessions = {}
+
+
+def _save_sessions():
+    with open(_sessions_file, "w") as f:
+        json.dump({str(k): v for k, v in _sessions.items()}, f)
+
+
+async def _get_or_create_session(user_id: int) -> str:
+    """Get existing session or create a new one via the webui API."""
+    if user_id in _sessions:
+        return _sessions[user_id]
+    async with httpx.AsyncClient(base_url=WEBUI_URL, timeout=30) as client:
+        resp = await client.post("/api/session/new", json={})
+        resp.raise_for_status()
+        sid = resp.json()["session_id"]
+    _sessions[user_id] = sid
+    _save_sessions()
+    log.info("Created session %s for user %d", sid, user_id)
+    return sid
+
+
+async def _stream_response(session_id: str, message: str) -> str:
+    """Send message to webui and collect the full streamed response."""
+    async with httpx.AsyncClient(base_url=WEBUI_URL, timeout=300) as client:
+        # Start the chat
+        start_resp = await client.post("/api/chat/start", json={
+            "session_id": session_id,
+            "message": message,
+            "model": MODEL,
+            "workspace": "/opt/data",
+        })
+        start_resp.raise_for_status()
+        stream_id = start_resp.json()["stream_id"]
+
+        # Read SSE stream
+        tokens = []
+        tool_calls = []
+        async with client.stream("GET", f"/api/chat/stream?stream_id={stream_id}") as stream:
+            buf = ""
+            async for chunk in stream.aiter_text():
+                buf += chunk
+                while "\n\n" in buf:
+                    block, buf = buf.split("\n\n", 1)
+                    event_type = ""
+                    data_str = ""
+                    for line in block.split("\n"):
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            data_str = line[5:].strip()
+
+                    if not event_type or not data_str:
+                        continue
+
+                    try:
+                        data = json.loads(data_str)
+                    except json.JSONDecodeError:
+                        continue
+
+                    if event_type == "token":
+                        tokens.append(data.get("text", ""))
+                    elif event_type == "tool":
+                        name = data.get("name", "unknown")
+                        tool_calls.append(f"🔧 {name}")
+                    elif event_type in ("done", "error", "apperror", "cancel"):
+                        if event_type in ("error", "apperror"):
+                            return f"⚠️ Error: {data.get('message', 'unknown error')}"
+                        if event_type == "cancel":
+                            return "❌ Cancelled"
+                        break
+
+    response = "".join(tokens).strip()
+    if not response and tool_calls:
+        response = "Executed: " + ", ".join(tool_calls)
+    return response or "(no response)"
+
+
+def _truncate(text: str, max_len: int = 4096) -> str:
+    """Telegram messages have a 4096 char limit."""
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 20] + "\n\n… (truncated)"
+
+
+async def cmd_start(update: Update, _):
+    if ALLOWED_USERS and update.effective_user.id not in ALLOWED_USERS:
+        return
+    await update.message.reply_text(
+        "👋 Connected to Truteń via WebUI bridge.\n"
+        "Your messages go through the same agent as the web interface.\n"
+        "Use /new to start a fresh session."
+    )
+
+
+async def cmd_new(update: Update, _):
+    if ALLOWED_USERS and update.effective_user.id not in ALLOWED_USERS:
+        return
+    uid = update.effective_user.id
+    _sessions.pop(uid, None)
+    _save_sessions()
+    sid = await _get_or_create_session(uid)
+    await update.message.reply_text(f"🆕 New session: {sid[:8]}…")
+
+
+async def handle_message(update: Update, _):
+    if ALLOWED_USERS and update.effective_user.id not in ALLOWED_USERS:
+        return
+    uid = update.effective_user.id
+    text = update.message.text or ""
+    if not text.strip():
+        return
+
+    sid = await _get_or_create_session(uid)
+    thinking = await update.message.reply_text("⏳ Thinking…")
+
+    try:
+        response = await _stream_response(sid, text)
+        await thinking.edit_text(_truncate(response), parse_mode="Markdown")
+    except Exception as e:
+        log.exception("Error processing message")
+        # If session expired, create a new one and retry
+        if "not found" in str(e).lower() or "404" in str(e):
+            _sessions.pop(uid, None)
+            sid = await _get_or_create_session(uid)
+            try:
+                response = await _stream_response(sid, text)
+                await thinking.edit_text(_truncate(response), parse_mode="Markdown")
+            except Exception as e2:
+                await thinking.edit_text(f"⚠️ Error: {e2}")
+        else:
+            await thinking.edit_text(f"⚠️ Error: {e}")
+
+
+def main():
+    _load_sessions()
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("new", cmd_new))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    log.info("Telegram bridge started (webui=%s, allowed=%s)", WEBUI_URL, ALLOWED_USERS or "all")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+if __name__ == "__main__":
+    main()

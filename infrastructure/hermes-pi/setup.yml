@@ -56,10 +56,10 @@
         - "{{ hermes_install_dir }}/data/memories"
 
     # ── Deploy templates ──────────────────────────────────────────
-    - name: Deploy Dockerfile
+    - name: Deploy telegram bridge
       ansible.builtin.template:
-        src: Dockerfile.agent.j2
-        dest: "{{ hermes_install_dir }}/Dockerfile.agent"
+        src: telegram_bridge.py.j2
+        dest: "{{ hermes_install_dir }}/telegram_bridge.py"
         owner: "{{ ansible_user }}"
         mode: "0644"
 
@@ -119,10 +119,9 @@
         force: false
 
     # ── Build and start ───────────────────────────────────────────
-    - name: Build and start Hermes stack
+    - name: Start Hermes stack
       community.docker.docker_compose_v2:
         project_src: "{{ hermes_install_dir }}"
         state: present
-        build: always
         pull: always
       become: false

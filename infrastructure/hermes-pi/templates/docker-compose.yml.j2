@@ -1,27 +1,8 @@
 services:
-  hermes:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
-    container_name: hermes-agent
-    restart: unless-stopped
-    command: ["gateway", "run"]
-    volumes:
-      - ./data:/opt/data
-      - ./data:/root/.hermes
-    env_file:
-      - .env
-    environment:
-      - HERMES_HOME=/opt/data
-    networks:
-      - hermes
-
   webui:
     image: ghcr.io/nesquena/hermes-webui:{{ hermes_webui_tag }}
     container_name: hermes-webui
     restart: unless-stopped
-    depends_on:
-      - hermes
     command: >
       sh -c "
         pip install --no-cache-dir -q openai anthropic fire rich python-dotenv httpx pyyaml tiktoken 2>/dev/null;
@@ -40,6 +21,29 @@ services:
       - HERMES_WEBUI_DEFAULT_MODEL={{ hermes_model }}
       - HERMES_WEBUI_HOST=0.0.0.0
       - HERMES_WEBUI_PORT=8788
+    env_file:
+      - .env
+    networks:
+      - hermes
+
+  telegram-bridge:
+    image: python:3.12-slim
+    container_name: hermes-telegram-bridge
+    restart: unless-stopped
+    depends_on:
+      - webui
+    command: >
+      sh -c "
+        pip install --no-cache-dir -q python-telegram-bot httpx 2>/dev/null;
+        exec python /app/telegram_bridge.py
+      "
+    volumes:
+      - ./data:/opt/data
+      - ./telegram_bridge.py:/app/telegram_bridge.py:ro
+    environment:
+      - WEBUI_URL=http://hermes-webui:8788
+      - HERMES_MODEL={{ hermes_model }}
+      - TELEGRAM_ALLOWED_USERS={{ telegram_allowed_user_id }}
     env_file:
       - .env
     networks:

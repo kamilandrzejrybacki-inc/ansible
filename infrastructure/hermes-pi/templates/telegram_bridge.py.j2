@@ -220,11 +220,13 @@ async def handle_approval_callback(update: Update, _):
 async def _redis_listener(app):
     """Subscribe to Redis for webui-originated messages and mirror to Telegram."""
     bot = app.bot
+    loop = asyncio.get_event_loop()
 
     def _sub_messages():
         """Listen for new webui messages and forward to Telegram."""
         ps = _rc.pubsub()
         ps.subscribe(CHANNEL)
+        log.info("Redis subscriber listening on %s", CHANNEL)
         for msg in ps.listen():
             if msg["type"] != "message":
                 continue
@@ -238,6 +240,7 @@ async def _redis_listener(app):
                 content_hash = hash(event.get("content", "")[:200])
                 if _rc.sismember(f"hermes:bridge_sent:{sid}", str(content_hash)):
                     _rc.srem(f"hermes:bridge_sent:{sid}", str(content_hash))
+                    log.debug("Skipped bridge-sent message in %s", sid[:8])
                     continue
 
                 # Find the Telegram chat for this session
@@ -263,19 +266,20 @@ async def _redis_listener(app):
 
                 asyncio.run_coroutine_threadsafe(
                     bot.send_message(chat_id=chat_id, text=_truncate(text)),
-                    asyncio.get_event_loop(),
+                    loop,
                 )
                 log.info("Mirrored %s message to Telegram for session %s", role, sid[:8])
             except Exception as e:
-                log.debug("Redis listener error: %s", e)
+                log.warning("Redis listener error: %s", e)
 
-    await asyncio.get_event_loop().run_in_executor(None, _sub_messages)
+    loop.run_in_executor(None, _sub_messages)
 
 
 # ── Approval poller (still needed — no Redis event for approvals) ─────
 
 async def _poll_approvals(app):
     bot = app.bot
+    sent_approvals: dict[str, str] = {}  # session_id → last approval command hash
     while True:
         await asyncio.sleep(3)
         for uid, info in list(_sessions.items()):
@@ -288,6 +292,11 @@ async def _poll_approvals(app):
                 pending = data.get("pending")
                 if pending:
                     cmd = pending.get("command", pending.get("description", "unknown"))
+                    cmd_hash = str(hash(cmd))
+                    # Skip if we already sent this exact approval
+                    if sent_approvals.get(sid) == cmd_hash:
+                        continue
+                    sent_approvals[sid] = cmd_hash
                     text = f"🔐 Approval required:\n\n`{cmd}`"
                     keyboard = InlineKeyboardMarkup([
                         [
@@ -300,6 +309,9 @@ async def _poll_approvals(app):
                         ],
                     ])
                     await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
+                else:
+                    # No pending approval — clear the tracker so next one can fire
+                    sent_approvals.pop(sid, None)
             except Exception:
                 pass
 

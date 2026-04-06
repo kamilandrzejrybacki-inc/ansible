@@ -9,18 +9,21 @@ hermes_webui_port: 8788
 telegram_allowed_user_id: "8207765643"
 
 k8s_node_ip: "192.168.0.107"
+mcp_bridges_domain: "mcp.kamilandrzejrybacki.dpdns.org"
 
 hermes_mcp_servers:
   grafana:
-    url: "http://{{ k8s_node_ip }}:30804/mcp"
+    url: "http://grafana.{{ mcp_bridges_domain }}/mcp"
   obsidian:
-    url: "http://{{ k8s_node_ip }}:30801/mcp"
+    url: "http://obsidian.{{ mcp_bridges_domain }}/mcp"
   netbox:
-    url: "http://{{ k8s_node_ip }}:30802/mcp"
+    url: "http://netbox.{{ mcp_bridges_domain }}/mcp"
   vault:
-    url: "http://{{ k8s_node_ip }}:30803/mcp"
+    url: "http://vault.{{ mcp_bridges_domain }}/mcp"
   distillery:
-    url: "http://{{ k8s_node_ip }}:30805/mcp"
+    url: "http://distillery.{{ mcp_bridges_domain }}/mcp"
+  paperless:
+    url: "http://paperless.{{ mcp_bridges_domain }}/mcp"
   n8n:
     url: "http://192.168.0.108:5678/mcp-server/http"
     headers:

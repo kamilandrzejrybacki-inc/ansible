@@ -88,7 +88,7 @@
     redis_port: "6379"
     redis_db: "0"
     qdrant_url: "http://qdrant.qdrant.svc.cluster.local:6333"
-    ollama_url: "http://ollama.ollama.svc.cluster.local:11434"
+    ollama_url: "http://ollama.distillery.svc.cluster.local:11434"
     portkey_url: "http://portkey-free.portkey.svc.cluster.local:8787"
     obsidian_url: "http://10.0.1.2:27124"
     embedding_model: "nomic-embed-text"

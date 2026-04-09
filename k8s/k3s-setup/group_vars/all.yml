@@ -25,11 +25,21 @@ argocd_health_check_delay: 10
 k8s_secrets:
   - namespace: n8n
     name: n8n-worker-secrets
-    vault_path: n8n-postgres
+    vault_path: n8n-workers
     data:
       DB_POSTGRESDB_PASSWORD: db_password
       N8N_ENCRYPTION_KEY: encryption_key
       QUEUE_BULL_REDIS_PASSWORD: redis_password
+      grafana_admin_password: grafana_admin_password
+      groq_api_key: groq_api_key
+      nvidia_api_key: nvidia_api_key
+      deepseek_api_key: deepseek_api_key
+      obsidian_api_key: obsidian_api_key
+      telegram_bot_token: telegram_bot_token
+      paperless_api_token: paperless_api_token
+      netbox_token: netbox_token
+      librenms_token: librenms_token
+      prefect_etl_api_key: prefect_etl_api_key
 
   - namespace: github-runners
     name: github-runner-secrets

@@ -1,0 +1,48 @@
+---
+# =============================================================================
+# ArgoCD MCP Server — Claude Code Integration
+# Registers argocd-mcp (npx) via the common claude-mcp register task.
+# =============================================================================
+
+- name: Load Vault credentials
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/{{ vault_argocd_mcp_secret_path }}"
+    headers:
+      X-Vault-Token: "{{ vault_token }}"
+    return_content: true
+    status_code: [200]
+  register: _vault_argocd
+  no_log: true
+
+- name: Set ArgoCD API token fact
+  ansible.builtin.set_fact:
+    _argocd_api_token: "{{ _vault_argocd.json.data.data.api_token }}"
+    _argocd_base_url: "{{ _vault_argocd.json.data.data.base_url | default(argocd_base_url) }}"
+  no_log: true
+
+- name: Verify ArgoCD API is reachable
+  ansible.builtin.uri:
+    url: "{{ _argocd_base_url }}/api/v1/applications"
+    headers:
+      Authorization: "Bearer {{ _argocd_api_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _argocd_check
+  failed_when: false
+
+- name: Warn if ArgoCD API unreachable
+  ansible.builtin.debug:
+    msg: "WARNING: ArgoCD API at {{ _argocd_base_url }} is not reachable — MCP will be registered but may not work"
+  when: _argocd_check.status is not defined or _argocd_check.status != 200
+
+- name: Register argocd-mcp in Claude Code
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"
+  vars:
+    mcp_name: "argocd"
+    mcp_command: "npx"
+    mcp_args: ["-y", "{{ argocd_mcp_package }}@latest", "stdio"]
+    mcp_scope: "{{ claude_mcp_scope }}"
+    mcp_env:
+      ARGOCD_BASE_URL: "{{ _argocd_base_url }}"
+      ARGOCD_API_TOKEN: "{{ _argocd_api_token }}"
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"

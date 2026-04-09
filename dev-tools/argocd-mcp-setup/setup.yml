@@ -1,0 +1,24 @@
+# =============================================================================
+# ArgoCD MCP Integration Setup
+# =============================================================================
+# Registers the argocd-mcp server in Claude Code so you can list, inspect,
+# and manage ArgoCD applications directly from Claude.
+#
+# Prerequisites:
+#   - ArgoCD running on k3s cluster (NodePort 30443)
+#   - API token stored in Vault at secret/homelab/argocd-mcp
+#   - Vault token in ~/.vault-ansible.yml
+#
+# Usage:
+#   ansible-playbook dev-tools/argocd-mcp-setup/setup.yml \
+#     -i dev-tools/argocd-mcp-setup/inventory/hosts.ini
+# =============================================================================
+
+- name: Register ArgoCD MCP in Claude Code
+  hosts: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'HOME') }}/.vault-ansible.yml"
+  roles:
+    - argocd-mcp

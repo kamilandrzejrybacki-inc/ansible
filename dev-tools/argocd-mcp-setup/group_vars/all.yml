@@ -1,0 +1,10 @@
+---
+# ArgoCD MCP Server configuration
+argocd_base_url: "https://argocd.kamilandrzejrybacki.dpdns.org"
+argocd_mcp_package: "argocd-mcp"
+
+# Claude Code config
+claude_mcp_scope: "user"
+
+# Vault
+vault_argocd_mcp_secret_path: "secret/data/homelab/argocd-mcp"

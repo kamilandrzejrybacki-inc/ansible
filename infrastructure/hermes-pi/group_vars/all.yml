@@ -4,6 +4,7 @@ hermes_agent_version: "0.7.0"
 hermes_webui_tag: "latest"
 hermes_model: "gpt-5.3-codex"
 hermes_provider: "openai-codex"
+hermes_max_output_tokens: 32768
 hermes_webui_port: 8788
 
 telegram_allowed_user_id: "8207765643"

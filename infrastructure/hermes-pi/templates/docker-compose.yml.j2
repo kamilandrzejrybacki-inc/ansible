@@ -20,6 +20,7 @@ services:
         apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client nodejs npm git 2>/dev/null;
         pip install --no-cache-dir -q openai anthropic fire rich python-dotenv httpx pyyaml tiktoken 2>/dev/null;
         sed -i \"s/'openai-codex': \\[/'openai-codex': [\\n        {'id': '{{ hermes_model }}', 'label': '{{ hermes_model }}'},/\" /app/api/config.py;
+        python3 /opt/data/patch_streaming.py;
         exec python server.py
       "
     ports:

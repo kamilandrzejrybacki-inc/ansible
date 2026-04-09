@@ -115,6 +115,13 @@
         owner: "{{ ansible_user }}"
         mode: "0644"
 
+    - name: Deploy streaming patch script
+      ansible.builtin.template:
+        src: patch_streaming.py.j2
+        dest: "{{ hermes_install_dir }}/data/patch_streaming.py"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
     - name: Deploy nginx.conf
       ansible.builtin.template:
         src: nginx.conf.j2

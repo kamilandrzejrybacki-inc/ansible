@@ -208,6 +208,7 @@
           DEEPSEEK_API_KEY: "{{ _n8n_vault_data.json.data.data.deepseek_api_key | default('') }}"
           OBSIDIAN_API_KEY: "{{ _n8n_vault_data.json.data.data.obsidian_api_key | default('') }}"
           TELEGRAM_BOT_TOKEN: "{{ _n8n_vault_data.json.data.data.telegram_bot_token | default('') }}"
+          LW_NOTIFIER_TOKEN: "{{ _n8n_vault_data.json.data.data.lw_notifier_token | default('') }}"
           PAPERLESS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.paperless_api_token | default('') }}"
           NETBOX_API_TOKEN: "{{ _n8n_vault_data.json.data.data.netbox_token | default('') }}"
           LIBRENMS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.librenms_token | default('') }}"

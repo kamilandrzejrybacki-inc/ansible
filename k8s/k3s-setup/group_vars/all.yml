@@ -36,6 +36,7 @@ k8s_secrets:
       deepseek_api_key: deepseek_api_key
       obsidian_api_key: obsidian_api_key
       telegram_bot_token: telegram_bot_token
+      lw_notifier_token: lw_notifier_token
       paperless_api_token: paperless_api_token
       netbox_token: netbox_token
       librenms_token: librenms_token

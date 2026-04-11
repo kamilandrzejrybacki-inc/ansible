@@ -1,0 +1,144 @@
+---
+# OmniRoute Gateway Bootstrap Playbook
+# One-time: writes provider keys to Vault, creates K8s Secret,
+# registers ArgoCD Application.
+#
+# After this runs, ArgoCD manages OmniRoute via helm/charts/omniroute/.
+#
+# Prerequisites:
+#   - ~/.vault-ansible.yml with vault_addr and vault_token
+#   - ArgoCD installed and configured
+#
+# Usage:
+#   ansible-playbook k8s/omniroute-setup/setup.yml
+
+# -- Play 1: Write API keys to Vault ------------------------------------------
+- name: Write OmniRoute API keys to Vault
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: groq_api_key
+      prompt: "Groq API key (console.groq.com)"
+      private: true
+
+    - name: nvidia_api_key
+      prompt: "NVIDIA NIM API key (build.nvidia.com) — used as OPENAI_API_KEY"
+      private: true
+
+    - name: deepseek_api_key
+      prompt: "DeepSeek API key (platform.deepseek.com)"
+      private: true
+
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Validate at least one provider key is provided
+      ansible.builtin.assert:
+        that:
+          - >-
+            (groq_api_key | default('') | length > 0) or
+            (nvidia_api_key | default('') | length > 0) or
+            (deepseek_api_key | default('') | length > 0)
+        fail_msg: "At least one provider API key must be provided."
+
+    - name: Store API keys to Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
+      vars:
+        vault_service_name: "omniroute"
+        vault_secrets_data:
+          groq_api_key: "{{ groq_api_key | default('') }}"
+          nvidia_api_key: "{{ nvidia_api_key | default('') }}"
+          deepseek_api_key: "{{ deepseek_api_key | default('') }}"
+      when: _vault_available | bool
+
+# -- Play 2: Create K8s Secret and register ArgoCD Application ----------------
+- name: Bootstrap OmniRoute via ArgoCD
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load OmniRoute secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "omniroute"
+
+    - name: Create omniroute namespace
+      ansible.builtin.command: >
+        kubectl create namespace omniroute --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _ns
+      changed_when: "'created' in _ns.stdout"
+
+    - name: Create omniroute-secrets K8s Secret
+      ansible.builtin.command: >
+        kubectl create secret generic omniroute-secrets
+        --namespace omniroute
+        --from-literal=GROQ_API_KEY={{ (_vault_secrets.groq_api_key | default('')) | quote }}
+        --from-literal=OPENAI_API_KEY={{ (_vault_secrets.nvidia_api_key | default('')) | quote }}
+        --from-literal=DEEPSEEK_API_KEY={{ (_vault_secrets.deepseek_api_key | default('')) | quote }}
+        --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _secret
+      changed_when: "'configured' in _secret.stdout or 'created' in _secret.stdout"
+      no_log: true
+
+# -- Play 3: Update prefect-etl secret with OmniRoute URL --------------------
+- name: Update prefect-etl-secrets with OmniRoute URL
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Patch prefect-etl-secrets with SYNTH_OMNIROUTE_URL
+      ansible.builtin.command: >
+        kubectl patch secret prefect-etl-secrets
+        --namespace prefect-etl
+        --type merge
+        -p '{"stringData":{"SYNTH_OMNIROUTE_URL":"http://omniroute.omniroute.svc.cluster.local:20128"}}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _patch
+      changed_when: "'patched' in _patch.stdout"
+
+    - name: Remove stale SYNTH_PORTKEY_URL from prefect-etl-secrets
+      ansible.builtin.command: >
+        kubectl patch secret prefect-etl-secrets
+        --namespace prefect-etl
+        --type json
+        -p '[{"op":"remove","path":"/data/SYNTH_PORTKEY_URL"}]'
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _remove
+      failed_when: _remove.rc != 0 and 'not found' not in _remove.stderr
+      changed_when: _remove.rc == 0
+
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          OmniRoute bootstrap complete!
+
+          - Vault: secrets stored at secret/homelab/omniroute
+          - K8s: omniroute-secrets created in omniroute namespace
+          - prefect-etl: SYNTH_OMNIROUTE_URL patched into prefect-etl-secrets,
+            SYNTH_PORTKEY_URL removed
+          - ArgoCD: add omniroute to argocd_applications in
+            k8s/k3s-setup/group_vars/all.yml and re-run k3s-setup (Plays 6-7).
+
+          Next steps:
+          1. Register ArgoCD Application (see above)
+          2. Wait for ArgoCD to deploy OmniRoute
+          3. Open dashboard at http://<node-ip>:20130 and configure combos:
+             - "free":     Groq (llama-3.3-70b) → NVIDIA (kimi-k2.5) fallback
+             - "deepseek": DeepSeek single target
+          4. Validate with: curl http://<node-ip>:30787/health
+          5. Run hermes + prefect-etl smoke tests
+          6. Delete portkey namespace after 48h observation window

@@ -11,6 +11,7 @@
 #
 # Usage:
 #   ansible-playbook k8s/omniroute-setup/setup.yml
+#   ansible-playbook k8s/omniroute-setup/setup.yml -e skip_vault_write=true   # keys already in Vault
 
 # -- Play 1: Write API keys to Vault ------------------------------------------
 - name: Write OmniRoute API keys to Vault
@@ -19,20 +20,21 @@
   gather_facts: false
   vars_prompt:
     - name: groq_api_key
-      prompt: "Groq API key (console.groq.com)"
+      prompt: "Groq API key — press Enter to skip (keys already in Vault)"
       private: true
 
     - name: nvidia_api_key
-      prompt: "NVIDIA NIM API key (build.nvidia.com) — used as OPENAI_API_KEY"
+      prompt: "NVIDIA NIM API key — press Enter to skip (keys already in Vault)"
       private: true
 
     - name: deepseek_api_key
-      prompt: "DeepSeek API key (platform.deepseek.com)"
+      prompt: "DeepSeek API key — press Enter to skip (keys already in Vault)"
       private: true
 
   tasks:
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+      when: not (skip_vault_write | default(false) | bool)
 
     - name: Validate at least one provider key is provided
       ansible.builtin.assert:
@@ -42,6 +44,7 @@
             (nvidia_api_key | default('') | length > 0) or
             (deepseek_api_key | default('') | length > 0)
         fail_msg: "At least one provider API key must be provided."
+      when: not (skip_vault_write | default(false) | bool)
 
     - name: Store API keys to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
@@ -51,7 +54,7 @@
           groq_api_key: "{{ groq_api_key | default('') }}"
           nvidia_api_key: "{{ nvidia_api_key | default('') }}"
           deepseek_api_key: "{{ deepseek_api_key | default('') }}"
-      when: _vault_available | bool
+      when: (_vault_available | bool) and not (skip_vault_write | default(false) | bool)
 
 # -- Play 2: Create K8s Secret and register ArgoCD Application ----------------
 - name: Bootstrap OmniRoute via ArgoCD

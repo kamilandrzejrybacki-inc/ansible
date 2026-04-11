@@ -31,6 +31,45 @@
   delay: 5
   until: plugin_result.rc == 0
 
+- name: Find caveman-activate.js in plugin cache
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.claude/plugins/cache/caveman/caveman"
+    patterns: "caveman-activate.js"
+    recurse: true
+  register: caveman_hook_files
+
+- name: Patch caveman-activate.js to output full-mode rules on session start
+  ansible.builtin.copy:
+    dest: "{{ item.path }}"
+    mode: "0644"
+    content: |
+      #!/usr/bin/env node
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      const flagPath = path.join(os.homedir(), '.claude', '.caveman-active');
+
+      try {
+        fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+        fs.writeFileSync(flagPath, 'full');
+      } catch (e) {
+        // Silent fail -- flag is best-effort, don't block the hook
+      }
+
+      process.stdout.write(
+        "CAVEMAN MODE ACTIVE (full). Level: full. " +
+        "Rules: Drop articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries (sure/certainly/of course/happy to), hedging. " +
+        "Fragments OK. Short synonyms (big not extensive, fix not 'implement a solution for'). Technical terms exact. Code blocks unchanged. " +
+        "Pattern: [thing] [action] [reason]. [next step]. " +
+        "Not: 'Sure! I'd be happy to help you with that.' " +
+        "Yes: 'Bug in auth middleware. Fix:' " +
+        "Code/commits/security: write normal. " +
+        "User says 'normal' or 'stop caveman' to deactivate. '/caveman lite|full|ultra' to switch level."
+      );
+  loop: "{{ caveman_hook_files.files }}"
+  when: caveman_hook_files.matched > 0
+
 - name: Get plugin list before disabling
   ansible.builtin.command: claude plugins list
   register: pre_disable_plugins

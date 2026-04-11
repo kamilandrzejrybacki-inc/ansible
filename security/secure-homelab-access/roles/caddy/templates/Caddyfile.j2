@@ -171,13 +171,17 @@
 	reverse_proxy http://{{ docker_gateway_ip }}:{{ netbox_port | default(8081) }}
 }
 
-# n8n (workflow automation on lw-s1) — no Authelia, n8n has own auth
+# n8n (workflow automation on lw-s1) — WireGuard/LAN only
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
 	reverse_proxy http://{{ n8n_host_ip | default('192.168.0.108') }}:{{ n8n_port | default(5678) }}
 }
 
@@ -234,13 +238,17 @@
 	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ filebrowser_port | default(8082) }}
 }
 
-# ArgoCD UI (K8s on lw-c1)
+# ArgoCD UI (K8s on lw-c1) — WireGuard/LAN only
 {{ _scheme }}{{ subdomain_argocd }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
 	import authelia
 	reverse_proxy {{ k8s_node_ip }}:{{ argocd_nodeport_http }}
 }

@@ -8,8 +8,6 @@ claude_marketplaces:
 
 claude_plugins:
   - "superpowers@claude-plugins-official"
-  - "context7@claude-plugins-official"
-  - "github@claude-plugins-official"
   - "n8n-mcp-skills@n8n-mcp-skills"
   - "codex@openai-codex"
   - "caveman@caveman"

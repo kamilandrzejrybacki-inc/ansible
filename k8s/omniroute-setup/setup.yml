@@ -88,6 +88,7 @@
       register: _secret
       changed_when: "'configured' in _secret.stdout or 'created' in _secret.stdout"
       no_log: true
+      when: _vault_available | bool
 
 # -- Play 3: Update prefect-etl secret with OmniRoute URL --------------------
 - name: Update prefect-etl-secrets with OmniRoute URL
@@ -97,6 +98,15 @@
   tasks:
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Check if prefect-etl-secrets exists
+      ansible.builtin.command: >
+        kubectl get secret prefect-etl-secrets --namespace prefect-etl
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _pf_secret_exists
+      failed_when: false
+      changed_when: false
 
     - name: Patch prefect-etl-secrets with SYNTH_OMNIROUTE_URL
       ansible.builtin.command: >
@@ -108,6 +118,7 @@
         KUBECONFIG: "{{ kubeconfig_local_path }}"
       register: _patch
       changed_when: "'patched' in _patch.stdout"
+      when: _pf_secret_exists.rc == 0
 
     - name: Remove stale SYNTH_PORTKEY_URL from prefect-etl-secrets
       ansible.builtin.command: >
@@ -120,6 +131,7 @@
       register: _remove
       failed_when: _remove.rc != 0 and 'not found' not in _remove.stderr
       changed_when: _remove.rc == 0
+      when: _pf_secret_exists.rc == 0
 
     - name: Display completion summary
       ansible.builtin.debug:

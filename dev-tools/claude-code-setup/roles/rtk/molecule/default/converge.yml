@@ -1,0 +1,28 @@
+---
+- name: Converge
+  hosts: all
+  become: false
+  vars_files:
+    - vars/test-vars.yml
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  pre_tasks:
+    - name: Install curl
+      become: true
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: true
+    - name: Ensure Claude config directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.claude"
+        state: directory
+        mode: "0755"
+    - name: Create stub Claude settings.json
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.claude/settings.json"
+        content: |
+          {"permissions": {"allow": [], "deny": []}}
+        mode: "0644"
+  roles:
+    - role: rtk

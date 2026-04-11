@@ -1,7 +1,0 @@
----
-galaxy_info:
-  role_name: serena
-  author: kamilrybacki
-  description: Install uv and deploy Serena MCP configuration
-  min_ansible_version: "2.10"
-dependencies: []

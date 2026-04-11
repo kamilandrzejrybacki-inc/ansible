@@ -24,7 +24,7 @@
     --scope {{ item.scope }}
     "{{ item.name }}"
     {{ item.command }}
-    {{ item.args | join(' ') }}
+    -- {{ item.args | join(' ') }}
   loop: "{{ claude_mcp_servers }}"
   when:
     - item.name not in (current_mcp_servers.stdout | default(''))

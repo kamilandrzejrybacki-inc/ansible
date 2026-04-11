@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: rtk
+  author: kamilrybacki
+  description: Install RTK (Rust Token Killer) and integrate it with Claude Code
+  min_ansible_version: "2.10"
+dependencies: []

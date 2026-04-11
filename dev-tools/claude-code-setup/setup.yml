@@ -41,6 +41,6 @@
     - claude_cli
     - claude_config
     - plugins
-    - serena
     - mcp_servers
     - commands
+    - rtk

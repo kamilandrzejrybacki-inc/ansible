@@ -4,15 +4,16 @@ claude_marketplaces:
   - "affaan-m/everything-claude-code"
   - "czlonkowski/n8n-skills"
   - "openai/codex-plugin-cc"
+  - "JuliusBrussee/caveman"
 
 claude_plugins:
   - "superpowers@claude-plugins-official"
   - "context7@claude-plugins-official"
   - "github@claude-plugins-official"
-  - "serena@claude-plugins-official"
-  - "everything-claude-code@everything-claude-code"
   - "n8n-mcp-skills@n8n-mcp-skills"
   - "codex@openai-codex"
+  - "caveman@caveman"
+  - "ecc@ecc"
 
 claude_blocked_plugins:
   - "code-review@claude-plugins-official"

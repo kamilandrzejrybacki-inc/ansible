@@ -8,8 +8,10 @@
     "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "serena@claude-plugins-official": true,
-    "everything-claude-code@everything-claude-code": true
+    "caveman@caveman": true,
+    "n8n-mcp-skills@n8n-mcp-skills": true,
+    "codex@openai-codex": true,
+    "ecc@ecc": true
   },
   "extraKnownMarketplaces": {
     "superpowers-marketplace": {
@@ -18,10 +20,28 @@
         "repo": "obra/superpowers-marketplace"
       }
     },
-    "everything-claude-code": {
+    "ecc": {
       "source": {
         "source": "github",
         "repo": "affaan-m/everything-claude-code"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    },
+    "n8n-mcp-skills": {
+      "source": {
+        "source": "github",
+        "repo": "czlonkowski/n8n-skills"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
       }
     }
   },

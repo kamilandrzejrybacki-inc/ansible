@@ -1,0 +1,4 @@
+---
+rtk_install_url: "https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh"
+rtk_hook_script: "{{ ansible_env.HOME }}/.claude/hooks/rtk-rewrite.sh"
+claude_config_dir: "{{ ansible_env.HOME }}/.claude"

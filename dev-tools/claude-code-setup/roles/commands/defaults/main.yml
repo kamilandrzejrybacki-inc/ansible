@@ -1,6 +1,4 @@
 ---
 claude_commands_dir: "{{ ansible_env.HOME }}/.claude/commands"
 
-claude_commands:
-  - name: serena-onboard
-    template: serena-onboard.md.j2
+claude_commands: []

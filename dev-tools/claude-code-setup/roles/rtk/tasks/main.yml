@@ -1,0 +1,76 @@
+---
+- name: Check if rtk is installed
+  ansible.builtin.command: which rtk
+  register: rtk_check
+  changed_when: false
+  failed_when: false
+
+- name: Install rtk via install script
+  ansible.builtin.shell: "curl -fsSL {{ rtk_install_url }} | sh"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  when: rtk_check.rc != 0
+
+- name: Verify rtk installation
+  ansible.builtin.command: rtk --version
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: rtk_version_result
+  changed_when: false
+
+- name: Display rtk version
+  ansible.builtin.debug:
+    msg: "rtk version: {{ rtk_version_result.stdout }}"
+
+- name: Initialize rtk global Claude Code hook
+  ansible.builtin.command: rtk init -g
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: rtk_init_result
+  changed_when: "'installed/updated' in rtk_init_result.stdout"
+
+- name: Inject command skip rules into rtk hook script
+  ansible.builtin.blockinfile:
+    path: "{{ rtk_hook_script }}"
+    marker: "# {mark} ANSIBLE MANAGED RTK SKIP RULES"
+    insertbefore: '^# Delegate all rewrite'
+    block: |
+      # Skip rewrite for commands whose full output is critical for debugging.
+      # Ansible playbook recaps, Helm chart output, and Docker compose/container
+      # logs must pass through verbatim — RTK compression strips needed context.
+      case "$CMD" in
+        ansible-playbook|ansible-playbook\ *|*\ ansible-playbook|*\ ansible-playbook\ *)
+          exit 0 ;;
+        helm|helm\ *|*\ helm|*\ helm\ *)
+          exit 0 ;;
+        docker\ compose\ logs*|*\ docker\ compose\ logs*|docker-compose\ logs*|*\ docker-compose\ logs*|docker\ logs*|*\ docker\ logs*)
+          exit 0 ;;
+      esac
+
+- name: Patch Claude Code settings.json with rtk PreToolUse hook
+  ansible.builtin.shell: |
+    python3 - << 'EOF'
+    import json, os, sys
+    settings_path = os.path.expanduser("~/.claude/settings.json")
+    hook_cmd = "{{ rtk_hook_script }}"
+    with open(settings_path) as f:
+        settings = json.load(f)
+    hook_entry = {"type": "command", "command": hook_cmd}
+    hooks = settings.setdefault("hooks", {})
+    pre_tool_use = hooks.setdefault("PreToolUse", [])
+    bash_hook = next((h for h in pre_tool_use if h.get("matcher") == "Bash"), None)
+    if bash_hook is None:
+        pre_tool_use.append({"matcher": "Bash", "hooks": [hook_entry]})
+        changed = True
+    elif hook_entry not in bash_hook.get("hooks", []):
+        bash_hook.setdefault("hooks", []).append(hook_entry)
+        changed = True
+    else:
+        changed = False
+    if changed:
+        with open(settings_path, "w") as f:
+            json.dump(settings, f, indent=2)
+        print("CHANGED")
+    EOF
+  register: hook_patch_result
+  changed_when: "'CHANGED' in hook_patch_result.stdout"

@@ -15,6 +15,7 @@
   ansible.builtin.slurp:
     src: "{{ oauth_proxy_state_dir }}/current_image_digest"
   register: _prev_digest_raw
+  become: true
 
 - name: Set previous image digest fact
   ansible.builtin.set_fact:
@@ -36,5 +37,5 @@
     env:
       GITHUB_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
       GITHUB_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
-      ORIGIN: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
+      ORIGINS: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
   no_log: true

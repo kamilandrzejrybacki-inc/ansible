@@ -4,6 +4,7 @@
     path: "{{ oauth_proxy_state_dir }}"
     state: directory
     mode: "0750"
+  become: true
 
 - name: Read Decap CMS secrets from Vault
   ansible.builtin.uri:
@@ -38,6 +39,7 @@
     content: "{{ _oauth_image_digest.stdout }}\n"
     dest: "{{ oauth_proxy_state_dir }}/current_image_digest"
     mode: "0640"
+  become: true
   when: _oauth_image_digest.rc == 0
 
 - name: Pull oauth-proxy Docker image
@@ -57,10 +59,10 @@
     env:
       GITHUB_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
       GITHUB_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
-      ORIGIN: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
+      ORIGINS: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
-      interval: 30000000000
-      timeout: 5000000000
+      interval: 30s
+      timeout: 5s
       retries: 3
   no_log: true

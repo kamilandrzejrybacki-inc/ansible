@@ -10,7 +10,11 @@
 - name: Rollback oauth-proxy to previous image digest
   ansible.builtin.include_tasks: rollback.yml
   tags: [rollback]
+  # Guard: only run when rollback was explicitly requested, not during deploy/update
+  when: "'rollback' in ansible_run_tags"
 
 - name: Verify oauth-proxy health
   ansible.builtin.include_tasks: verify.yml
   tags: [verify]
+  # Guard: only run when verify was explicitly requested
+  when: "'verify' in ansible_run_tags"

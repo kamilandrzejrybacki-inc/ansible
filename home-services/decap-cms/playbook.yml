@@ -5,6 +5,11 @@
   gather_facts: true
 
   pre_tasks:
+    - name: Load homelab setup vars (saved_domain etc.)
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      tags: always
+
     - name: Load Vault connection settings
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
       tags: always
@@ -20,6 +25,11 @@
   gather_facts: true
 
   pre_tasks:
+    - name: Load homelab setup vars (saved_domain etc.)
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      tags: always
+
     - name: Load Vault connection settings (for domain var)
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
       tags: always

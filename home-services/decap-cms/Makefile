@@ -1,4 +1,4 @@
-PLAYBOOK = ansible-playbook playbook.yml
+PLAYBOOK = ansible-playbook -i inventory playbook.yml
 
 .PHONY: deploy update rollback verify caddy admin lint
 

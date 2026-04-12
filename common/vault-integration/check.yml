@@ -11,17 +11,22 @@
 # Usage:
 #   - name: Check Vault
 #     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+#
+# Note: all tasks carry tags: always so they run regardless of --tags filters
+# passed to the parent playbook.
 
 - name: Check for Vault connection file
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.vault-ansible.yml"
   register: _vault_conn_file
+  tags: always
 
 - name: Load Vault connection details
   ansible.builtin.include_vars:
     file: "{{ lookup('env', 'HOME') }}/.vault-ansible.yml"
     name: _vault_conn
   when: _vault_conn_file.stat.exists and _vault_conn_file.stat.readable
+  tags: always
 
 - name: Test Vault connectivity
   ansible.builtin.uri:
@@ -33,6 +38,7 @@
   register: _vault_health_check
   failed_when: false
   when: _vault_conn_file.stat.exists and _vault_conn_file.stat.readable
+  tags: always
 
 - name: Set Vault availability facts
   ansible.builtin.set_fact:
@@ -45,6 +51,7 @@
     _vault_token: "{{ _vault_conn.vault_token | default('') }}"
     _vault_kv_mount: "{{ _vault_conn.vault_kv_mount | default('secret') }}"
   no_log: true
+  tags: always
 
 - name: Report Vault status
   ansible.builtin.debug:
@@ -52,3 +59,4 @@
       {{ 'Vault is available at ' + _vault_addr + ' — secrets will be loaded/stored automatically.'
          if _vault_available | bool
          else 'Vault not available — falling back to interactive prompts.' }}
+  tags: always

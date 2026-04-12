@@ -10,6 +10,7 @@
         import proxy_headers
         reverse_proxy http://{{ ansible_default_ipv4.address }}:{{ oauth_proxy_port }}
       }
+  become: true
   notify: reload caddy
 
 - name: Add Pi-hole local DNS record for Decap CMS auth

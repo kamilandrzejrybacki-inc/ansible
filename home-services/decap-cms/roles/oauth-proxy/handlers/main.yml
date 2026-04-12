@@ -3,3 +3,8 @@
   ansible.builtin.shell: |
     docker exec caddy caddy reload --config /etc/caddy/Caddyfile
   changed_when: true
+
+- name: reload pihole dns
+  ansible.builtin.command:
+    cmd: docker exec pihole pihole restartdns reload
+  changed_when: true

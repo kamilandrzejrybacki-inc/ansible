@@ -1,0 +1,40 @@
+---
+- name: Gather oauth-proxy container info
+  community.docker.docker_container_info:
+    name: "{{ oauth_proxy_container_name }}"
+  register: _oauth_container_info
+
+- name: Assert oauth-proxy container is running
+  ansible.builtin.assert:
+    that:
+      - _oauth_container_info.exists
+      - _oauth_container_info.container.State.Running
+    fail_msg: "oauth-proxy container is not running"
+    success_msg: "oauth-proxy container is running"
+
+- name: Check oauth-proxy responds on localhost
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ oauth_proxy_port }}/"
+    status_code: 200
+    timeout: 5
+  register: _oauth_health
+
+- name: Assert oauth-proxy health check passed
+  ansible.builtin.assert:
+    that: _oauth_health.status == 200
+    fail_msg: "oauth-proxy did not return 200 on port {{ oauth_proxy_port }}"
+
+- name: Check Caddy is serving the CMS auth vhost (any non-502 = proxy reachable)
+  ansible.builtin.uri:
+    url: "http://{{ saved_domain }}/callback"
+    headers:
+      Host: "{{ oauth_proxy_hostname }}.{{ saved_domain }}"
+    status_code: [200, 302, 400, 404]
+    timeout: 10
+    validate_certs: false
+  register: _caddy_vhost_check
+
+- name: Assert Caddy vhost is not returning 502
+  ansible.builtin.assert:
+    that: _caddy_vhost_check.status != 502
+    fail_msg: "Caddy returned 502 — proxy likely not reachable from Caddy container"

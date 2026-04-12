@@ -57,9 +57,10 @@
     ports:
       - "{{ ansible_default_ipv4.address }}:{{ oauth_proxy_port }}:3000"
     env:
-      GITHUB_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
-      GITHUB_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
+      OAUTH_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
+      OAUTH_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
       ORIGINS: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
+      REDIRECT_URL: "https://{{ oauth_proxy_hostname }}.{{ saved_domain }}/callback"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 30s

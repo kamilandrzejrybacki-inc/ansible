@@ -19,3 +19,9 @@
      (echo "{{ ansible_default_ipv4.address }} {{ oauth_proxy_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
   register: _pihole_dns_result
   changed_when: "'CHANGED' in _pihole_dns_result.stdout"
+
+- name: Reload Pi-hole DNS to apply new local record
+  ansible.builtin.command:
+    cmd: docker exec pihole pihole restartdns reload
+  when: _pihole_dns_result is changed
+  changed_when: true

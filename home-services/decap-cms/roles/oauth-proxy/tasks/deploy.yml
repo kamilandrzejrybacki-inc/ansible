@@ -26,23 +26,25 @@
     fail_msg: "Missing required keys in secret/homelab/decap-cms — expected: github_client_id, github_client_secret, cms_auth_origin"
   when: _vault_available | default(false) | bool
 
-- name: Pull oauth-proxy Docker image
-  community.docker.docker_image:
-    name: "{{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
-    source: pull
-    force_source: "{{ oauth_proxy_image_tag == 'latest' }}"
-
-- name: Record current image digest for rollback
+- name: Record running container image digest for rollback
   ansible.builtin.command:
-    cmd: "docker inspect --format={{ '{{' }}.Id{{ '}}' }} {{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
+    cmd: "docker inspect --format={{ '{{' }}.Image{{ '}}' }} {{ oauth_proxy_container_name }}"
   register: _oauth_image_digest
   changed_when: false
+  failed_when: false
 
 - name: Save image digest to state dir (rollback reference)
   ansible.builtin.copy:
     content: "{{ _oauth_image_digest.stdout }}\n"
     dest: "{{ oauth_proxy_state_dir }}/current_image_digest"
     mode: "0640"
+  when: _oauth_image_digest.rc == 0
+
+- name: Pull oauth-proxy Docker image
+  community.docker.docker_image:
+    name: "{{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
+    source: pull
+    force_source: "{{ oauth_proxy_image_tag == 'latest' }}"
 
 - name: Deploy oauth-proxy container
   community.docker.docker_container:

@@ -1,0 +1,64 @@
+---
+- name: Ensure oauth-proxy state directory exists
+  ansible.builtin.file:
+    path: "{{ oauth_proxy_state_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Read Decap CMS secrets from Vault
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/decap-cms"
+    headers:
+      X-Vault-Token: "{{ _vault_token }}"
+    return_content: true
+    status_code: [200]
+    timeout: 10
+  register: _vault_decap
+  no_log: true
+  when: _vault_available | default(false) | bool
+
+- name: Assert required Vault secrets are present
+  ansible.builtin.assert:
+    that:
+      - _vault_decap.json.data.data.github_client_id is defined
+      - _vault_decap.json.data.data.github_client_secret is defined
+      - _vault_decap.json.data.data.cms_auth_origin is defined
+    fail_msg: "Missing required keys in secret/homelab/decap-cms — expected: github_client_id, github_client_secret, cms_auth_origin"
+  when: _vault_available | default(false) | bool
+
+- name: Pull oauth-proxy Docker image
+  community.docker.docker_image:
+    name: "{{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
+    source: pull
+    force_source: "{{ oauth_proxy_image_tag == 'latest' }}"
+
+- name: Record current image digest for rollback
+  ansible.builtin.command:
+    cmd: "docker inspect --format={{ '{{' }}.Id{{ '}}' }} {{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
+  register: _oauth_image_digest
+  changed_when: false
+
+- name: Save image digest to state dir (rollback reference)
+  ansible.builtin.copy:
+    content: "{{ _oauth_image_digest.stdout }}\n"
+    dest: "{{ oauth_proxy_state_dir }}/current_image_digest"
+    mode: "0640"
+
+- name: Deploy oauth-proxy container
+  community.docker.docker_container:
+    name: "{{ oauth_proxy_container_name }}"
+    image: "{{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
+    state: started
+    restart_policy: "{{ oauth_proxy_restart_policy }}"
+    ports:
+      - "{{ ansible_default_ipv4.address }}:{{ oauth_proxy_port }}:3000"
+    env:
+      GITHUB_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
+      GITHUB_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
+      ORIGIN: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30000000000
+      timeout: 5000000000
+      retries: 3
+  no_log: true

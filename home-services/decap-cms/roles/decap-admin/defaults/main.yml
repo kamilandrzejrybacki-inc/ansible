@@ -1,0 +1,17 @@
+---
+# Blog repo on the Ansible controller (must be cloned before running this role)
+blog_repo_path: "/opt/data/kamilrybacki.github.io"
+
+# Decap CMS CDN version (pin this — never use "latest" on a CDN URL)
+decap_cms_version: "3.3.3"
+
+# Blog configuration
+blog_base_url: "https://kamilrybacki.github.io"
+blog_github_repo: "kamilrybacki/kamilrybacki.github.io"
+blog_branch: "main"
+
+# CMS configuration
+# oauth_proxy_hostname and saved_domain come from the oauth-proxy role defaults
+# and vault-integration check — they must be available when this role runs.
+cms_articles_folder: "src/content/articles"
+cms_media_folder: "src/assets/uploads"

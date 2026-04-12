@@ -1,0 +1,25 @@
+{# roles/decap-admin/templates/config.yml.j2 #}
+backend:
+  name: github
+  repo: {{ blog_github_repo }}
+  branch: {{ blog_branch }}
+  base_url: http://{{ oauth_proxy_hostname }}.{{ saved_domain }}
+
+publish_mode: simple
+
+media_folder: {{ cms_media_folder }}
+
+collections:
+  - name: articles
+    label: Articles
+    folder: {{ cms_articles_folder }}
+    create: true
+    slug: "{% raw %}{{slug}}{% endraw %}"
+    fields:
+      - { name: title,       label: Title,       widget: string }
+      - { name: date,        label: Date,         widget: datetime }
+      - { name: description, label: Description,  widget: text }
+      - { name: category,    label: Category,     widget: string }
+      - { name: tags,        label: Tags,         widget: list }
+      - { name: draft,       label: Draft,        widget: boolean, default: true }
+      - { name: body,        label: Body,         widget: markdown }

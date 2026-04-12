@@ -1,0 +1,16 @@
+---
+- name: Deploy oauth-proxy
+  ansible.builtin.include_tasks: deploy.yml
+  tags: [deploy, update]
+
+- name: Configure Caddy vhost
+  ansible.builtin.include_tasks: caddy.yml
+  tags: [deploy, caddy]
+
+- name: Rollback oauth-proxy to previous image digest
+  ansible.builtin.include_tasks: rollback.yml
+  tags: [rollback]
+
+- name: Verify oauth-proxy health
+  ansible.builtin.include_tasks: verify.yml
+  tags: [verify]

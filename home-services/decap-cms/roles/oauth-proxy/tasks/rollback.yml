@@ -1,0 +1,40 @@
+---
+- name: Read Decap CMS secrets from Vault (needed to restart container with env vars)
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/decap-cms"
+    headers:
+      X-Vault-Token: "{{ _vault_token }}"
+    return_content: true
+    status_code: [200]
+    timeout: 10
+  register: _vault_decap
+  no_log: true
+  when: _vault_available | default(false) | bool
+
+- name: Read previous image digest from state dir
+  ansible.builtin.slurp:
+    src: "{{ oauth_proxy_state_dir }}/current_image_digest"
+  register: _prev_digest_raw
+
+- name: Set previous image digest fact
+  ansible.builtin.set_fact:
+    _oauth_prev_digest: "{{ _prev_digest_raw.content | b64decode | trim }}"
+
+- name: Stop current oauth-proxy container
+  community.docker.docker_container:
+    name: "{{ oauth_proxy_container_name }}"
+    state: stopped
+
+- name: Restart oauth-proxy from previous image digest
+  community.docker.docker_container:
+    name: "{{ oauth_proxy_container_name }}"
+    image: "{{ _oauth_prev_digest }}"
+    state: started
+    restart_policy: "{{ oauth_proxy_restart_policy }}"
+    ports:
+      - "{{ ansible_default_ipv4.address }}:{{ oauth_proxy_port }}:3000"
+    env:
+      GITHUB_CLIENT_ID: "{{ _vault_decap.json.data.data.github_client_id }}"
+      GITHUB_CLIENT_SECRET: "{{ _vault_decap.json.data.data.github_client_secret }}"
+      ORIGIN: "{{ _vault_decap.json.data.data.cms_auth_origin }}"
+  no_log: true

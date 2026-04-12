@@ -1,0 +1,29 @@
+---
+# Play 1: Deploy OAuth proxy to lw-main
+- name: Deploy Decap CMS OAuth proxy
+  hosts: lw-main
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Vault connection settings
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+      tags: always
+
+  roles:
+    - role: oauth-proxy
+      tags: [oauth-proxy, deploy, update, rollback, verify, caddy]
+
+# Play 2: Render admin files into blog repo (runs on Ansible controller)
+- name: Render Decap CMS admin files into blog repo
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Vault connection settings (for domain var)
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+      tags: always
+
+  roles:
+    - role: decap-admin
+      tags: [decap-admin, deploy]

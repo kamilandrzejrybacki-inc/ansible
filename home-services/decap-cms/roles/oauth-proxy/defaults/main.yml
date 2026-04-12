@@ -1,0 +1,14 @@
+---
+# Container
+oauth_proxy_image: "vencax/netlify-cms-github-oauth-provider"
+oauth_proxy_image_tag: "latest"
+oauth_proxy_container_name: "decap-cms-oauth"
+oauth_proxy_port: 3000
+oauth_proxy_restart_policy: "unless-stopped"
+
+# Caddy vhost
+oauth_proxy_hostname: "cms-auth"
+# saved_domain is set by common/vault-integration/check.yml (homelab-wide var)
+
+# State directory (stores image digest for rollback)
+oauth_proxy_state_dir: "/opt/decap-cms"

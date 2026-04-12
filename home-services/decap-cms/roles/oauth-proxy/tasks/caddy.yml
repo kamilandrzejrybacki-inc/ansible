@@ -1,0 +1,21 @@
+---
+- name: Add Decap CMS auth vhost to Caddyfile
+  ansible.builtin.blockinfile:
+    path: /opt/homelab/caddy/Caddyfile
+    marker: "# {mark} DECAP_CMS_AUTH"
+    unsafe_writes: true
+    block: |
+      http://{{ oauth_proxy_hostname }}.{{ saved_domain }} {
+        import rate_limit
+        import proxy_headers
+        reverse_proxy http://{{ ansible_default_ipv4.address }}:{{ oauth_proxy_port }}
+      }
+  notify: reload caddy
+
+- name: Add Pi-hole local DNS record for Decap CMS auth
+  ansible.builtin.command: >
+    docker exec pihole sh -c
+    'grep -qF "{{ oauth_proxy_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+     (echo "{{ ansible_default_ipv4.address }} {{ oauth_proxy_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+  register: _pihole_dns_result
+  changed_when: "'CHANGED' in _pihole_dns_result.stdout"

@@ -1,0 +1,40 @@
+---
+- name: Assert blog repo exists at configured path
+  ansible.builtin.stat:
+    path: "{{ blog_repo_path }}"
+  register: _blog_repo_stat
+
+- name: Fail if blog repo is not cloned
+  ansible.builtin.fail:
+    msg: >
+      Blog repo not found at {{ blog_repo_path }}.
+      Clone it first: git clone https://github.com/{{ blog_github_repo }} {{ blog_repo_path }}
+  when: not _blog_repo_stat.stat.exists or not _blog_repo_stat.stat.isdir
+
+- name: Ensure /admin directory exists in blog repo
+  ansible.builtin.file:
+    path: "{{ blog_repo_path }}/admin"
+    state: directory
+    mode: "0755"
+
+- name: Render Decap CMS config.yml
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ blog_repo_path }}/admin/config.yml"
+    mode: "0644"
+
+- name: Render Decap CMS index.html
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: "{{ blog_repo_path }}/admin/index.html"
+    mode: "0644"
+
+- name: Show next steps for blog repo
+  ansible.builtin.debug:
+    msg: |
+      Admin files written to {{ blog_repo_path }}/admin/.
+      Next steps:
+        cd {{ blog_repo_path }}
+        git add admin/
+        git commit -m "feat: add Decap CMS admin panel"
+        git push

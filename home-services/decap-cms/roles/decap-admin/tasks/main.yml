@@ -1,0 +1,4 @@
+---
+- name: Deploy Decap admin files
+  ansible.builtin.include_tasks: deploy.yml
+  tags: [deploy, decap-admin]

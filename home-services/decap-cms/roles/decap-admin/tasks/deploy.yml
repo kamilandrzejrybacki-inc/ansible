@@ -11,28 +11,28 @@
       Clone it first: git clone https://github.com/{{ blog_github_repo }} {{ blog_repo_path }}
   when: not _blog_repo_stat.stat.exists or not _blog_repo_stat.stat.isdir
 
-- name: Ensure /admin directory exists in blog repo
+- name: Ensure /src/admin directory exists in blog repo
   ansible.builtin.file:
-    path: "{{ blog_repo_path }}/admin"
+    path: "{{ blog_repo_path }}/src/admin"
     state: directory
     mode: "0755"
 
 - name: Render Decap CMS config.yml
   ansible.builtin.template:
     src: config.yml.j2
-    dest: "{{ blog_repo_path }}/admin/config.yml"
+    dest: "{{ blog_repo_path }}/src/admin/config.yml"
     mode: "0644"
 
 - name: Render Decap CMS index.html
   ansible.builtin.template:
     src: index.html.j2
-    dest: "{{ blog_repo_path }}/admin/index.html"
+    dest: "{{ blog_repo_path }}/src/admin/index.html"
     mode: "0644"
 
 - name: Show next steps for blog repo
   ansible.builtin.debug:
     msg: |
-      Admin files written to {{ blog_repo_path }}/admin/.
+      Admin files written to {{ blog_repo_path }}/src/admin/.
       Next steps:
         cd {{ blog_repo_path }}
         git add admin/

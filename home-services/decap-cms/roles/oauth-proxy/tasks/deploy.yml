@@ -44,7 +44,7 @@
   community.docker.docker_image:
     name: "{{ oauth_proxy_image }}:{{ oauth_proxy_image_tag }}"
     source: pull
-    force_source: "{{ oauth_proxy_image_tag == 'latest' }}"
+    force_source: "{{ oauth_proxy_image_tag in ['latest', 'master'] }}"
 
 - name: Deploy oauth-proxy container
   community.docker.docker_container:

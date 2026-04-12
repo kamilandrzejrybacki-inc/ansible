@@ -10,6 +10,9 @@ blog_base_url: "https://kamilrybacki.github.io"
 blog_github_repo: "kamilrybacki/kamilrybacki.github.io"
 blog_branch: "main"
 
+# OAuth proxy hostname — must match roles/oauth-proxy/defaults/main.yml
+oauth_proxy_hostname: "cms-auth"
+
 # CMS configuration
 # oauth_proxy_hostname and saved_domain come from the oauth-proxy role defaults
 # and vault-integration check — they must be available when this role runs.

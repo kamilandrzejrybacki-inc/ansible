@@ -3,6 +3,8 @@ kind: Job
 metadata:
   name: "build-{{ item.name }}-{{ ansible_date_time.epoch }}"
   namespace: docker-builders
+  labels:
+    app.kubernetes.io/managed-by: kaniko-builder
 spec:
   ttlSecondsAfterFinished: 3600
   backoffLimit: 1

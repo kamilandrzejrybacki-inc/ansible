@@ -15,6 +15,83 @@
 #     -e github_pat=XXX
 # =============================================================================
 
+# =============================================================================
+# Play 1: Bootstrap docker-builders on lw-c1
+# =============================================================================
+- name: Bootstrap docker-builders ArgoCD application
+  hosts: builders
+  gather_facts: false
+
+  tasks:
+    - name: Deploy ArgoCD docker-builders Application manifest
+      ansible.builtin.template:
+        src: argocd-docker-builders-app.yaml.j2
+        dest: /tmp/argocd-docker-builders-app.yaml
+        mode: "0644"
+
+    - name: Apply ArgoCD Application
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-docker-builders-app.yaml
+      environment:
+        KUBECONFIG: /home/kamil/.kube/config
+
+    - name: Wait for registry Deployment to be available
+      ansible.builtin.command:
+        cmd: >
+          kubectl wait deployment/registry
+          -n docker-builders
+          --for=condition=available
+          --timeout=120s
+      environment:
+        KUBECONFIG: /home/kamil/.kube/config
+
+# =============================================================================
+# Play 2: Build arm64 images via Kaniko on lw-c1
+# =============================================================================
+- name: Build Hermes custom images
+  hosts: builders
+  gather_facts: true
+
+  tasks:
+    - name: Create Kaniko build Job manifests
+      ansible.builtin.template:
+        src: kaniko-job.yaml.j2
+        dest: "/tmp/kaniko-job-{{ item.name }}.yaml"
+        mode: "0644"
+      loop:
+        - name: hermes-webui-fork
+          repo: "{{ hermes_webui_fork_repo }}"
+          tag: "{{ hermes_webui_fork_tag }}"
+        - name: hermes-dreaming
+          repo: "{{ hermes_dreaming_repo }}"
+          tag: "{{ hermes_dreaming_tag }}"
+        - name: hermes-supermemory
+          repo: "{{ hermes_supermemory_repo }}"
+          tag: "{{ hermes_supermemory_tag }}"
+
+    - name: Apply Kaniko Jobs
+      ansible.builtin.command:
+        cmd: "kubectl apply -f /tmp/kaniko-job-{{ item.name }}.yaml"
+      loop:
+        - name: hermes-webui-fork
+        - name: hermes-dreaming
+        - name: hermes-supermemory
+      environment:
+        KUBECONFIG: /home/kamil/.kube/config
+
+    - name: Wait for all Kaniko Jobs to complete
+      ansible.builtin.command:
+        cmd: >
+          kubectl wait jobs
+          -l app.kubernetes.io/managed-by=kaniko-builder
+          -n docker-builders
+          --for=condition=complete
+          --timeout=1200s
+      environment:
+        KUBECONFIG: /home/kamil/.kube/config
+      register: kaniko_wait
+      failed_when: kaniko_wait.rc != 0
+
 - name: Deploy Hermes to Pi
   hosts: hermes
   become: true

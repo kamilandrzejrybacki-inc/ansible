@@ -33,7 +33,7 @@
       ansible.builtin.command:
         cmd: kubectl apply --validate=false -f /tmp/argocd-docker-builders-app.yaml
       environment:
-        KUBECONFIG: /home/kamil/.kube/config
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     - name: Wait for registry Deployment to be available
       ansible.builtin.command:
@@ -43,7 +43,7 @@
           --for=condition=available
           --timeout=120s
       environment:
-        KUBECONFIG: /home/kamil/.kube/config
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
 # =============================================================================
 # Play 2: Build arm64 images via Kaniko on lw-c1
@@ -73,7 +73,7 @@
         - name: hermes-webui-fork
         - name: hermes-dreaming
       environment:
-        KUBECONFIG: /home/kamil/.kube/config
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     - name: Wait for all Kaniko Jobs to complete
       ansible.builtin.command:
@@ -84,7 +84,7 @@
           --for=condition=complete
           --timeout=1200s
       environment:
-        KUBECONFIG: /home/kamil/.kube/config
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       register: kaniko_wait
       failed_when: kaniko_wait.rc != 0
 

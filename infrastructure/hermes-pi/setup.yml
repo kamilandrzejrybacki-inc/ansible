@@ -35,6 +35,16 @@
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
+    - name: Wait for registry Deployment to exist (ArgoCD sync delay)
+      ansible.builtin.command:
+        cmd: kubectl get deployment/registry -n docker-builders
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: _reg_exists
+      until: _reg_exists.rc == 0
+      retries: 18
+      delay: 10
+
     - name: Wait for registry Deployment to be available
       ansible.builtin.command:
         cmd: >

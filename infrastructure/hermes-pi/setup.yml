@@ -117,7 +117,26 @@
           - openai_refresh_token is defined
           - groq_api_key is defined
           - n8n_mcp_token is defined
+          - supermemory_api_key is defined
         fail_msg: "Pass secrets via -e flags"
+
+    - name: Configure Docker insecure registry
+      ansible.builtin.template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Docker
+
+    - name: Flush handlers (ensure Docker restarts before pulling)
+      ansible.builtin.meta: flush_handlers
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
 
   tasks:
     # ── Create directory structure ────────────────────────────────
@@ -133,6 +152,19 @@
         - "{{ hermes_install_dir }}/data"
         - "{{ hermes_install_dir }}/data/memories"
         - "{{ hermes_install_dir }}/data/.ssh"
+
+    - name: Create Dreaming subdirectories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+      loop:
+        - "{{ hermes_install_dir }}/data/memories/dreaming/light"
+        - "{{ hermes_install_dir }}/data/memories/dreaming/rem"
+        - "{{ hermes_install_dir }}/data/memories/dreaming/deep"
+        - "{{ hermes_install_dir }}/data/memories/.dreams"
 
     # ── SSH key for lw-main access ────────────────────────────────
     - name: Generate SSH key for Hermes (if not present)

@@ -10,7 +10,7 @@ services:
       - hermes
 
   webui:
-    image: ghcr.io/nesquena/hermes-webui:{{ hermes_webui_tag }}
+    image: {{ hermes_registry }}/hermes-webui-fork:{{ hermes_webui_fork_tag }}
     container_name: hermes-webui
     restart: unless-stopped
     depends_on:
@@ -91,6 +91,37 @@ services:
     networks:
       - hermes
 
+  hermes-dreaming:
+    image: {{ hermes_registry }}/hermes-dreaming:{{ hermes_dreaming_tag }}
+    container_name: hermes-dreaming
+    restart: unless-stopped
+    depends_on:
+      - redis
+    volumes:
+      - ./data:/opt/data
+    environment:
+      - HERMES_MEMORIES_DIR=/opt/data/memories
+      - DREAMING_ENABLED={{ memory_source_dreaming_enabled | lower }}
+      - DREAMING_LOOKBACK_DAYS={{ dreaming_lookback_days }}
+      - DREAMING_CRON={{ dreaming_cron }}
+    env_file:
+      - .env
+    networks:
+      - hermes
+
+  hermes-supermemory:
+    image: {{ hermes_registry }}/hermes-supermemory:{{ hermes_supermemory_tag }}
+    container_name: hermes-supermemory
+    restart: unless-stopped
+    volumes:
+      - supermemory-data:/data
+    environment:
+      - PORT=3100
+    env_file:
+      - .env
+    networks:
+      - hermes
+
   portkey-proxy:
     image: nginx:alpine
     container_name: hermes-portkey
@@ -104,6 +135,7 @@ services:
 
 volumes:
   redis-data:
+  supermemory-data:
 
 networks:
   hermes:

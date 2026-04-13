@@ -31,7 +31,7 @@
 
     - name: Apply ArgoCD Application
       ansible.builtin.command:
-        cmd: kubectl apply -f /tmp/argocd-docker-builders-app.yaml
+        cmd: kubectl apply --validate=false -f /tmp/argocd-docker-builders-app.yaml
       environment:
         KUBECONFIG: /home/kamil/.kube/config
 

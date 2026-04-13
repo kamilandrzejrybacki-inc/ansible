@@ -65,9 +65,6 @@
         - name: hermes-dreaming
           repo: "{{ hermes_dreaming_repo }}"
           tag: "{{ hermes_dreaming_tag }}"
-        - name: hermes-supermemory
-          repo: "{{ hermes_supermemory_repo }}"
-          tag: "{{ hermes_supermemory_tag }}"
 
     - name: Apply Kaniko Jobs
       ansible.builtin.command:
@@ -75,7 +72,6 @@
       loop:
         - name: hermes-webui-fork
         - name: hermes-dreaming
-        - name: hermes-supermemory
       environment:
         KUBECONFIG: /home/kamil/.kube/config
 

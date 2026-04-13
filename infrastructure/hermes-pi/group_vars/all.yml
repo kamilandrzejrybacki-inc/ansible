@@ -34,10 +34,8 @@ hermes_mcp_servers:
 hermes_registry: "192.168.0.107:30500"
 hermes_webui_fork_tag: "latest"
 hermes_dreaming_tag: "latest"
-hermes_supermemory_tag: "latest"
 hermes_webui_fork_repo: "https://github.com/kamilandrzejrybacki-inc/hermes-webui-fork.git"
 hermes_dreaming_repo: "https://github.com/kamilandrzejrybacki-inc/hermes-dreaming.git"
-hermes_supermemory_repo: "https://github.com/kamilandrzejrybacki-inc/hermes-supermemory.git"
 
 memory_source_supermemory_enabled: true
 memory_source_dreaming_enabled: true

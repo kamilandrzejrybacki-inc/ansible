@@ -109,19 +109,6 @@ services:
     networks:
       - hermes
 
-  hermes-supermemory:
-    image: {{ hermes_registry }}/hermes-supermemory:{{ hermes_supermemory_tag }}
-    container_name: hermes-supermemory
-    restart: unless-stopped
-    volumes:
-      - supermemory-data:/data
-    environment:
-      - PORT=3100
-    env_file:
-      - .env
-    networks:
-      - hermes
-
   portkey-proxy:
     image: nginx:alpine
     container_name: hermes-portkey
@@ -135,7 +122,6 @@ services:
 
 volumes:
   redis-data:
-  supermemory-data:
 
 networks:
   hermes:

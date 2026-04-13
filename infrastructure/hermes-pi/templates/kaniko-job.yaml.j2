@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "build-{{ item.name }}-{{ ansible_date_time.epoch }}"
+  namespace: docker-builders
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: kaniko-builder
+      restartPolicy: Never
+      initContainers:
+      - name: git-clone
+        image: alpine/git:latest
+        command: ["git", "clone", "{{ item.repo }}", "/workspace"]
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      containers:
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/workspace"
+        - "--dockerfile=/workspace/{{ item.dockerfile | default('Dockerfile') }}"
+        - "--destination={{ hermes_registry }}/{{ item.name }}:{{ item.tag | default('latest') }}"
+        - "--customPlatform=linux/arm64"
+        - "--skip-tls-verify"
+        - "--log-format=text"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: workspace
+        emptyDir: {}

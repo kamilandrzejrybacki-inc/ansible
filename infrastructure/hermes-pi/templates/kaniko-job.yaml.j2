@@ -15,7 +15,16 @@ spec:
       initContainers:
       - name: git-clone
         image: alpine/git:latest
-        command: ["git", "clone", "{{ item.repo }}", "/workspace"]
+        command:
+          - sh
+          - -c
+          - |
+            git clone "https://x-access-token:${GITHUB_PAT}@${REPO#https://}" /workspace
+        env:
+          - name: GITHUB_PAT
+            value: "{{ github_pat }}"
+          - name: REPO
+            value: "{{ item.repo }}"
         volumeMounts:
         - name: workspace
           mountPath: /workspace

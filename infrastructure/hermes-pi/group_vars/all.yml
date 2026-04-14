@@ -44,4 +44,5 @@ dreaming_cron: "0 3 * * *"
 dreaming_lookback_days: 7
 
 # ── Knowledge sources ──────────────────────────────────────────────────────
-distillery_url: "http://distillery.{{ mcp_bridges_domain }}:8000"
+distillery_url: "http://{{ k8s_node_ip }}:30800"
+distillery_api_key: "{{ vault_distillery_api_key | default('') }}"

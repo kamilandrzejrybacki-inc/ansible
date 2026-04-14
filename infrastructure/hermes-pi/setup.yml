@@ -216,6 +216,13 @@
         owner: "{{ ansible_user }}"
         mode: "0644"
 
+    - name: Deploy supermemory server
+      ansible.builtin.template:
+        src: supermemory_server.py.j2
+        dest: "{{ hermes_install_dir }}/supermemory_server.py"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
     - name: Deploy docker-compose.yml
       ansible.builtin.template:
         src: docker-compose.yml.j2
@@ -277,6 +284,30 @@
         owner: "{{ ansible_user }}"
         mode: "0644"
         force: false
+
+    # ── Clone / update agent code ────────────────────────────────
+    - name: Remove agent-code dir if it is not a git repo
+      ansible.builtin.file:
+        path: "{{ hermes_install_dir }}/agent-code"
+        state: absent
+      when: not (hermes_install_dir + '/agent-code/.git') is exists
+
+    - name: Clone hermes-agent source at pinned tag
+      ansible.builtin.git:
+        repo: "https://github.com/NousResearch/hermes-agent.git"
+        dest: "{{ hermes_install_dir }}/agent-code"
+        version: "{{ hermes_agent_tag }}"
+        depth: 1
+        update: true
+        force: true
+      become: false
+
+    - name: Fix agent-code ownership
+      ansible.builtin.file:
+        path: "{{ hermes_install_dir }}/agent-code"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: true
 
     # ── Start stack ───────────────────────────────────────────────
     - name: Start Hermes stack

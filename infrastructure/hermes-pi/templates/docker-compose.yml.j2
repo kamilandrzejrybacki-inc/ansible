@@ -109,6 +109,22 @@ services:
     networks:
       - hermes
 
+  supermemory:
+    image: python:3.12-slim
+    container_name: hermes-supermemory
+    restart: unless-stopped
+    command: python /app/supermemory_server.py
+    volumes:
+      - ./supermemory_server.py:/app/supermemory_server.py:ro
+      - supermemory-data:/data
+    environment:
+      - PORT=3100
+      - SUPERMEMORY_DATA_FILE=/data/memories.json
+    env_file:
+      - .env
+    networks:
+      - hermes
+
   portkey-proxy:
     image: nginx:alpine
     container_name: hermes-portkey
@@ -122,6 +138,7 @@ services:
 
 volumes:
   redis-data:
+  supermemory-data:
 
 networks:
   hermes:

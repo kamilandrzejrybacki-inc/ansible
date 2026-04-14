@@ -30,3 +30,23 @@ session_reset:
   mode: both
   idle_minutes: 1440
   at_hour: 4
+
+knowledge_sources:
+  - name: supermemory
+    type: supermemory
+    url: "http://hermes-supermemory:3100"
+    order: 1
+    modes: [bulk]
+
+  - name: dreaming
+    type: dreaming
+    order: 2
+    modes: [bulk]
+
+  - name: distillery
+    type: distillery
+    url: "{{ distillery_url }}"
+    order: 3
+    modes: [bulk, per_turn, on_demand]
+    options:
+      limit: 5

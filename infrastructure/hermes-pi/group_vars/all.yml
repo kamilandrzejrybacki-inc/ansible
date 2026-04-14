@@ -1,6 +1,7 @@
 ---
 hermes_install_dir: /opt/hermes
-hermes_agent_version: "0.7.0"
+hermes_agent_version: "0.9.0"
+hermes_agent_tag: "v2026.4.13"
 hermes_webui_tag: "latest"
 hermes_model: "gpt-5.3-codex"
 hermes_provider: "openai-codex"
@@ -41,3 +42,6 @@ memory_source_supermemory_enabled: true
 memory_source_dreaming_enabled: true
 dreaming_cron: "0 3 * * *"
 dreaming_lookback_days: 7
+
+# ── Knowledge sources ──────────────────────────────────────────────────────
+distillery_url: "http://distillery.{{ mcp_bridges_domain }}:8000"

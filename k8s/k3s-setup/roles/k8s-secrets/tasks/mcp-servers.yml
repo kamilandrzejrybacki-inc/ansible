@@ -11,7 +11,6 @@
       - netbox_url | length > 0
       - netbox_token | length > 0
       - obsidian_api_key | length > 0
-      - grepai_api_key | length > 0
     fail_msg: "MCP credentials must be set — these have no defaults"
 
 - name: Create vault-mcp-token secret
@@ -91,17 +90,3 @@
         api_key: "{{ obsidian_api_key }}"
   no_log: true
 
-- name: Create grepai-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: grepai-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        api_key: "{{ grepai_api_key }}"
-  no_log: true

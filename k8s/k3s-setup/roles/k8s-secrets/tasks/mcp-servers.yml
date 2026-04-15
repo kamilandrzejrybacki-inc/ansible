@@ -1,0 +1,82 @@
+---
+# MCP server secrets — matches k8s Secret names referenced in Helm values.yaml
+
+- name: Create vault-mcp-token secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: vault-mcp-token
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        token: "{{ vault_mcp_token }}"
+
+- name: Create grafana-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-mcp-secret
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        api_key: "{{ grafana_api_key }}"
+
+- name: Create argocd-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-mcp-secret
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        server: "{{ argocd_server }}"
+        token: "{{ argocd_token }}"
+
+- name: Create netbox-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: netbox-mcp-secret
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        url: "{{ netbox_url }}"
+        token: "{{ netbox_token }}"
+
+- name: Create obsidian-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: obsidian-mcp-secret
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        api_key: "{{ obsidian_api_key }}"
+
+- name: Create grepai-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grepai-mcp-secret
+        namespace: "{{ k8s_namespace | default('default') }}"
+      type: Opaque
+      stringData:
+        api_key: "{{ grepai_api_key }}"

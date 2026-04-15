@@ -4,3 +4,6 @@
   loop: "{{ k8s_secrets }}"
   loop_control:
     label: "{{ item.namespace }}/{{ item.name }}"
+
+- name: Create MCP server secrets
+  ansible.builtin.include_tasks: mcp-servers.yml

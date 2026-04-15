@@ -9,3 +9,13 @@ k8s_secrets: []
 #       DB_POSTGRESDB_PASSWORD: db_password
 #       N8N_ENCRYPTION_KEY: encryption_key
 #       QUEUE_BULL_REDIS_PASSWORD: redis_password
+
+# MCP server credentials — replace with real values or vault references
+vault_mcp_token: ""
+grafana_api_key: ""
+argocd_server: ""
+argocd_token: ""
+netbox_url: ""
+netbox_token: ""
+obsidian_api_key: ""
+grepai_api_key: ""

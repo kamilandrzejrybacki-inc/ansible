@@ -1,82 +1,107 @@
 ---
 # MCP server secrets — matches k8s Secret names referenced in Helm values.yaml
 
+- name: Assert MCP credentials are configured
+  ansible.builtin.assert:
+    that:
+      - vault_mcp_token | length > 0
+      - grafana_api_key | length > 0
+      - argocd_server | length > 0
+      - argocd_token | length > 0
+      - netbox_url | length > 0
+      - netbox_token | length > 0
+      - obsidian_api_key | length > 0
+      - grepai_api_key | length > 0
+    fail_msg: "MCP credentials must be set — these have no defaults"
+
 - name: Create vault-mcp-token secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: vault-mcp-token
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         token: "{{ vault_mcp_token }}"
+  no_log: true
 
 - name: Create grafana-mcp-secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: grafana-mcp-secret
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         api_key: "{{ grafana_api_key }}"
+  no_log: true
 
 - name: Create argocd-mcp-secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: argocd-mcp-secret
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         server: "{{ argocd_server }}"
         token: "{{ argocd_token }}"
+  no_log: true
 
 - name: Create netbox-mcp-secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: netbox-mcp-secret
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         url: "{{ netbox_url }}"
         token: "{{ netbox_token }}"
+  no_log: true
 
 - name: Create obsidian-mcp-secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: obsidian-mcp-secret
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         api_key: "{{ obsidian_api_key }}"
+  no_log: true
 
 - name: Create grepai-mcp-secret
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: grepai-mcp-secret
-        namespace: "{{ k8s_namespace | default('default') }}"
+        namespace: "{{ k8s_namespace }}"
       type: Opaque
       stringData:
         api_key: "{{ grepai_api_key }}"
+  no_log: true

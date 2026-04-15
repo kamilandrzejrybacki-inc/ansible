@@ -57,6 +57,14 @@ k8s_secrets:
       DEEPSEEK_API_KEY: deepseek_api_key
       PORTKEY_API_KEY: portkey_api_key
 
+  - namespace: omniroute
+    name: omniroute-secrets
+    vault_path: omniroute
+    data:
+      GROQ_API_KEY: groq_api_key
+      OPENAI_API_KEY: nvidia_api_key
+      DEEPSEEK_API_KEY: deepseek_api_key
+
   - namespace: mcp-bridges
     name: mcp-bridges-secrets
     vault_path: mcp-bridges
@@ -119,6 +127,11 @@ argocd_applications:
     namespace: portkey
     values: {}
 
+  - name: omniroute
+    chart_path: charts/omniroute
+    namespace: omniroute
+    values: {}
+
   - name: vcluster
     chart_path: charts/vcluster
     namespace: test
@@ -142,6 +155,16 @@ argocd_applications:
   - name: hermes
     chart_path: charts/hermes
     namespace: hermes
+    values: {}
+
+  - name: mcp-servers
+    chart_path: charts/mcp-servers
+    namespace: default
+    values: {}
+
+  - name: cellarette
+    chart_path: charts/cellarette
+    namespace: default
     values: {}
 
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo

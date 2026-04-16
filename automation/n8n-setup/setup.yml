@@ -74,14 +74,17 @@
         ══════════════════════════════════════════════
 
         [1/5] IP or hostname of the n8n host machine
+      default: "192.168.0.108"
       private: false
 
     - name: n8n_ssh_user
       prompt: "[2/5] SSH user for the n8n host"
+      default: "kamil"
       private: false
 
     - name: n8n_owner_email
       prompt: "[3/5] Email for the n8n owner account"
+      default: "{{ hostvars['localhost']['_vault_secrets']['owner_email'] | default('kamilandrzejrybacki@gmail.com') }}"
       private: false
 
     - name: n8n_owner_password
@@ -195,6 +198,15 @@
           register: _n8n_vault_data
           no_log: true
 
+        - name: Read blog secrets from Vault
+          ansible.builtin.uri:
+            url: "{{ _vault_addr }}/v1/secret/data/homelab/blog"
+            headers:
+              X-Vault-Token: "{{ _vault_token }}"
+            status_code: [200, 404]
+          register: _blog_vault_data
+          no_log: true
+
         - name: Build secret proxy env from Vault data
           ansible.builtin.set_fact:
             _secret_proxy_env:
@@ -212,6 +224,7 @@
               PAPERLESS_URL: "http://10.0.1.2:8000"
               NETBOX_URL: "http://192.168.0.105:8081"
               LIBRENMS_URL: "http://192.168.0.105:8080"
+              BLOG_GITHUB_PAT: "{{ _blog_vault_data.json.data.data.github_pat | default('') }}"
           no_log: true
       when: _vault_available | default(false) | bool
 

@@ -9,9 +9,9 @@
 # Secrets are sourced from Vault via the vault-shim's n8n variables, which
 # are then passed as env vars to this container.
 #
-# IMPORTANT: The proxy shares the n8n container's network namespace. If the
-# n8n container is recreated (new container ID), the proxy MUST be recreated
-# too, otherwise its network reference points to a dead container.
+# A systemd watcher (n8n-proxy-watcher.service) auto-recreates the proxy
+# whenever n8n is recreated with a new container ID, so this is now
+# self-healing without requiring a manual ansible run.
 # =============================================================================
 
 - name: Pull secret proxy image
@@ -19,6 +19,47 @@
     name: "{{ n8n_secret_proxy_image }}"
     source: pull
     state: present
+
+- name: Create /opt/n8n directory for env file
+  ansible.builtin.file:
+    path: /opt/n8n
+    state: directory
+    owner: root
+    group: docker
+    mode: "0750"
+
+- name: Write secret proxy env file
+  ansible.builtin.template:
+    src: secret-proxy.env.j2
+    dest: /opt/n8n/secret-proxy.env
+    owner: root
+    group: docker
+    mode: "0640"
+  no_log: true
+
+- name: Deploy n8n-proxy-watcher script
+  ansible.builtin.template:
+    src: n8n-proxy-watcher.j2
+    dest: /usr/local/bin/n8n-proxy-watcher
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy n8n-proxy-watcher systemd unit
+  ansible.builtin.copy:
+    src: n8n-proxy-watcher.service
+    dest: /etc/systemd/system/n8n-proxy-watcher.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start n8n-proxy-watcher
+  ansible.builtin.systemd:
+    name: n8n-proxy-watcher
+    enabled: true
+    state: started
+    daemon_reload: true
 
 - name: Start n8n secret proxy sidecar
   community.docker.docker_container:

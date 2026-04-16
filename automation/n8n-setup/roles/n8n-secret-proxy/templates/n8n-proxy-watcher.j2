@@ -1,0 +1,49 @@
+#!/bin/bash
+# Auto-recreates n8n-secret-proxy when n8n container ID changes.
+# Deployed by ansible n8n-secret-proxy role.
+set -euo pipefail
+
+PROXY_CONTAINER="{{ n8n_secret_proxy_container_name }}"
+PROXY_IMAGE="{{ n8n_secret_proxy_image }}"
+N8N_CONTAINER="{{ n8n_container_name }}"
+ENV_FILE="/opt/n8n/secret-proxy.env"
+RESTART_POLICY="{{ n8n_restart_policy }}"
+
+log() { logger -t n8n-proxy-watcher -- "$*"; }
+
+is_proxy_healthy() {
+    local n8n_id proxy_net
+    n8n_id=$(docker inspect "$N8N_CONTAINER" --format '{% raw %}{{.Id}}{% endraw %}' 2>/dev/null) || return 1
+    proxy_net=$(docker inspect "$PROXY_CONTAINER" --format '{% raw %}{{.HostConfig.NetworkMode}}{% endraw %}' 2>/dev/null) || return 1
+    [[ "$proxy_net" == "container:$n8n_id" ]]
+}
+
+recreate_proxy() {
+    if is_proxy_healthy; then
+        log "proxy healthy, skip"
+        return
+    fi
+    log "recreating $PROXY_CONTAINER"
+    docker rm -f "$PROXY_CONTAINER" 2>/dev/null || true
+    docker run -d \
+        --name "$PROXY_CONTAINER" \
+        --restart="$RESTART_POLICY" \
+        --network="container:$N8N_CONTAINER" \
+        --env-file "$ENV_FILE" \
+        "$PROXY_IMAGE"
+    log "done"
+}
+
+log "starting — startup check"
+recreate_proxy
+
+log "watching docker events"
+docker events \
+    --filter "container=$N8N_CONTAINER" \
+    --filter "event=start" \
+    --format '{% raw %}{{.Time}}{% endraw %}' | \
+while read -r ts; do
+    log "n8n start at $ts"
+    sleep 2
+    recreate_proxy
+done

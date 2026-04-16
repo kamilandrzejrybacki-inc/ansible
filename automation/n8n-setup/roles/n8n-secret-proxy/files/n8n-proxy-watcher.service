@@ -1,0 +1,17 @@
+[Unit]
+Description=Restart n8n-secret-proxy when n8n container changes
+Documentation=https://github.com/kamilandrzejrybacki/ansible
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/n8n-proxy-watcher
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=n8n-proxy-watcher
+
+[Install]
+WantedBy=multi-user.target

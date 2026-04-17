@@ -67,6 +67,15 @@ k8s_secrets:
       openai_access_token: openai_access_token
       openai_refresh_token: openai_refresh_token
 
+  - namespace: jupyterlab
+    name: jupyterlab-secrets
+    vault_path: jupyterlab
+    data:
+      grafana_url: grafana_url
+      grafana_token: grafana_token
+      loki_url: loki_url
+      prometheus_url: prometheus_url
+
   # distillery-secrets is managed by k8s/distillery-setup/setup.yml
   # (Vault stores all env vars; the playbook assembles the full secret including
   # Redis URL with password and in-cluster service URLs.)
@@ -127,6 +136,15 @@ argocd_applications:
   - name: cellarette
     chart_path: charts/cellarette
     namespace: default
+  
+  - name: nfs-provisioner
+    chart_path: charts/nfs-provisioner
+    namespace: nfs-provisioner
+    values: {}
+
+  - name: jupyterlab
+    chart_path: charts/jupyterlab
+    namespace: jupyterlab
     values: {}
 
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo

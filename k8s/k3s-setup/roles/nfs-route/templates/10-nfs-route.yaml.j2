@@ -1,0 +1,7 @@
+network:
+  version: 2
+  ethernets:
+    {{ k3s_node_primary_iface }}:
+      routes:
+        - to: {{ nas_link_subnet }}
+          via: {{ node1_lan_ip }}

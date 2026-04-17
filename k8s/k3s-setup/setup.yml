@@ -38,7 +38,14 @@
     - helm
     - k9s
 
-# -- Play 4: Deploy ArgoCD ---------------------------------------------------
+# -- Play 4: Configure NFS route on lw-c1 ------------------------------------
+- name: Configure NFS route to lw-nas
+  hosts: compute
+  become: true
+  roles:
+    - nfs-route
+
+# -- Play 5: Deploy ArgoCD ---------------------------------------------------
 - name: Deploy ArgoCD GitOps controller
   hosts: compute
   environment:
@@ -46,7 +53,7 @@
   roles:
     - argocd
 
-# -- Play 5: Load Vault connection -------------------------------------------
+# -- Play 6: Load Vault connection -------------------------------------------
 - name: Load Vault connection
   hosts: localhost
   connection: local
@@ -55,14 +62,14 @@
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
-# -- Play 6: Create K8s Secrets from Vault -----------------------------------
+# -- Play 7: Create K8s Secrets from Vault -----------------------------------
 - name: Create K8s Secrets from Vault
   hosts: localhost
   connection: local
   roles:
     - k8s-secrets
 
-# -- Play 7: Register ArgoCD Applications ------------------------------------
+# -- Play 8: Register ArgoCD Applications ------------------------------------
 - name: Register ArgoCD Applications
   hosts: localhost
   connection: local

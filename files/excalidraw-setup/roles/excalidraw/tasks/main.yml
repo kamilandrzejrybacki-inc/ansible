@@ -1,0 +1,103 @@
+---
+# -- Docker network -----------------------------------------------------------
+
+- name: Create excalidraw Docker network
+  ansible.builtin.command: docker network create {{ excalidraw_network }}
+  register: _net
+  failed_when: _net.rc != 0 and 'already exists' not in _net.stderr
+  changed_when: _net.rc == 0
+
+# -- Redis (Keyv backing store) -----------------------------------------------
+
+- name: Ensure Redis data directory exists
+  ansible.builtin.file:
+    path: "{{ excalidraw_redis_data_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Pull Redis image
+  ansible.builtin.command: docker pull {{ excalidraw_redis_image }}
+  changed_when: true
+
+- name: Stop existing Redis container (if any)
+  ansible.builtin.command: docker rm -f {{ excalidraw_redis_container_name }}
+  register: _rm_redis
+  failed_when: _rm_redis.rc != 0 and 'No such container' not in _rm_redis.stderr
+  changed_when: _rm_redis.rc == 0
+
+- name: Start Redis container
+  ansible.builtin.command: >-
+    docker run -d
+    --name {{ excalidraw_redis_container_name }}
+    --network {{ excalidraw_network }}
+    --restart {{ excalidraw_restart_policy }}
+    -v {{ excalidraw_redis_data_dir }}:/data
+    {{ excalidraw_redis_image }}
+    redis-server --appendonly yes
+  changed_when: true
+
+# -- Storage backend ----------------------------------------------------------
+
+- name: Pull storage backend image
+  ansible.builtin.command: docker pull {{ excalidraw_storage_image }}
+  changed_when: true
+
+- name: Stop existing storage backend container (if any)
+  ansible.builtin.command: docker rm -f {{ excalidraw_storage_container_name }}
+  register: _rm_storage
+  failed_when: _rm_storage.rc != 0 and 'No such container' not in _rm_storage.stderr
+  changed_when: _rm_storage.rc == 0
+
+- name: Start storage backend container
+  ansible.builtin.command: >-
+    docker run -d
+    --name {{ excalidraw_storage_container_name }}
+    --network {{ excalidraw_network }}
+    --restart {{ excalidraw_restart_policy }}
+    -p 0.0.0.0:{{ excalidraw_storage_port }}:8080
+    -e STORAGE_URI=redis://{{ excalidraw_redis_container_name }}:6379
+    {{ excalidraw_storage_image }}
+  changed_when: true
+
+# -- Excalidraw frontend ------------------------------------------------------
+
+- name: Pull Excalidraw image
+  ansible.builtin.command: docker pull {{ excalidraw_image }}
+  changed_when: true
+
+- name: Stop existing Excalidraw container (if any)
+  ansible.builtin.command: docker rm -f {{ excalidraw_container_name }}
+  register: _rm
+  failed_when: _rm.rc != 0 and 'No such container' not in _rm.stderr
+  changed_when: _rm.rc == 0
+
+- name: Start Excalidraw container
+  ansible.builtin.command: >-
+    docker run -d
+    --name {{ excalidraw_container_name }}
+    --restart {{ excalidraw_restart_policy }}
+    --no-healthcheck
+    -p 0.0.0.0:{{ excalidraw_port }}:80
+    -e VITE_APP_HTTP_STORAGE_BACKEND_URL={{ excalidraw_frontend_url }}/api/v2
+    -e VITE_APP_BACKEND_V2_POST_URL={{ excalidraw_frontend_url }}/api/v2/scenes
+    -e VITE_APP_BACKEND_V2_GET_URL={{ excalidraw_frontend_url }}/api/v2/scenes
+    {{ excalidraw_image }}
+  changed_when: true
+
+- name: Wait for Excalidraw to become reachable
+  ansible.builtin.uri:
+    url: "http://localhost:{{ excalidraw_port }}"
+    status_code: [200]
+  register: _health
+  until: _health is not failed
+  retries: "{{ excalidraw_health_check_retries }}"
+  delay: "{{ excalidraw_health_check_delay }}"
+
+- name: Display access information
+  ansible.builtin.debug:
+    msg: |
+      Excalidraw running on port {{ excalidraw_port }}.
+      Storage backend running on port {{ excalidraw_storage_port }}.
+      Caddy routes {{ excalidraw_frontend_url }}:
+        /api/v2/* → storage backend ({{ excalidraw_storage_port }})
+        /* → Excalidraw frontend ({{ excalidraw_port }})

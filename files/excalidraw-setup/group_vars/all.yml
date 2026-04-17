@@ -1,0 +1,24 @@
+---
+# -- Excalidraw frontend -------------------------------------------------------
+excalidraw_container_name: excalidraw
+excalidraw_image: "alswl/excalidraw:latest"
+excalidraw_port: 8083
+excalidraw_restart_policy: unless-stopped
+excalidraw_health_check_retries: 12
+excalidraw_health_check_delay: 5
+
+# Public URL — baked into the runtime env for VITE_APP_*_BACKEND_* vars
+excalidraw_frontend_url: "https://excalidraw.kamilandrzejrybacki.dpdns.org"
+
+# -- Storage backend (alswl/excalidraw-storage-backend) -----------------------
+excalidraw_storage_container_name: excalidraw-storage
+excalidraw_storage_image: "alswl/excalidraw-storage-backend:v2023.11.11"
+excalidraw_storage_port: 3002
+
+# -- Redis (Keyv backing store for the storage backend) -----------------------
+excalidraw_redis_container_name: excalidraw-redis
+excalidraw_redis_image: "redis:7-alpine"
+excalidraw_redis_data_dir: "/opt/excalidraw/redis"
+
+# -- Docker network -----------------------------------------------------------
+excalidraw_network: "excalidraw-net"

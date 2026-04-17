@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# Excalidraw Setup
+# =============================================================================
+# Deploys Excalidraw (stateless whiteboard app) via Docker on a target host.
+# Caddy on lw-main proxies excalidraw.kamilandrzejrybacki.dpdns.org to this host.
+#
+# Usage:
+#   ansible-playbook files/excalidraw-setup/setup.yml \
+#     -i files/excalidraw-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Gather host details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Excalidraw Setup Wizard
+        ══════════════════════════════════════════════
+
+        IP or hostname of the target machine (e.g. 192.168.0.108 for lw-s1)
+      default: "192.168.0.108"
+      private: false
+
+    - name: target_ssh_user
+      prompt: SSH user for the target machine
+      default: "kamil"
+      private: false
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: excalidraw_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+
+- name: Deploy Excalidraw
+  hosts: excalidraw_hosts
+  become: true
+  roles:
+    - excalidraw

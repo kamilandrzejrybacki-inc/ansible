@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: excalidraw
+  author: kamilrybacki
+  description: Deploy Excalidraw whiteboard app via Docker
+  min_ansible_version: "2.10"
+dependencies: []

@@ -290,6 +290,24 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
 }
 
+# Excalidraw whiteboard (lw-s1)
+{{ _scheme }}{{ subdomain_excalidraw }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+
+	handle /api/v2/* {
+		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_storage_port | default(3002) }}
+	}
+
+	handle {
+		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_port }}
+	}
+}
+
 # Knowledge Vault / Quartz (on lw-nas)
 {{ _scheme }}{{ subdomain_kb }}.{{ domain }} {
 	import rate_limit

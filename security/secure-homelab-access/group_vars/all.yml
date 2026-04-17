@@ -79,6 +79,7 @@ subdomain_headlamp: "headlamp"
 subdomain_distillery: "distillery"
 subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
+subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
 quartz_port: 8081
 
@@ -89,6 +90,11 @@ argocd_nodeport_http: 30080
 headlamp_nodeport: 31991
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
+
+# -- Excalidraw (lw-s1) -------------------------------------------------------
+excalidraw_host: "192.168.0.108"
+excalidraw_port: 8083
+excalidraw_storage_port: 3002
 
 # -- CrowdSec -----------------------------------------------------------------
 crowdsec_container_name: "crowdsec"

@@ -16,10 +16,13 @@ docker_data_dir: "/opt/homelab"
 docker_network_name: "homelab-net"
 docker_network_subnet: "172.20.0.0/24"
 
+# -- Host LAN IP (used for VPN DNS — Pi-hole port 53 is host-mapped) ----------
+homelab_host_ip: "192.168.0.105"
+
 # -- WireGuard (wg-easy) ------------------------------------------------------
 wireguard_port: 51820
 wireguard_web_port: 51821
-wireguard_dns: "{{ pihole_dns_ip }}"
+wireguard_dns: "{{ homelab_host_ip }}"  # Pi-hole port 53 is mapped to host
 wireguard_mtu: 1420
 wireguard_persistent_keepalive: 25
 wireguard_container_name: "wg-easy"
@@ -76,6 +79,8 @@ subdomain_headlamp: "headlamp"
 subdomain_distillery: "distillery"
 subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
+subdomain_kb: "kb"
+quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------
 k8s_node_ip: "192.168.0.107"

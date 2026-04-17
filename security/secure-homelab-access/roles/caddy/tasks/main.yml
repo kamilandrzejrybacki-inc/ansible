@@ -59,6 +59,11 @@
     unsafe_writes: true
   notify: reload caddy
 
+- name: Sync Caddyfile into container inode (Docker bind-mount inode fix)
+  ansible.builtin.shell: |
+    cat {{ caddy_data_dir }}/Caddyfile | docker exec -i {{ caddy_container_name }} sh -c 'cat > /etc/caddy/Caddyfile'
+  changed_when: false
+
 - name: Deploy Caddy container
   community.docker.docker_container:
     name: "{{ caddy_container_name }}"

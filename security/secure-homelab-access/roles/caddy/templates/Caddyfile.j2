@@ -253,6 +253,21 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ argocd_nodeport_http }}
 }
 
+# Guacamole browser-based remote desktop (K8s on lw-c1) — WireGuard only
+{{ _scheme }}{{ subdomain_guacamole }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
+	import authelia
+	reverse_proxy {{ k8s_node_ip }}:{{ guacamole_nodeport }}
+}
+
 # Headlamp K8s dashboard (K8s on lw-c1)
 {{ _scheme }}{{ subdomain_headlamp }}.{{ domain }} {
 	import rate_limit
@@ -263,3 +278,15 @@
 	import authelia
 	reverse_proxy {{ k8s_node_ip }}:{{ headlamp_nodeport }}
 }
+
+# OmniRoute AI gateway dashboard (K8s on lw-c1)
+{{ _scheme }}{{ subdomain_omniroute }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
+}
+

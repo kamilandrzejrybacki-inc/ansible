@@ -1,0 +1,8 @@
+---
+# Targeted playbook — installs NFS and adds k8s-nfs export.
+# Does NOT touch drives, mergerfs, or SnapRAID. Safe on running NAS.
+- name: Setup NFS for K8s on lw-nas
+  hosts: nas
+  become: true
+  roles:
+    - role: nfs

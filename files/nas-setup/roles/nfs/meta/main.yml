@@ -12,5 +12,4 @@ galaxy_info:
     - name: Debian
       versions:
         - all
-dependencies:
-  - role: mergerfs
+dependencies: []

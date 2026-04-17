@@ -2,3 +2,8 @@
 nfs_server_packages:
   - nfs-kernel-server
   - nfs-common
+
+# K8s NFS export — shared storage for lw-c1 pods
+k8s_nfs_path: "/mnt/pool/k8s-nfs"
+k8s_nfs_allowed_host: "192.168.0.107"   # lw-c1 LAN IP (no MASQUERADE on this path)
+k8s_nfs_options: "rw,sync,no_subtree_check,root_squash,all_squash,anonuid=65534,anongid=65534"

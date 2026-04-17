@@ -6,6 +6,15 @@
     update_cache: true
   become: true
 
+- name: Create K8s NFS directory
+  ansible.builtin.file:
+    path: "{{ k8s_nfs_path }}"
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: "0777"
+  become: true
+
 - name: Deploy NFS exports configuration
   ansible.builtin.template:
     src: exports.j2

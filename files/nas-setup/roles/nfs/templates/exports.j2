@@ -4,3 +4,6 @@
 
 # Internal storage share (2TB drive for less important files)
 {{ internal_mount }}    {{ nfs_allowed_network }}({{ nfs_options }})
+
+# K8s NFS — dynamic storage for lw-c1 cluster (nfs-subdir-external-provisioner)
+{{ k8s_nfs_path }}    {{ k8s_nfs_allowed_host }}({{ k8s_nfs_options }})

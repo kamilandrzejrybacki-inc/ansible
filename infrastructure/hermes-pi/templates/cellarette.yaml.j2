@@ -1,0 +1,80 @@
+server:
+  port: 8788
+  admin_port: 8789
+  admin_token_env: CELLARETTE_ADMIN_TOKEN
+
+profiles:
+  default:
+    tools:
+      - "*"
+
+tools:
+  - type: mcp_proxy
+    name: vault
+    description: "HashiCorp Vault secrets — homelab credentials, API tokens, service passwords under secret/homelab/*"
+    service_dns: "192.168.0.107"
+    port: 31100
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: grafana
+    description: "Homelab observability — Prometheus/Mimir metrics, Loki logs, dashboards, alerts, oncall"
+    service_dns: "192.168.0.107"
+    port: 31101
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: argocd
+    description: "Homelab GitOps — Kubernetes application state, sync status, deployments on k3s cluster"
+    service_dns: "192.168.0.107"
+    port: 31102
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: memory
+    description: "Structured knowledge graph — entities and relations for cross-session semantic memory"
+    service_dns: "192.168.0.107"
+    port: 31103
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: sequential_thinking
+    description: "Chain-of-thought scratchpad for step-by-step reasoning on complex problems"
+    service_dns: "192.168.0.107"
+    port: 31104
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: context7
+    description: "Up-to-date library and framework documentation lookup"
+    service_dns: "192.168.0.107"
+    port: 31105
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: lightpanda
+    description: "Headless browser automation — navigate, click, fill forms, extract content from web pages"
+    service_dns: "192.168.0.107"
+    port: 31106
+    transport: sse
+
+  - type: mcp_proxy
+    name: netbox
+    description: "Network inventory — homelab devices, IP addresses, sites, racks, VLANs, virtual machines"
+    service_dns: "192.168.0.107"
+    port: 31107
+    transport: streamable_http
+
+  - type: mcp_proxy
+    name: distillery
+    description: "Personal knowledge base — user's notes, coding standards, project documentation"
+    service_dns: "192.168.0.107"
+    port: 31108
+    transport: sse
+
+  - type: mcp_proxy
+    name: obsidian
+    description: "Obsidian vault — user's markdown notes, daily journal, project notes"
+    service_dns: "192.168.0.107"
+    port: 31109
+    transport: streamable_http

@@ -12,16 +12,12 @@ memory:
   user_char_limit: 1375
 
 mcp_servers:
-{% for name, server in hermes_mcp_servers.items() %}
-  {{ name }}:
-    url: "{{ server.url }}"
-{% if server.headers is defined %}
+  cellarette:
+    url: "{{ hermes_cellarette_url }}"
+  n8n:
+    url: "http://192.168.0.108:5678/mcp-server/http"
     headers:
-{% for hdr_name, hdr_val in server.headers.items() %}
-      {{ hdr_name }}: "{{ hdr_val }}"
-{% endfor %}
-{% endif %}
-{% endfor %}
+      Authorization: "Bearer {{ n8n_mcp_token }}"
 
 platform_toolsets:
   telegram: [hermes-telegram]

@@ -11,25 +11,10 @@ hermes_webui_port: 8788
 telegram_allowed_user_id: "8207765643"
 
 k8s_node_ip: "192.168.0.107"
-mcp_bridges_domain: "mcp.kamilandrzejrybacki.dpdns.org"
 
-hermes_mcp_servers:
-  grafana:
-    url: "http://grafana.{{ mcp_bridges_domain }}/mcp"
-  obsidian:
-    url: "http://obsidian.{{ mcp_bridges_domain }}/mcp"
-  netbox:
-    url: "http://netbox.{{ mcp_bridges_domain }}/mcp"
-  vault:
-    url: "http://vault.{{ mcp_bridges_domain }}/mcp"
-  distillery:
-    url: "http://distillery.{{ mcp_bridges_domain }}/mcp"
-  paperless:
-    url: "http://paperless.{{ mcp_bridges_domain }}/mcp"
-  n8n:
-    url: "http://192.168.0.108:5678/mcp-server/http"
-    headers:
-      Authorization: "Bearer {{ n8n_mcp_token }}"
+hermes_cellarette_url: "http://cellarette:8788/mcp"
+hermes_cellarette_repo: "https://github.com/kamilandrzejrybacki-inc/cellarette.git"
+hermes_cellarette_tag: "latest"
 
 # ── Memory enhancement ──────────────────────────────────────────────────────
 hermes_registry: "192.168.0.107:30500"

@@ -41,6 +41,7 @@ k8s_secrets:
       netbox_token: netbox_token
       librenms_token: librenms_token
       prefect_etl_api_key: prefect_etl_api_key
+      blog_github_pat: blog_github_pat
 
   - namespace: github-runners
     name: github-runner-secrets

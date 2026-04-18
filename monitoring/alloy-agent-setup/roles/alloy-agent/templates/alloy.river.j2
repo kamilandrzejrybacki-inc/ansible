@@ -58,6 +58,7 @@ loki.source.journal "system" {
   }
 }
 
+{% if docker_log_discovery_enabled | default(true) | bool %}
 // ── Docker container logs ─────────────────────────────────────────────────────
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
@@ -73,6 +74,7 @@ loki.source.docker "containers" {
     "instance" = "{{ ansible_hostname | default('localhost') }}",
   }
 }
+{% endif %}
 
 {% if n8n_metrics_enabled | default(false) | bool %}
 // ── n8n metrics ──────────────────────────────────────────────────────────────

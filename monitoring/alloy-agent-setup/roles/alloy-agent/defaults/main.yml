@@ -10,6 +10,10 @@ docker_exporter_enabled: true
 docker_exporter_image: "ghcr.io/davidborzek/docker-exporter:v0.3.0"
 docker_exporter_port: 9338
 
+# Docker container log discovery — disable on hosts without /var/run/docker.sock
+# (e.g. k3s/containerd nodes)
+docker_log_discovery_enabled: true
+
 # n8n metrics
 n8n_metrics_enabled: false
 n8n_metrics_port: 5678

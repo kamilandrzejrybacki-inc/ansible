@@ -48,15 +48,6 @@ k8s_secrets:
     data:
       GITHUB_TOKEN: runner_pat
 
-  - namespace: portkey
-    name: portkey-secrets
-    vault_path: portkey
-    data:
-      GROQ_API_KEY: groq_api_key
-      OPENAI_API_KEY: nvidia_api_key
-      DEEPSEEK_API_KEY: deepseek_api_key
-      PORTKEY_API_KEY: portkey_api_key
-
   - namespace: omniroute
     name: omniroute-secrets
     vault_path: omniroute
@@ -122,11 +113,6 @@ argocd_applications:
       - { name: "config.oidc.issuerURL", value: "https://auth.{{ domain | default('kamilandrzejrybacki.dpdns.org') }}" }
       - { name: "config.oidc.scopes", value: "openid profile email groups" }
 
-  - name: portkey
-    chart_path: charts/portkey
-    namespace: portkey
-    values: {}
-
   - name: omniroute
     chart_path: charts/omniroute
     namespace: omniroute
@@ -155,6 +141,11 @@ argocd_applications:
   - name: hermes
     chart_path: charts/hermes
     namespace: hermes
+    values: {}
+
+  - name: guacamole
+    chart_path: charts/guacamole
+    namespace: remote-desktop
     values: {}
 
   - name: mcp-servers

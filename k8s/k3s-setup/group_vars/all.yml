@@ -56,16 +56,6 @@ k8s_secrets:
       OPENAI_API_KEY: nvidia_api_key
       DEEPSEEK_API_KEY: deepseek_api_key
 
-  - namespace: mcp-bridges
-    name: mcp-bridges-secrets
-    vault_path: mcp-bridges
-    data:
-      obsidian_api_key: obsidian_api_key
-      netbox_token: netbox_token
-      vault_token: vault_token
-      n8n_mcp_token: n8n_mcp_token
-      grafana_sa_token: grafana_sa_token
-
   - namespace: hermes
     name: hermes-secrets
     vault_path: hermes
@@ -84,7 +74,6 @@ k8s_secrets:
 
 # -- OIDC secrets (created from Authelia secrets on control node) -------------
 # These are NOT from Vault; they're injected at runtime from setup.yml facts.
-headlamp_oidc_client_secret: ""  # Set at runtime via extra-vars
 argocd_oidc_client_secret: ""    # Set at runtime via extra-vars
 argocd_domain: "argocd.kamilandrzejrybacki.dpdns.org"
 authelia_issuer_url: "https://auth.kamilandrzejrybacki.dpdns.org"
@@ -104,23 +93,9 @@ argocd_applications:
     namespace: github-runners
     values: {}
 
-  - name: headlamp
-    chart_path: charts/headlamp
-    namespace: headlamp
-    values: {}
-    helm_parameters:
-      - { name: "config.oidc.clientID", value: "headlamp" }
-      - { name: "config.oidc.issuerURL", value: "https://auth.{{ domain | default('kamilandrzejrybacki.dpdns.org') }}" }
-      - { name: "config.oidc.scopes", value: "openid profile email groups" }
-
   - name: omniroute
     chart_path: charts/omniroute
     namespace: omniroute
-    values: {}
-
-  - name: vcluster
-    chart_path: charts/vcluster
-    namespace: test
     values: {}
 
   - name: qdrant
@@ -133,10 +108,6 @@ argocd_applications:
     namespace: distillery
     values: {}
 
-  - name: mcp-bridges
-    chart_path: charts/mcp-bridges
-    namespace: mcp-bridges
-    values: {}
 
   - name: hermes
     chart_path: charts/hermes

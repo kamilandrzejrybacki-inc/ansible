@@ -10,51 +10,51 @@
 #   - ArgoCD installed and configured
 #
 # Usage:
+#   # Keys already in Vault (default — skips Play 1):
 #   ansible-playbook k8s/omniroute-setup/setup.yml
-#   ansible-playbook k8s/omniroute-setup/setup.yml -e skip_vault_write=true   # keys already in Vault
+#
+#   # Write keys to Vault first (pass via -e, never prompt):
+#   ansible-playbook k8s/omniroute-setup/setup.yml -e skip_vault_write=false \
+#     -e groq_api_key=gsk_... -e nvidia_api_key=nvapi_... -e deepseek_api_key=sk-...
 
 # -- Play 1: Write API keys to Vault ------------------------------------------
 - name: Write OmniRoute API keys to Vault
   hosts: localhost
   connection: local
   gather_facts: false
-  vars_prompt:
-    - name: groq_api_key
-      prompt: "Groq API key — press Enter to skip (keys already in Vault)"
-      private: true
-
-    - name: nvidia_api_key
-      prompt: "NVIDIA NIM API key — press Enter to skip (keys already in Vault)"
-      private: true
-
-    - name: deepseek_api_key
-      prompt: "DeepSeek API key — press Enter to skip (keys already in Vault)"
-      private: true
+  vars:
+    skip_vault_write: true   # default: keys already exist in Vault
+    groq_api_key: ""
+    nvidia_api_key: ""
+    deepseek_api_key: ""
 
   tasks:
+    - name: Skip vault write (keys already in Vault)
+      ansible.builtin.meta: end_play
+      when: skip_vault_write | bool
+
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
-      when: not (skip_vault_write | default(false) | bool)
 
     - name: Validate at least one provider key is provided
       ansible.builtin.assert:
         that:
           - >-
-            (groq_api_key | default('') | length > 0) or
-            (nvidia_api_key | default('') | length > 0) or
-            (deepseek_api_key | default('') | length > 0)
-        fail_msg: "At least one provider API key must be provided."
-      when: not (skip_vault_write | default(false) | bool)
+            (groq_api_key | length > 0) or
+            (nvidia_api_key | length > 0) or
+            (deepseek_api_key | length > 0)
+        fail_msg: >-
+          Pass keys via -e: -e groq_api_key=gsk_... -e nvidia_api_key=nvapi_... -e deepseek_api_key=sk-...
 
     - name: Store API keys to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
         vault_service_name: "omniroute"
         vault_secrets_data:
-          groq_api_key: "{{ groq_api_key | default('') }}"
-          nvidia_api_key: "{{ nvidia_api_key | default('') }}"
-          deepseek_api_key: "{{ deepseek_api_key | default('') }}"
-      when: (_vault_available | bool) and not (skip_vault_write | default(false) | bool)
+          groq_api_key: "{{ groq_api_key }}"
+          nvidia_api_key: "{{ nvidia_api_key }}"
+          deepseek_api_key: "{{ deepseek_api_key }}"
+      when: _vault_available | bool
 
 # -- Play 2: Create K8s Secret and register ArgoCD Application ----------------
 - name: Bootstrap OmniRoute via ArgoCD
@@ -71,7 +71,7 @@
         vault_service_name: "omniroute"
 
     - name: Create omniroute namespace
-      ansible.builtin.command: >
+      ansible.builtin.shell: >
         kubectl create namespace omniroute --dry-run=client -o yaml | kubectl apply -f -
       environment:
         KUBECONFIG: "{{ kubeconfig_local_path }}"
@@ -79,7 +79,7 @@
       changed_when: "'created' in _ns.stdout"
 
     - name: Create omniroute-secrets K8s Secret
-      ansible.builtin.command: >
+      ansible.builtin.shell: >
         kubectl create secret generic omniroute-secrets
         --namespace omniroute
         --from-literal=GROQ_API_KEY={{ (_vault_secrets.groq_api_key | default('')) | quote }}

@@ -102,15 +102,7 @@
     - helm
     - k9s
 
-# -- Play 8: Deploy Headlamp on each cluster ---------------------------------
-- name: Deploy Headlamp dashboard
-  hosts: k8s_controlplane
-  environment:
-    KUBECONFIG: "/home/{{ vm_ssh_user }}/.kube/config"
-  roles:
-    - headlamp
-
-# -- Play 9: Deploy ArgoCD on each cluster -----------------------------------
+# -- Play 8: Deploy ArgoCD on each cluster -----------------------------------
 - name: Deploy ArgoCD GitOps controller
   hosts: k8s_controlplane
   environment:
@@ -153,7 +145,6 @@
 
           Access:
             Kubeconfig:  {{ playbook_dir }}/kubeconfigs/{{ cluster_name }}.conf
-            Headlamp:    kubectl port-forward -n {{ headlamp_namespace }} svc/headlamp {{ headlamp_port }}:{{ headlamp_port }}
             ArgoCD:      kubectl port-forward -n {{ argocd_namespace }} svc/argocd-server {{ argocd_port }}:443
 
           CLI tools installed on control-plane ({{ ansible_host }}):

@@ -17,9 +17,17 @@ collections:
     slug: "{% raw %}{{slug}}{% endraw %}"
     fields:
       - { name: title,       label: Title,       widget: string }
-      - { name: date,        label: Date,         widget: datetime }
+      - { name: date,        label: Date,         widget: date, format: 'YYYY-MM-DD' }
       - { name: description, label: Description,  widget: text }
       - { name: category,    label: Category,     widget: string }
       - { name: tags,        label: Tags,         widget: list }
       - { name: draft,       label: Draft,        widget: boolean, default: true }
-      - { name: body,        label: Body,         widget: markdown }
+      - name: body
+        label: Body
+        widget: markdown
+        # modes: ['raw'] disables the Slate rich-text editor entirely.
+        # Raw mode treats the body as a plain markdown string — no parsing,
+        # no serialisation, no normalisation.  This permanently prevents
+        # "Unsaved changes" phantom diffs caused by Slate's round-trip
+        # normalisation (list markers, curly quotes, link refs, etc.).
+        modes: ['raw']

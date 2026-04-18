@@ -11,6 +11,9 @@ services:
       GF_SERVER_ROOT_URL: "{{ grafana_public_url if grafana_public_url else 'http://localhost:' + grafana_port|string }}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DATE_FORMATS_DEFAULT_TIMEZONE: "{{ grafana_timezone }}"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
 {% if grafana_oidc_client_secret | default('') %}
       # ── Authelia OIDC SSO ───────────────────────────────────────────────────
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"

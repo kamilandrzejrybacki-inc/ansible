@@ -62,7 +62,8 @@
 
 - name: Wait for API to be ready
   ansible.builtin.uri:
-    url: "http://localhost:{{ obsidian_rest_api_port }}/"
+    url: "https://localhost:{{ obsidian_rest_api_port }}/"
+    validate_certs: false
     status_code: [200]
     timeout: 5
   register: _health
@@ -75,6 +76,6 @@
     msg: |
       Obsidian REST API deployed on lw-nas.
 
-      URL:      http://10.0.1.2:{{ obsidian_rest_api_port }}
+      URL:      https://10.0.1.2:{{ obsidian_rest_api_port }}
       Vault:    {{ obsidian_rest_api_vault_dir }}
       API key:  stored in Vault at secret/homelab/obsidian (key: api_key)

@@ -1,0 +1,10 @@
+services:
+  web:
+    image: nginx:alpine
+    container_name: {{ distillery_ui_container_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ distillery_ui_port }}:8080"
+    volumes:
+      - {{ distillery_ui_data_dir }}/dist:/usr/share/nginx/html:ro
+      - {{ distillery_ui_data_dir }}/nginx.conf:/etc/nginx/conf.d/default.conf:ro

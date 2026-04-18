@@ -17,7 +17,7 @@ services:
       - shared-mariadb-data:/var/lib/mysql
       - "{{ shared_mariadb_data_dir }}/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro"
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-u", "healthcheck", "--socket=/var/run/mysqld/mysqld.sock", "--silent"]
+      test: ["CMD-SHELL", "mariadb-admin ping -u root -p$$MARIADB_ROOT_PASSWORD --socket=/var/run/mysqld/mysqld.sock --silent 2>/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 5

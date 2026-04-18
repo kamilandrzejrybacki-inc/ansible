@@ -83,13 +83,7 @@
     - helm
     - k9s
 
-# -- Play 4: Deploy Headlamp dashboard ---------------------------------------
-- name: Deploy Headlamp dashboard
-  hosts: local
-  roles:
-    - headlamp
-
-# -- Play 5: Deploy ArgoCD ---------------------------------------------------
+# -- Play 4: Deploy ArgoCD ---------------------------------------------------
 - name: Deploy ArgoCD GitOps controller
   hosts: local
   roles:

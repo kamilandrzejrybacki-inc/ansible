@@ -1,0 +1,14 @@
+---
+# Direct deployment — minimal, no Vault, no prompts.
+- name: Deploy Distillery UI
+  hosts: all
+  become: true
+  vars:
+    distillery_ui_data_dir: /opt/distillery-ui
+    distillery_ui_port: 8091
+    distillery_ui_repo: "https://github.com/kamilrybacki/distillery-knowledge-hub.git"
+    distillery_ui_container_name: distillery-ui
+    distillery_api_url: "http://192.168.0.107:30800"
+    distillery_api_key: "vwzjgt_yE0ThQHl1mNDDVK-ZMMVlPzGHzUUb9tNGeEg"
+  roles:
+    - distillery-ui

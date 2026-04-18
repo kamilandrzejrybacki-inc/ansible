@@ -1,0 +1,127 @@
+---
+# =============================================================================
+# Distillery UI Setup
+# =============================================================================
+# Deploys the Distillery knowledge browser as a static site on a target host,
+# with nginx serving + proxying API requests to the distillery backend on k8s.
+#
+# Usage:
+#   ansible-playbook monitoring/distillery-ui-setup/setup.yml \
+#     -i monitoring/distillery-ui-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Load saved homelab configuration (if available)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Load Distillery secrets from Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_service_name: "distillery"
+      when: _vault_available | bool
+
+- name: Gather deployment details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: target_host_ip
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Distillery UI Setup
+        ══════════════════════════════════════════════
+
+        [1/3] IP or hostname of the target machine
+      default: "192.168.0.108"
+      private: false
+
+    - name: target_ssh_user
+      prompt: "[2/3] SSH user for the target machine"
+      default: "kamil"
+      private: false
+
+    - name: distillery_api_key_input
+      prompt: "[3/3] Distillery API key (leave empty if loaded from Vault)"
+      private: true
+
+  tasks:
+    - name: Add target host to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: distillery_ui_hosts
+        ansible_user: "{{ target_ssh_user }}"
+        ansible_connection: "{{ 'local' if target_host_ip in ['localhost', '127.0.0.1', '::1'] else 'ssh' }}"
+        ansible_python_interpreter: /usr/bin/python3
+        distillery_api_key: >-
+          {{ distillery_api_key_input | default('') or _vault_secrets.api_key | default('') }}
+
+- name: Deploy Distillery UI
+  hosts: distillery_ui_hosts
+  become: true
+  roles:
+    - distillery-ui
+
+- name: Integrate with secure homelab (Caddy + Cloudflare Tunnel)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    _target_host_ip: "{{ hostvars['localhost']['target_host_ip'] }}"
+  tasks:
+    - name: Integrate when secure homelab is configured
+      when: hostvars['localhost']['_homelab_vars_stat'].stat.exists
+      block:
+        - name: Add Cloudflare Tunnel DNS route
+          ansible.builtin.command: >
+            cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+            distillery.{{ saved_domain }}
+          environment:
+            TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+          register: _cf_dns
+          changed_when: _cf_dns.rc == 0
+          failed_when: false
+          become: false
+
+        - name: Add Distillery UI to Caddy config
+          ansible.builtin.blockinfile:
+            path: /opt/homelab/caddy/Caddyfile
+            marker: "# {mark} DISTILLERY-UI"
+            unsafe_writes: true
+            block: |
+              http://distillery.{{ saved_domain }} {
+                import rate_limit
+                import proxy_headers
+                import authelia
+                reverse_proxy http://{{ _target_host_ip }}:{{ distillery_ui_port | default(8091) }}
+              }
+          notify: reload caddy
+
+    - name: Report deployment
+      ansible.builtin.debug:
+        msg: |
+          ✓ Distillery UI deployed!
+            Local:  http://{{ _target_host_ip }}:{{ distillery_ui_port | default(8091) }}
+            Public: https://distillery.{{ saved_domain | default('') }}
+
+  handlers:
+    - name: reload caddy
+      community.docker.docker_container_exec:
+        container: caddy
+        command: caddy reload --config /etc/caddy/Caddyfile

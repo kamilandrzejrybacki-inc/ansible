@@ -199,7 +199,7 @@ def _n8n_login(email: str, password: str) -> str:
 def _n8n_active_executions(cookie: str) -> int:
     """Return count of currently running workflow executions."""
     req = urllib.request.Request(
-        f"{N8N_URL}/rest/executions?status=running&limit=10",
+        f"{N8N_URL}/rest/executions?status=running&limit=10&includeData=false",
         headers={"Cookie": f"n8n-auth={cookie}"},
     )
     try:
@@ -208,7 +208,7 @@ def _n8n_active_executions(cookie: str) -> int:
         # n8n REST API returns {"data": {"results": [...], "count": N, ...}}
         inner = data.get("data", data) if isinstance(data, dict) else data
         if isinstance(inner, dict):
-            results = inner.get("results", [])
+            results = [r for r in inner.get("results", []) if r.get("status") == "running"]
             return len(results)
         if isinstance(inner, list):
             return len(inner)

@@ -1,0 +1,36 @@
+---
+# =============================================================================
+# NAS Sudoers Setup
+# =============================================================================
+# Grants kamil passwordless sudo on lw-nas (matches all other homelab nodes).
+#
+# Usage (one-time, requires sudo password):
+#   ansible-playbook infrastructure/nas-sudoers-setup/setup.yml \
+#     -i infrastructure/nas-sudoers-setup/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Configure passwordless sudo on lw-nas
+  hosts: nas
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Grant kamil passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/kamil-nopasswd
+        content: "kamil ALL=(ALL) NOPASSWD: ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s
+
+    - name: Verify passwordless sudo works
+      ansible.builtin.command: sudo -n whoami
+      become: false
+      register: _sudo_check
+      changed_when: false
+
+    - name: Confirm result
+      ansible.builtin.debug:
+        msg: "Passwordless sudo active for kamil on lw-nas (whoami: {{ _sudo_check.stdout }})"

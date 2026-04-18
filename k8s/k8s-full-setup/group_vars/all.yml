@@ -13,14 +13,6 @@ helm_version: "v3.16.4"
 # -- k9s CLI ------------------------------------------------------------------
 k9s_version: "v0.32.7"
 
-# -- Headlamp -----------------------------------------------------------------
-headlamp_namespace: headlamp
-headlamp_chart_version: "0.25.0"
-headlamp_port: 4466
-headlamp_service_type: ClusterIP
-headlamp_health_check_retries: 15
-headlamp_health_check_delay: 5
-
 # -- ArgoCD -------------------------------------------------------------------
 argocd_namespace: argocd
 argocd_version: "v2.13.3"

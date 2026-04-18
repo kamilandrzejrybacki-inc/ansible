@@ -81,6 +81,8 @@
     -e VITE_APP_HTTP_STORAGE_BACKEND_URL={{ excalidraw_frontend_url }}/api/v2
     -e VITE_APP_BACKEND_V2_POST_URL={{ excalidraw_frontend_url }}/api/v2/scenes
     -e VITE_APP_BACKEND_V2_GET_URL={{ excalidraw_frontend_url }}/api/v2/scenes
+    -e VITE_APP_STORAGE_BACKEND=http
+    -e VITE_APP_WS_SERVER_URL=
     {{ excalidraw_image }}
   changed_when: true
 

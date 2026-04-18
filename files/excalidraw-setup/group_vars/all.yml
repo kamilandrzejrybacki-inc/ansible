@@ -1,13 +1,13 @@
 ---
 # -- Excalidraw frontend -------------------------------------------------------
 excalidraw_container_name: excalidraw
-excalidraw_image: "alswl/excalidraw:latest"
+excalidraw_image: "excalidraw-patched:local"
 excalidraw_port: 8083
 excalidraw_restart_policy: unless-stopped
 excalidraw_health_check_retries: 12
 excalidraw_health_check_delay: 5
 
-# Public URL — baked into the runtime env for VITE_APP_*_BACKEND_* vars
+# Public URL injected as BACKEND_URL — startup script replaces json.excalidraw.com in bundle
 excalidraw_frontend_url: "https://excalidraw.kamilandrzejrybacki.dpdns.org"
 
 # -- Storage backend (alswl/excalidraw-storage-backend) -----------------------

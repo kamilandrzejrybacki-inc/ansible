@@ -59,10 +59,21 @@
     {{ excalidraw_storage_image }}
   changed_when: true
 
-# -- Excalidraw frontend ------------------------------------------------------
+# -- Excalidraw frontend (patched image) --------------------------------------
 
-- name: Pull Excalidraw image
-  ansible.builtin.command: docker pull {{ excalidraw_image }}
+- name: Copy Dockerfile and patch script for Excalidraw build
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
+    mode: "0755"
+  loop:
+    - Dockerfile
+    - patch-and-start.sh
+
+- name: Build patched Excalidraw image
+  ansible.builtin.command: >-
+    docker build -t {{ excalidraw_image }}
+    -f /tmp/Dockerfile /tmp
   changed_when: true
 
 - name: Stop existing Excalidraw container (if any)
@@ -76,13 +87,8 @@
     docker run -d
     --name {{ excalidraw_container_name }}
     --restart {{ excalidraw_restart_policy }}
-    --no-healthcheck
     -p 0.0.0.0:{{ excalidraw_port }}:80
-    -e VITE_APP_HTTP_STORAGE_BACKEND_URL={{ excalidraw_frontend_url }}/api/v2
-    -e VITE_APP_BACKEND_V2_POST_URL={{ excalidraw_frontend_url }}/api/v2/scenes
-    -e VITE_APP_BACKEND_V2_GET_URL={{ excalidraw_frontend_url }}/api/v2/scenes
-    -e VITE_APP_STORAGE_BACKEND=http
-    -e VITE_APP_WS_SERVER_URL=
+    -e BACKEND_URL={{ excalidraw_frontend_url }}
     {{ excalidraw_image }}
   changed_when: true
 

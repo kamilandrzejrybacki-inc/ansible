@@ -297,13 +297,12 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	import authelia
-
 	handle /api/v2/* {
 		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_storage_port | default(3002) }}
 	}
 
 	handle {
+		import authelia
 		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_port }}
 	}
 }

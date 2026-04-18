@@ -1,81 +1,10 @@
 ---
 # OpenClaw Secret Bootstrap Playbook
-# Writes Portkey gateway key to Vault and creates the K8s Secret.
-# All deployment config lives in charts/openclaw (managed by ArgoCD).
+# OpenClaw deployment config lives in charts/openclaw (managed by ArgoCD).
+# LLM inference is routed through OmniRoute (shared cluster router).
 #
 # Usage:
 #   ansible-playbook ai/openclaw-setup/setup.yml
-
-# -- Play 1: Write keys to Vault ---------------------------------------------
-- name: Write OpenClaw secrets to Vault
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  vars_prompt:
-    - name: portkey_gateway_key
-      prompt: "Portkey gateway auth key (same value as portkey_api_key from portkey-setup)"
-      private: true
-
-  tasks:
-    - name: Check Vault availability
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
-
-    - name: Validate gateway key is provided
-      ansible.builtin.assert:
-        that:
-          - portkey_gateway_key | default('') | length > 0
-        fail_msg: "Portkey gateway key is required."
-
-    - name: Store secrets to Vault
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
-      vars:
-        vault_service_name: "openclaw"
-        vault_secrets_data:
-          portkey_gateway_key: "{{ portkey_gateway_key }}"
-      when: _vault_available | bool
-
-# -- Play 2: Create K8s Secret -----------------------------------------------
-- name: Create OpenClaw K8s Secret
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  vars:
-    kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
-  tasks:
-    - name: Check Vault availability
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
-
-    - name: Load OpenClaw secrets from Vault
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-      vars:
-        vault_service_name: "openclaw"
-
-    - name: Create openclaw namespace
-      ansible.builtin.command: >
-        kubectl create namespace openclaw --dry-run=client -o yaml | kubectl apply -f -
-      environment:
-        KUBECONFIG: "{{ kubeconfig_local_path }}"
-      register: _ns
-      changed_when: "'created' in _ns.stdout"
-
-    - name: Create openclaw-secrets K8s Secret
-      ansible.builtin.command: >
-        kubectl create secret generic openclaw-secrets
-        --namespace openclaw
-        --from-literal=portkey_gateway_key={{ _vault_secrets.portkey_gateway_key | quote }}
-        --dry-run=client -o yaml | kubectl apply -f -
-      environment:
-        KUBECONFIG: "{{ kubeconfig_local_path }}"
-      register: _secret
-      changed_when: "'configured' in _secret.stdout or 'created' in _secret.stdout"
-      no_log: true
-
-    - name: Display completion
-      ansible.builtin.debug:
-        msg: |
-          OpenClaw secret updated. ArgoCD will sync the new config automatically.
-          Secret: openclaw-secrets in namespace openclaw
-          Vault path: secret/homelab/openclaw
 
 # -- Play 3: Add OAuth provider tokens (optional) ----------------------------
 - name: Add OAuth provider tokens to OpenClaw

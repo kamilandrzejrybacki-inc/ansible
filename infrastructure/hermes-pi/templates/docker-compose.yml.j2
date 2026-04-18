@@ -136,9 +136,9 @@ services:
     networks:
       - hermes
 
-  portkey-proxy:
+  omniroute-proxy:
     image: nginx:alpine
-    container_name: hermes-portkey
+    container_name: hermes-omniroute-proxy
     restart: unless-stopped
     ports:
       - "8787:8787"

@@ -62,7 +62,6 @@ k8s_secrets:
     vault_path: hermes
     data:
       groq_api_key: groq_api_key
-      portkey_gateway_key: portkey_gateway_key
       telegram_bot_token: telegram_bot_token
       n8n_mcp_token: n8n_mcp_token
       openai_access_token: openai_access_token

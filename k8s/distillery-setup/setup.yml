@@ -89,7 +89,8 @@
     redis_db: "0"
     qdrant_url: "http://qdrant.qdrant.svc.cluster.local:6333"
     ollama_url: "http://ollama.distillery.svc.cluster.local:11434"
-    portkey_url: "http://portkey-free.portkey.svc.cluster.local:8787"
+    llm_base_url: "http://omniroute.omniroute.svc.cluster.local:20128"
+    llm_model: "free"
     obsidian_url: "http://10.0.1.2:27124"
     embedding_model: "nomic-embed-text"
     collection_name: "knowledge"
@@ -119,7 +120,8 @@
         --from-literal=DISTILLERY_REDIS_URL=redis://:{{ _vault_secrets.redis_password | quote }}@{{ redis_host }}:{{ redis_port }}/{{ redis_db }}
         --from-literal=DISTILLERY_QDRANT_URL={{ qdrant_url | quote }}
         --from-literal=DISTILLERY_OLLAMA_URL={{ ollama_url | quote }}
-        --from-literal=DISTILLERY_PORTKEY_URL={{ portkey_url | quote }}
+        --from-literal=DISTILLERY_LLM_BASE_URL={{ llm_base_url | quote }}
+        --from-literal=DISTILLERY_LLM_MODEL={{ llm_model | quote }}
         --from-literal=DISTILLERY_OBSIDIAN_URL={{ obsidian_url | quote }}
         --from-literal=DISTILLERY_OBSIDIAN_API_KEY={{ (_vault_secrets.obsidian_api_key | default('')) | quote }}
         --from-literal=DISTILLERY_GROQ_API_KEY={{ (_vault_secrets.groq_api_key | default('')) | quote }}

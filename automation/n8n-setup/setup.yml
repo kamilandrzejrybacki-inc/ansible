@@ -219,7 +219,7 @@
               PAPERLESS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.paperless_api_token | default('') }}"
               NETBOX_API_TOKEN: "{{ _n8n_vault_data.json.data.data.netbox_token | default('') }}"
               LIBRENMS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.librenms_token | default('') }}"
-              PORTKEY_UPSTREAM: "http://192.168.0.107:30787"
+              OMNIROUTE_UPSTREAM: "http://omniroute.omniroute.svc.cluster.local:20128"
               OBSIDIAN_URL: "http://10.0.1.2:27124"
               PAPERLESS_URL: "http://10.0.1.2:8000"
               NETBOX_URL: "http://192.168.0.105:8081"

@@ -255,7 +255,7 @@
   loop:
     - infrastructure
     - openclaw
-    - portkey
+    - omniroute
     - n8n
     - paperless
     - seafile
@@ -289,8 +289,8 @@
 
       Playbook secret paths:
         homelab/infrastructure  – domain, Cloudflare, WireGuard, Authelia, Pi-hole
-        homelab/openclaw        – Portkey gateway key
-        homelab/portkey         – Groq, NVIDIA, DeepSeek API keys, gateway auth key
+        homelab/openclaw        – OpenClaw service secrets
+        homelab/omniroute       – LLM provider API keys (Groq, NVIDIA, DeepSeek, ...)
         homelab/n8n             – owner credentials
         homelab/paperless       – admin credentials
         homelab/seafile         – admin + DB credentials

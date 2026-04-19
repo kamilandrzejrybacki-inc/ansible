@@ -1,4 +1,8 @@
 ---
+# Skip MCP servers flagged requires_docker (e.g. when running inside k8s pods
+# without a docker socket). Override via -e skip_docker_mcps=true.
+skip_docker_mcps: false
+
 claude_mcp_servers:
   - name: "claude.ai Gmail"
     transport: http
@@ -12,6 +16,7 @@ claude_mcp_servers:
     transport: stdio
     scope: user
     command: docker
+    requires_docker: true
     args:
       - exec
       - -i

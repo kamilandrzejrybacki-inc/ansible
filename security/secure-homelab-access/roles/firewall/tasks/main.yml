@@ -39,6 +39,12 @@
     from_ip: "{{ vpn_subnet }}"
     comment: "Allow all traffic from WireGuard VPN clients"
 
+- name: Allow traffic from Docker bridge subnet
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ docker_network_subnet }}"
+    comment: "Allow masqueraded VPN traffic forwarded by wg-easy through Docker bridge"
+
 - name: Enable UFW
   community.general.ufw:
     state: enabled

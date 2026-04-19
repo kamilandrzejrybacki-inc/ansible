@@ -16,6 +16,7 @@
   when:
     - item.name not in (current_mcp_servers.stdout | default(''))
     - item.transport != 'stdio'
+    - not (skip_docker_mcps | bool and (item.requires_docker | default(false)))
 
 - name: Register missing stdio MCP servers
   ansible.builtin.command: >-
@@ -29,6 +30,7 @@
   when:
     - item.name not in (current_mcp_servers.stdout | default(''))
     - item.transport == 'stdio'
+    - not (skip_docker_mcps | bool and (item.requires_docker | default(false)))
 
 - name: Display MCP post-setup instructions
   ansible.builtin.debug:

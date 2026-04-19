@@ -1,5 +1,4 @@
 {
-  "model": "sonnet",
   "statusLine": {
     "type": "command",
     "command": "npx -y ccstatusline@latest",
@@ -7,10 +6,12 @@
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
-    "caveman@caveman": true,
+    "context7@claude-plugins-official": false,
+    "serena@claude-plugins-official": true,
+    "everything-claude-code@everything-claude-code": true,
     "n8n-mcp-skills@n8n-mcp-skills": true,
     "codex@openai-codex": true,
-    "ecc@ecc": true
+    "caveman@caveman": true
   },
   "extraKnownMarketplaces": {
     "superpowers-marketplace": {
@@ -19,16 +20,10 @@
         "repo": "obra/superpowers-marketplace"
       }
     },
-    "ecc": {
+    "everything-claude-code": {
       "source": {
         "source": "github",
         "repo": "affaan-m/everything-claude-code"
-      }
-    },
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
       }
     },
     "n8n-mcp-skills": {
@@ -42,9 +37,23 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
     }
   },
+  "disabledMcpjsonServers": [
+    "github",
+    "context7",
+    "exa",
+    "memory",
+    "playwright",
+    "sequential-thinking"
+  ],
+  "effortLevel": "high",
   "advisorModel": "opus",
-  "skipDangerousModePermissionPrompt": true,
-  "mcpServers": {}
+  "skipDangerousModePermissionPrompt": true
 }

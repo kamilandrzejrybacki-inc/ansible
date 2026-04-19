@@ -8,11 +8,12 @@ claude_marketplaces:
 
 claude_plugins:
   - "superpowers@claude-plugins-official"
+  - "serena@claude-plugins-official"
+  - "everything-claude-code@everything-claude-code"
   - "n8n-mcp-skills@n8n-mcp-skills"
   - "codex@openai-codex"
   - "caveman@caveman"
-  - "ecc@ecc"
 
+# Plugins bundled with an installed marketplace that must stay disabled.
 claude_blocked_plugins:
-  - "code-review@claude-plugins-official"
-  - "fizz@testmkt-marketplace"
+  - "context7@claude-plugins-official"

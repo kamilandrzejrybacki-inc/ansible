@@ -11,10 +11,11 @@
   register: existing_settings
 
 - name: Back up existing settings.json
-  ansible.builtin.command:
-    cmd: "mv {{ claude_config_dir }}/settings.json {{ claude_config_dir }}/settings.json.bak"
-  args:
-    creates: "{{ claude_config_dir }}/settings.json.bak"
+  ansible.builtin.copy:
+    src: "{{ claude_config_dir }}/settings.json"
+    dest: "{{ claude_config_dir }}/settings.json.bak.{{ ansible_date_time.epoch }}"
+    remote_src: true
+    mode: "0644"
   when:
     - existing_settings.stat.exists
     - not existing_settings.stat.islnk
@@ -24,6 +25,15 @@
     src: claude/settings.json
     dest: "{{ claude_config_dir }}/settings.json"
     mode: "0644"
+
+- name: Copy top-level markdown (CLAUDE.md, RTK.md)
+  ansible.builtin.copy:
+    src: "claude/{{ item }}"
+    dest: "{{ claude_config_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - CLAUDE.md
+    - RTK.md
 
 - name: Copy rules directory
   ansible.builtin.copy:
@@ -37,28 +47,3 @@
     path: "{{ claude_config_dir }}/hooks"
     state: directory
     mode: "0755"
-
-- name: Deploy statusline-caveman.sh hook
-  ansible.builtin.copy:
-    src: claude/hooks/statusline-caveman.sh
-    dest: "{{ claude_config_dir }}/hooks/statusline-caveman.sh"
-    mode: "0755"
-
-- name: Patch statusLine command to use caveman wrapper
-  ansible.builtin.script:
-    executable: python3
-    cmd: |
-      import json, sys
-
-      settings_path = "{{ claude_config_dir }}/settings.json"
-      hook_path = "{{ ansible_env.HOME }}/.claude/hooks/statusline-caveman.sh"
-
-      with open(settings_path, "r") as f:
-          cfg = json.load(f)
-
-      if cfg.get("statusLine", {}).get("command") != hook_path:
-          cfg.setdefault("statusLine", {})["command"] = hook_path
-          with open(settings_path, "w") as f:
-              json.dump(cfg, f, indent=2)
-              f.write("\n")
-          print("patched statusLine command")

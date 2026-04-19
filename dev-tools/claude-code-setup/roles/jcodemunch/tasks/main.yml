@@ -1,0 +1,105 @@
+---
+- name: Check if uv is installed
+  ansible.builtin.command: which uv
+  register: uv_check
+  changed_when: false
+  failed_when: false
+
+- name: Install uv via astral install script
+  ansible.builtin.shell: "curl -LsSf {{ uv_install_url }} | sh"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  when: uv_check.rc != 0
+
+- name: Ensure uv is on PATH
+  ansible.builtin.command: uv --version
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: uv_version
+  changed_when: false
+
+- name: List installed uv tools
+  ansible.builtin.command: uv tool list
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: uv_tools
+  changed_when: false
+  failed_when: false
+
+- name: Install jcodemunch-mcp via uv tool install
+  ansible.builtin.command: "uv tool install {{ jcodemunch_package }}"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  when: jcodemunch_package not in (uv_tools.stdout | default(''))
+  register: jcodemunch_install
+  changed_when: jcodemunch_install.rc == 0
+
+- name: Verify jcodemunch-mcp binary is reachable
+  ansible.builtin.command: "{{ jcodemunch_bin }} --version"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: jcodemunch_version
+  changed_when: false
+
+- name: Display jcodemunch-mcp version
+  ansible.builtin.debug:
+    msg: "jcodemunch-mcp version: {{ jcodemunch_version.stdout }}"
+
+- name: Get current MCP server list
+  ansible.builtin.command: claude mcp list
+  register: jcodemunch_mcp_list
+  changed_when: false
+  failed_when: false
+
+- name: Register jcodemunch MCP server
+  ansible.builtin.command: >-
+    claude mcp add
+    --transport stdio
+    --scope {{ jcodemunch_mcp_scope }}
+    {{ jcodemunch_mcp_name }}
+    uvx
+    -- {{ jcodemunch_package }}
+  when: jcodemunch_mcp_name not in (jcodemunch_mcp_list.stdout | default(''))
+  register: jcodemunch_mcp_add
+  changed_when: jcodemunch_mcp_add.rc == 0
+
+- name: Merge jcodemunch hooks into settings.json
+  ansible.builtin.shell: |
+    python3 - << 'PYEOF'
+    import json, os
+    settings_path = os.path.expanduser("{{ claude_config_dir }}/settings.json")
+    with open(settings_path) as f:
+        cfg = json.load(f)
+
+    desired = [
+        ("WorktreeCreate",  "",           "jcodemunch-mcp hook-event create"),
+        ("WorktreeRemove",  "",           "jcodemunch-mcp hook-event remove"),
+        ("PreToolUse",      "Read",       "jcodemunch-mcp hook-pretooluse"),
+        ("PostToolUse",     "Edit|Write", "jcodemunch-mcp hook-posttooluse"),
+        ("PreCompact",      "",           "jcodemunch-mcp hook-precompact"),
+    ]
+
+    hooks = cfg.setdefault("hooks", {})
+    changed = False
+
+    for event, matcher, command in desired:
+        entries = hooks.setdefault(event, [])
+        bucket = next((e for e in entries if e.get("matcher", "") == matcher), None)
+        hook_entry = {"type": "command", "command": command}
+        if bucket is None:
+            entries.append({"matcher": matcher, "hooks": [hook_entry]})
+            changed = True
+        else:
+            bucket_hooks = bucket.setdefault("hooks", [])
+            if hook_entry not in bucket_hooks:
+                bucket_hooks.append(hook_entry)
+                changed = True
+
+    if changed:
+        with open(settings_path, "w") as f:
+            json.dump(cfg, f, indent=2)
+            f.write("\n")
+        print("CHANGED")
+    PYEOF
+  register: jcodemunch_hooks_patch
+  changed_when: "'CHANGED' in jcodemunch_hooks_patch.stdout"

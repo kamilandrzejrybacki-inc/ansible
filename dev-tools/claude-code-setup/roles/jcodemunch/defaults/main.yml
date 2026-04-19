@@ -1,0 +1,7 @@
+---
+jcodemunch_package: "jcodemunch-mcp"
+jcodemunch_mcp_name: "jcodemunch"
+jcodemunch_mcp_scope: "user"
+jcodemunch_bin: "jcodemunch-mcp"
+uv_install_url: "https://astral.sh/uv/install.sh"
+claude_config_dir: "{{ ansible_env.HOME }}/.claude"

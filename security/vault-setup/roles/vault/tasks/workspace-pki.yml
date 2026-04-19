@@ -1,0 +1,291 @@
+---
+# Cellarette tunnel workspace PKI — issues short-lived client certs for the
+# bridge role, backed by an internal root CA and bound to SPIFFE URI SANs.
+# See docs/adrs/0008-remote-cellarette-tunnel-workspace.md for context.
+
+- name: Assert saved_domain is set for workspace PKI URLs
+  ansible.builtin.assert:
+    that:
+      - saved_domain is defined
+      - saved_domain | length > 0
+    fail_msg: >
+      saved_domain must be set (from ~/.homelab-setup-vars.yml) before configuring
+      the workspace PKI URLs. Without it, AIA/CDP extensions on every issued cert
+      would point at an unreachable host.
+
+- name: Enable pki_workspace secrets engine
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault secrets enable -path=pki_workspace pki
+  register: workspace_pki_enable
+  changed_when: workspace_pki_enable.rc == 0
+  failed_when:
+    - workspace_pki_enable.rc != 0
+    - "'path is already in use' not in workspace_pki_enable.stderr"
+  no_log: true
+
+- name: Tune pki_workspace max_lease_ttl
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault secrets tune -max-lease-ttl=87600h pki_workspace
+  register: workspace_pki_tune
+  changed_when: workspace_pki_tune.rc == 0
+  no_log: true
+
+- name: Read current pki_workspace URL config
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read -format=json pki_workspace/config/urls
+  register: workspace_urls_current
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Configure pki_workspace issuing/CRL URLs
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write pki_workspace/config/urls
+      issuing_certificates={{ workspace_pki_public_url }}/v1/pki_workspace/ca
+      crl_distribution_points={{ workspace_pki_public_url }}/v1/pki_workspace/crl
+  register: workspace_urls_write
+  changed_when: workspace_urls_write.rc == 0
+  when: >
+    workspace_urls_current.rc != 0
+    or (workspace_pki_public_url + '/v1/pki_workspace/ca') not in (workspace_urls_current.stdout | default(''))
+    or (workspace_pki_public_url + '/v1/pki_workspace/crl') not in (workspace_urls_current.stdout | default(''))
+  no_log: true
+
+- name: Check if pki_workspace root CA exists
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read pki_workspace/cert/ca
+  register: workspace_ca_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Generate pki_workspace internal root CA
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write pki_workspace/root/generate/internal
+      common_name=cellarette-ca.homelab
+      ttl=87600h
+      key_bits=4096
+  register: workspace_ca_generate
+  when: workspace_ca_check.rc != 0
+  changed_when: true
+  no_log: true
+
+- name: Read current bridge role on pki_workspace
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read -format=json pki_workspace/roles/bridge
+  register: workspace_bridge_role_current
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Compute desired bridge role digest
+  ansible.builtin.set_fact:
+    workspace_bridge_role_desired:
+      allow_bare_domains: true
+      allow_subdomains: false
+      allow_wildcard_certificates: false
+      allow_ip_sans: false
+      allow_localhost: false
+      allowed_domains: ["cellarette.lw.vlan"]
+      allowed_uri_sans: ["spiffe://homelab/agent/*"]
+      client_flag: true
+      server_flag: false
+      key_bits: 2048
+      key_type: "rsa"
+      max_ttl: 3600
+      ttl: 3600
+      require_cn: false
+      use_csr_common_name: false
+      use_csr_sans: false
+
+- name: Parse current bridge role (if any)
+  ansible.builtin.set_fact:
+    workspace_bridge_role_live: "{{ (workspace_bridge_role_current.stdout | from_json).data | default({}) }}"
+  when: workspace_bridge_role_current.rc == 0
+  no_log: true
+
+- name: Create/update bridge PKI role on pki_workspace
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write pki_workspace/roles/bridge
+      allowed_domains=cellarette.lw.vlan
+      allow_subdomains=false
+      allow_bare_domains=true
+      allowed_uri_sans=spiffe://homelab/agent/*
+      require_cn=false
+      max_ttl=1h
+      ttl=1h
+      key_type=rsa
+      key_bits=2048
+      server_flag=false
+      client_flag=true
+      allow_wildcard_certificates=false
+      allow_ip_sans=false
+      allow_localhost=false
+      use_csr_common_name=false
+      use_csr_sans=false
+  register: workspace_bridge_role_write
+  changed_when: workspace_bridge_role_write.rc == 0
+  when: >
+    workspace_bridge_role_current.rc != 0
+    or workspace_bridge_role_desired.items() | difference((workspace_bridge_role_live | default({})).items()) | length > 0
+  no_log: true
+
+- name: Render workspace-bridge Vault policy HCL
+  ansible.builtin.copy:
+    dest: "{{ vault_install_dir }}/workspace-bridge-policy.hcl"
+    mode: "0644"
+    content: |
+      path "pki_workspace/issue/bridge" {
+        capabilities = ["update"]
+      }
+
+- name: Copy workspace-bridge policy into Vault container
+  ansible.builtin.command:
+    cmd: >
+      docker cp {{ vault_install_dir }}/workspace-bridge-policy.hcl
+      vault:/tmp/workspace-bridge-policy.hcl
+  changed_when: true
+
+- name: Apply workspace-bridge policy to Vault
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault policy write workspace-bridge /tmp/workspace-bridge-policy.hcl
+  register: wb_policy
+  changed_when: wb_policy.rc == 0
+  no_log: true
+
+- name: Enable AppRole auth method
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault auth enable approle
+  register: approle_enable
+  changed_when: approle_enable.rc == 0
+  failed_when:
+    - approle_enable.rc != 0
+    - "'path is already in use' not in approle_enable.stderr"
+  no_log: true
+
+- name: Read current AppRole workspace-bridge role
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read -format=json auth/approle/role/workspace-bridge
+  register: approle_role_current
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Compute desired AppRole workspace-bridge digest
+  ansible.builtin.set_fact:
+    approle_role_desired:
+      bind_secret_id: true
+      secret_id_num_uses: 0
+      secret_id_ttl: 86400
+      token_max_ttl: 3600
+      token_policies: ["workspace-bridge"]
+      token_ttl: 3600
+
+- name: Parse current AppRole workspace-bridge role
+  ansible.builtin.set_fact:
+    approle_role_live: "{{ (approle_role_current.stdout | from_json).data | default({}) }}"
+  when: approle_role_current.rc == 0
+  no_log: true
+
+- name: Create/update AppRole workspace-bridge role
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write auth/approle/role/workspace-bridge
+      token_policies=workspace-bridge
+      token_ttl=1h
+      token_max_ttl=1h
+      secret_id_ttl=24h
+      bind_secret_id=true
+      secret_id_num_uses=0
+  register: approle_role_write
+  changed_when: approle_role_write.rc == 0
+  when: >
+    approle_role_current.rc != 0
+    or approle_role_desired.items() | difference((approle_role_live | default({})).items()) | length > 0
+  no_log: true
+
+- name: Enable kubernetes auth method
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault auth enable kubernetes
+  register: kubernetes_enable
+  changed_when: kubernetes_enable.rc == 0
+  failed_when:
+    - kubernetes_enable.rc != 0
+    - "'path is already in use' not in kubernetes_enable.stderr"
+  no_log: true
+
+- name: (follow-up) Skip kubernetes auth configuration — vault_kube_reviewer_jwt not set
+  ansible.builtin.debug:
+    msg: >
+      Skipping auth/kubernetes/config — vault_kube_reviewer_jwt not defined.
+      Configure later by passing kubernetes_host, kubernetes_ca_cert, and a
+      reviewer JWT from a ServiceAccount with system:auth-delegator rights.
+  when: vault_kube_reviewer_jwt is not defined
+
+- name: (follow-up) Configure kubernetes auth backend
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write auth/kubernetes/config
+      kubernetes_host={{ vault_kubernetes_host }}
+      kubernetes_ca_cert=@/tmp/kubernetes-ca.crt
+      token_reviewer_jwt={{ vault_kube_reviewer_jwt }}
+  register: kubernetes_config_write
+  changed_when: kubernetes_config_write.rc == 0
+  when: vault_kube_reviewer_jwt is defined
+  no_log: true
+
+- name: (follow-up) Create kubernetes auth role workspace-bridge
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write auth/kubernetes/role/workspace-bridge
+      bound_service_account_names=cellarette-bridge
+      bound_service_account_namespaces=default
+      token_policies=workspace-bridge
+      token_ttl=1h
+      token_max_ttl=1h
+  register: kubernetes_role_write
+  changed_when: kubernetes_role_write.rc == 0
+  when: vault_kube_reviewer_jwt is defined
+  no_log: true

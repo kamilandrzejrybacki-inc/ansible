@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: jupyterlab_startup
+  author: kamilrybacki
+  description: Template JupyterLab startup ConfigMap from claude-code-setup role vars
+  min_ansible_version: "2.10"
+dependencies: []

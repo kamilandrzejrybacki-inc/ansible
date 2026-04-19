@@ -1,0 +1,10 @@
+---
+- name: Load claude_cli package vars
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../claude-code-setup/roles/claude_cli/defaults/main.yml"
+
+- name: Render startup ConfigMap into Helm chart
+  ansible.builtin.template:
+    src: startup-configmap.yaml.j2
+    dest: "{{ helm_chart_path }}/templates/startup-configmap.yaml"
+    mode: "0644"

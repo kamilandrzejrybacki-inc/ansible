@@ -1,0 +1,9 @@
+---
+helm_chart_path: "{{ playbook_dir }}/../../../helm/charts/jupyterlab"
+
+jupyterlab_npm_extras:
+  - bin: codex
+    package: "@openai/codex"
+
+jupyterlab_pip_extras:
+  - jupyterlab-codex-sidebar

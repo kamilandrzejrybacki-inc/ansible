@@ -1,0 +1,7 @@
+---
+- name: Template JupyterLab startup ConfigMap from Ansible vars
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - jupyterlab_startup

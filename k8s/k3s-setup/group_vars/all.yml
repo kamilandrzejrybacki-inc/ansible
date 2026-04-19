@@ -76,6 +76,12 @@ k8s_secrets:
       loki_url: loki_url
       prometheus_url: prometheus_url
 
+  - namespace: jupyterlab
+    name: jupyterlab-git-credentials
+    vault_path: jupyterlab-git
+    data:
+      token: token
+
   # distillery-secrets is managed by k8s/distillery-setup/setup.yml
   # (Vault stores all env vars; the playbook assembles the full secret including
   # Redis URL with password and in-cluster service URLs.)

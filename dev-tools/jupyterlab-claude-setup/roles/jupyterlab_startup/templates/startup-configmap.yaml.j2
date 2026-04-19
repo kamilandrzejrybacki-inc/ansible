@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterlab-startup
+  namespace: {% raw %}{{ .Release.Namespace }}{% endraw %}
+
+data:
+  00-ai-tools.sh: |
+    #!/bin/bash
+    set -e
+
+    export NPM_CONFIG_PREFIX=/home/jovyan/.npm-global
+    mkdir -p "$NPM_CONFIG_PREFIX/bin"
+    export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+
+    # Persist PATH config to .bashrc so terminal sessions pick it up
+    if ! grep -q 'NPM_CONFIG_PREFIX' /home/jovyan/.bashrc 2>/dev/null; then
+      printf '\nexport NPM_CONFIG_PREFIX=/home/jovyan/.npm-global\nexport PATH="$NPM_CONFIG_PREFIX/bin:$PATH"\n' >> /home/jovyan/.bashrc
+    fi
+
+    # npm installs land on the home PVC — only run once
+    if [ ! -f "$NPM_CONFIG_PREFIX/bin/claude" ]; then
+      npm install -g {{ claude_code_package }}
+    fi
+{% for pkg in jupyterlab_npm_extras %}
+    if [ ! -f "$NPM_CONFIG_PREFIX/bin/{{ pkg.bin }}" ]; then
+      npm install -g {{ pkg.package }}
+    fi
+{% endfor %}
+{% for pkg in jupyterlab_pip_extras %}
+    pip install --quiet --no-cache-dir {{ pkg }}
+{% endfor %}

@@ -1,0 +1,22 @@
+[Unit]
+Description=Cellarette Bridge — workspace tunnel agent
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ cellarette_bridge_config_dir }}/bridge.env
+ExecStart={{ cellarette_bridge_install_dir }}/cellarette-bridge \
+  --workspace {{ cellarette_bridge_workspace }} \
+  --vault ${VAULT_ADDR} \
+  --vault-auth {{ cellarette_bridge_vault_auth }} \
+  --vault-role {{ cellarette_bridge_vault_role }} \
+  --vault-mount {{ cellarette_bridge_vault_mount }} \
+  --cellarette {{ cellarette_bridge_cellarette_url }} \
+  --session-file {{ cellarette_bridge_session_file }} \
+  --log-level {{ cellarette_bridge_log_level }} \
+  --metrics-port {{ cellarette_bridge_metrics_port }}
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=default.target

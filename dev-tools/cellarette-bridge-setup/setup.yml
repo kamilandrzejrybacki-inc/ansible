@@ -1,0 +1,8 @@
+---
+- name: Install cellarette-bridge on agent hosts
+  hosts: "{{ target | default('lw-main') }}"
+  gather_facts: true
+  vars_files:
+    - group_vars/all.yml
+  roles:
+    - cellarette_bridge

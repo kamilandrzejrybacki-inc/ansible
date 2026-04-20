@@ -1,0 +1,6 @@
+---
+- name: Restart cellarette-bridge
+  ansible.builtin.systemd:
+    name: cellarette-bridge
+    scope: user
+    state: restarted

@@ -1,0 +1,16 @@
+---
+cellarette_bridge_version: "latest"  # overridden to specific tag for prod
+cellarette_bridge_install_dir: /usr/local/bin
+cellarette_bridge_config_dir: "{{ ansible_env.HOME }}/.config/cellarette"
+cellarette_bridge_service_dir: "{{ ansible_env.HOME }}/.config/systemd/user"
+cellarette_bridge_workspace: "{{ ansible_env.HOME }}/Code"
+cellarette_bridge_vault_addr: "https://hashi-vault.lw.vlan"
+cellarette_bridge_vault_auth: "approle"
+cellarette_bridge_vault_role: "workspace-bridge"
+cellarette_bridge_vault_mount: "pki_workspace"
+cellarette_bridge_cellarette_url: "https://cellarette.lw.vlan"
+cellarette_bridge_log_level: "info"
+cellarette_bridge_metrics_port: 9201
+# Secret ID file — written by this role from Vault, NOT committed to git
+cellarette_bridge_secret_id_file: "{{ cellarette_bridge_config_dir }}/secret_id"
+cellarette_bridge_session_file: "{{ ansible_env.XDG_RUNTIME_DIR | default('/tmp') }}/cellarette-session"

@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+set -eu
+
+CELLARETTE_SESSION_FILE="${CELLARETTE_SESSION_FILE:-${XDG_RUNTIME_DIR:-/tmp}/cellarette-session}"
+export CELLARETTE_SESSION_FILE
+
+cellarette-bridge \
+  --workspace "${CELLARETTE_WORKSPACE:-$PWD}" \
+  ${CELLARETTE_BRIDGE_ARGS:-} &
+BRIDGE_PID=$!
+
+i=0
+while [ $i -lt 10 ]; do
+  [ -f "$CELLARETTE_SESSION_FILE" ] && break
+  kill -0 "$BRIDGE_PID" 2>/dev/null || break
+  sleep 0.2
+  i=$((i+1))
+done
+
+if [ ! -f "$CELLARETTE_SESSION_FILE" ]; then
+  export CELLARETTE_MCP_DISABLED=1
+  echo "WARN: Cellarette bridge unreachable, local tools only" >&2
+fi
+
+exec "$@"

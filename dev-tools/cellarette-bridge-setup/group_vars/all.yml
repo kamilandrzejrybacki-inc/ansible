@@ -1,0 +1,4 @@
+---
+# vault_root_token: loaded from env VAULT_TOKEN or passed via --extra-vars
+# Do NOT hardcode here.
+vault_root_token: "{{ lookup('env', 'VAULT_TOKEN') }}"

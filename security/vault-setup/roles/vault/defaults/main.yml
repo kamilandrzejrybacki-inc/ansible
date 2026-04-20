@@ -26,3 +26,8 @@ vault_ansible_policy: "ansible-automation"
 # Health-check settings
 vault_health_check_retries: 12
 vault_health_check_delay: 5
+
+# Public URL used by clients to fetch CA / CRL from the workspace PKI mount.
+# Defaults to the hashi-vault subdomain of the homelab's saved domain (set on the
+# controller from ~/.homelab-setup-vars.yml via Play 1 of setup.yml).
+workspace_pki_public_url: "https://hashi-vault.{{ saved_domain }}"

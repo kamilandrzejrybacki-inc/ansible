@@ -270,6 +270,9 @@
   failed_when: false
   no_log: true
 
+- name: Configure workspace PKI (tunnel)
+  ansible.builtin.include_tasks: workspace-pki.yml
+
 - name: Display Vault access information
   ansible.builtin.debug:
     msg: |

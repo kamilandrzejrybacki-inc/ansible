@@ -1,0 +1,116 @@
+---
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ cellarette_bridge_config_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Create systemd user service directory
+  ansible.builtin.file:
+    path: "{{ cellarette_bridge_service_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Detect host architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: Map dpkg architecture to Go architecture
+  ansible.builtin.set_fact:
+    cellarette_bridge_arch: "{{ {'amd64': 'amd64', 'arm64': 'arm64'}.get(dpkg_arch.stdout | trim, dpkg_arch.stdout | trim) }}"
+
+- name: Set download URL for latest release
+  ansible.builtin.set_fact:
+    cellarette_bridge_download_url: >-
+      https://github.com/kamilandrzejrybacki-inc/cellarette-bridge/releases/latest/download/cellarette-bridge_linux_{{ cellarette_bridge_arch }}.tar.gz
+  when: cellarette_bridge_version == "latest"
+
+- name: Set download URL for versioned release
+  ansible.builtin.set_fact:
+    cellarette_bridge_download_url: >-
+      https://github.com/kamilandrzejrybacki-inc/cellarette-bridge/releases/download/{{ cellarette_bridge_version }}/cellarette-bridge_linux_{{ cellarette_bridge_arch }}.tar.gz
+  when: cellarette_bridge_version != "latest"
+
+- name: Download cellarette-bridge archive
+  ansible.builtin.get_url:
+    url: "{{ cellarette_bridge_download_url }}"
+    dest: /tmp/cellarette-bridge.tar.gz
+    mode: "0600"
+
+- name: Extract cellarette-bridge archive
+  ansible.builtin.unarchive:
+    src: /tmp/cellarette-bridge.tar.gz
+    dest: /tmp
+    remote_src: true
+
+- name: Install cellarette-bridge binary
+  ansible.builtin.copy:
+    src: /tmp/cellarette-bridge
+    dest: "{{ cellarette_bridge_install_dir }}/cellarette-bridge"
+    mode: "0755"
+    remote_src: true
+  notify: Restart cellarette-bridge
+
+- name: Install cellarette-agent-wrap wrapper script
+  ansible.builtin.template:
+    src: cellarette-agent-wrap.sh.j2
+    dest: "{{ cellarette_bridge_install_dir }}/cellarette-agent-wrap"
+    mode: "0755"
+
+- name: Fetch AppRole role-id from Vault
+  ansible.builtin.uri:
+    url: "{{ cellarette_bridge_vault_addr }}/v1/auth/approle/role/{{ cellarette_bridge_vault_role }}/role-id"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    return_content: true
+  register: vault_role_id_resp
+  no_log: true
+
+- name: Write role-id to config directory
+  ansible.builtin.copy:
+    content: "{{ vault_role_id_resp.json.data.role_id }}"
+    dest: "{{ cellarette_bridge_config_dir }}/role_id"
+    mode: "0600"
+  no_log: true
+
+- name: Generate AppRole secret-id from Vault
+  ansible.builtin.uri:
+    url: "{{ cellarette_bridge_vault_addr }}/v1/auth/approle/role/{{ cellarette_bridge_vault_role }}/secret-id"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    return_content: true
+  register: vault_secret_id_resp
+  no_log: true
+
+- name: Write secret-id to config directory
+  ansible.builtin.copy:
+    content: "{{ vault_secret_id_resp.json.data.secret_id }}"
+    dest: "{{ cellarette_bridge_secret_id_file }}"
+    mode: "0600"
+  no_log: true
+
+- name: Render bridge environment file
+  ansible.builtin.template:
+    src: bridge.env.j2
+    dest: "{{ cellarette_bridge_config_dir }}/bridge.env"
+    mode: "0600"
+  no_log: true
+  notify: Restart cellarette-bridge
+
+- name: Install cellarette-bridge systemd user unit
+  ansible.builtin.template:
+    src: cellarette-bridge.service.j2
+    dest: "{{ cellarette_bridge_service_dir }}/cellarette-bridge.service"
+    mode: "0644"
+  notify: Restart cellarette-bridge
+
+- name: Enable and start cellarette-bridge systemd user service
+  ansible.builtin.systemd:
+    name: cellarette-bridge
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started

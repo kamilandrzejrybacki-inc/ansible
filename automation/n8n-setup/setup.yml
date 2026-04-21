@@ -207,6 +207,15 @@
           register: _blog_vault_data
           no_log: true
 
+        - name: Read Grafana secrets from Vault
+          ansible.builtin.uri:
+            url: "{{ _vault_addr }}/v1/secret/data/homelab/grafana"
+            headers:
+              X-Vault-Token: "{{ _vault_token }}"
+            status_code: [200, 404]
+          register: _grafana_vault_data
+          no_log: true
+
         - name: Build secret proxy env from Vault data
           ansible.builtin.set_fact:
             _secret_proxy_env:
@@ -219,12 +228,13 @@
               PAPERLESS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.paperless_api_token | default('') }}"
               NETBOX_API_TOKEN: "{{ _n8n_vault_data.json.data.data.netbox_token | default('') }}"
               LIBRENMS_API_TOKEN: "{{ _n8n_vault_data.json.data.data.librenms_token | default('') }}"
-              OMNIROUTE_UPSTREAM: "http://omniroute.omniroute.svc.cluster.local:20128"
+              OMNIROUTE_UPSTREAM: "http://192.168.0.107:30787"
               OBSIDIAN_URL: "http://10.0.1.2:27124"
               PAPERLESS_URL: "http://10.0.1.2:8000"
               NETBOX_URL: "http://192.168.0.105:8081"
               LIBRENMS_URL: "http://192.168.0.105:8080"
               BLOG_GITHUB_PAT: "{{ _blog_vault_data.json.data.data.github_pat | default('') }}"
+              GRAFANA_ADMIN_PASSWORD: "{{ _grafana_vault_data.json.data.data.admin_password | default('') }}"
           no_log: true
       when: _vault_available | default(false) | bool
 

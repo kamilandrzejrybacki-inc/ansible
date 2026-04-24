@@ -3,7 +3,7 @@ hermes_install_dir: /opt/hermes
 hermes_agent_version: "0.9.0"
 hermes_agent_tag: "v2026.4.13"
 hermes_webui_tag: "latest"
-hermes_model: "gpt-5.3-codex"
+hermes_model: "gpt-5.5"
 hermes_provider: "openai-codex"
 hermes_max_output_tokens: 32768
 hermes_webui_port: 8788

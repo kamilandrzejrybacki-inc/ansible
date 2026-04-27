@@ -1,0 +1,77 @@
+---
+# Meepmap Caddy + Pi-hole Integration
+#
+# Adds reverse-proxy entry for meepmap.kamilandrzejrybacki.dpdns.org
+# pointing at k3s NodePort 30900 on the homelab node.
+#
+# Prerequisites:
+#   - k3s running with meepmap deployed (run k8s/meepmap-setup is already done via ArgoCD)
+#   - ~/.homelab-setup-vars.yml present (created by security/secure-homelab-access/setup.yml)
+#   - Caddy and Pi-hole Docker containers running
+#
+# Usage:
+#   ansible-playbook k8s/meepmap-setup/setup.yml \
+#     -i k8s/meepmap-setup/inventory/hosts.ini
+
+- name: Integrate Meepmap with Caddy + Pi-hole
+  hosts: local
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check for homelab setup vars
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      register: _homelab_vars_stat
+
+    - name: Load homelab setup vars
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
+      when: _homelab_vars_stat.stat.exists
+
+    - name: Fail if homelab vars missing
+      ansible.builtin.fail:
+        msg: "~/.homelab-setup-vars.yml not found. Run security/secure-homelab-access/setup.yml first."
+      when: not _homelab_vars_stat.stat.exists
+
+    - name: Add Cloudflare Tunnel DNS route for Meepmap
+      ansible.builtin.command: >
+        cloudflared tunnel route dns {{ saved_cf_tunnel_name }}
+        {{ meepmap_hostname }}.{{ saved_domain }}
+      environment:
+        TUNNEL_ORIGIN_CERT: "{{ lookup('env', 'HOME') }}/.cloudflared/cert.pem"
+      register: _cf_dns
+      changed_when: _cf_dns.rc == 0
+      failed_when: false
+      become: false
+
+    - name: Add Meepmap to Caddy config
+      ansible.builtin.blockinfile:
+        path: /opt/homelab/caddy/Caddyfile
+        marker: "# {mark} MEEPMAP"
+        unsafe_writes: true
+        block: |
+          http://{{ meepmap_hostname }}.{{ saved_domain }} {
+            import rate_limit
+            import proxy_headers
+            reverse_proxy http://{{ docker_gateway_ip }}:{{ meepmap_nodeport }}
+          }
+      notify: reload caddy
+
+    - name: Add Pi-hole local DNS record for Meepmap
+      ansible.builtin.command: >
+        docker exec pihole sh -c
+        'grep -qF "{{ meepmap_hostname }}.{{ saved_domain }}" /etc/pihole/custom.list ||
+         (echo "{{ ansible_default_ipv4.address }} {{ meepmap_hostname }}.{{ saved_domain }}" >> /etc/pihole/custom.list && echo CHANGED)'
+      register: _pihole_dns
+      changed_when: "'CHANGED' in _pihole_dns.stdout"
+
+    - name: Reload Pi-hole DNS
+      ansible.builtin.command: docker exec pihole pihole restartdns reload
+      changed_when: true
+      when: _pihole_dns.changed
+
+  handlers:
+    - name: reload caddy
+      ansible.builtin.shell: |
+        docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+      changed_when: true

@@ -2,5 +2,5 @@
 meepmap_hostname: meepmap
 meepmap_nodeport: 30900
 
-# k3s node host IP — NodePort is reachable from Docker containers via gateway
-docker_gateway_ip: "172.20.0.1"
+# k3s node IP — separate from the Docker/Caddy host (192.168.0.105)
+k3s_node_ip: "192.168.0.107"

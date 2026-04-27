@@ -53,7 +53,7 @@
           http://{{ meepmap_hostname }}.{{ saved_domain }} {
             import rate_limit
             import proxy_headers
-            reverse_proxy http://{{ docker_gateway_ip }}:{{ meepmap_nodeport }}
+            reverse_proxy http://{{ k3s_node_ip }}:{{ meepmap_nodeport }}
           }
       notify: reload caddy
 

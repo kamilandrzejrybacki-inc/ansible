@@ -47,3 +47,56 @@
     path: "{{ claude_config_dir }}/hooks"
     state: directory
     mode: "0755"
+
+- name: Ensure skills plugin cache dirs exist
+  ansible.builtin.file:
+    path: "{{ claude_config_dir }}/plugins/cache/{{ item.name }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ claude_skills_repos }}"
+
+- name: Clone skill repos into plugin cache
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ claude_config_dir }}/plugins/cache/{{ item.name }}"
+    version: main
+    depth: 1
+    update: true
+  loop: "{{ claude_skills_repos }}"
+
+- name: Ensure skills directory exists
+  ansible.builtin.file:
+    path: "{{ claude_config_dir }}/skills"
+    state: directory
+    mode: "0755"
+
+- name: Link skills from repos into ~/.claude/skills
+  ansible.builtin.shell:
+    cmd: >
+      find "{{ claude_config_dir }}/plugins/cache/{{ item.name }}/skills"
+      -name SKILL.md -not -path '*/node_modules/*' -print0 |
+      while IFS= read -r -d '' skill_md; do
+        src="$(dirname "$skill_md")"
+        name="$(basename "$src")"
+        excluded="{{ claude_skills_excluded | join(' ') }}"
+        if echo "$excluded" | grep -qw "$name"; then
+          continue
+        fi
+        target="{{ claude_config_dir }}/skills/$name"
+        ln -sfn "$src" "$target"
+      done
+    executable: /bin/bash
+  loop: "{{ claude_skills_repos }}"
+  changed_when: true
+
+- name: Remove excluded mattpocock skill symlinks
+  ansible.builtin.file:
+    path: "{{ claude_config_dir }}/skills/{{ item }}"
+    state: absent
+  loop: "{{ claude_skills_excluded }}"
+
+- name: Prune irrelevant ECC marketplace skills
+  ansible.builtin.file:
+    path: "{{ claude_config_dir }}/plugins/marketplaces/everything-claude-code/skills/{{ item }}"
+    state: absent
+  loop: "{{ claude_ecc_skills_pruned }}"

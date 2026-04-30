@@ -57,6 +57,20 @@
           }
       notify: reload caddy
 
+    - name: Restart Caddy if Caddyfile inode was replaced
+      ansible.builtin.shell: |
+        HOST_INODE=$(stat -c '%i' /opt/homelab/caddy/Caddyfile)
+        CONTAINER_INODE=$(docker exec caddy stat -c '%i' /etc/caddy/Caddyfile)
+        if [ "$HOST_INODE" != "$CONTAINER_INODE" ]; then
+          docker restart caddy
+          echo RESTARTED
+        else
+          echo SAME_INODE
+        fi
+      register: _caddy_inode_check
+      changed_when: "'RESTARTED' in _caddy_inode_check.stdout"
+      become: true
+
     - name: Add Pi-hole local DNS record for Meepmap
       ansible.builtin.command: >
         docker exec pihole sh -c

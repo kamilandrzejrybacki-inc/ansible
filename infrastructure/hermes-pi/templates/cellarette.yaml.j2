@@ -2,79 +2,105 @@ server:
   port: 8788
   admin_port: 8789
   admin_token_env: CELLARETTE_ADMIN_TOKEN
+  cli_whitelist:
+    - gh
+    - codex
 
 profiles:
   default:
     tools:
       - "*"
+  homelab:
+    tools:
+      - "vault__*"
+      - "grafana__*"
+      - "argocd__*"
+      - "netbox__*"
+      - "distillery__*"
 
 tools:
   - type: mcp_proxy
     name: vault
     description: "HashiCorp Vault secrets — homelab credentials, API tokens, service passwords under secret/homelab/*"
-    service_dns: "192.168.0.107"
-    port: 31100
+    upstream: "http://192.168.0.107:31100"
     transport: streamable_http
 
   - type: mcp_proxy
     name: grafana
-    description: "Homelab observability — Prometheus/Mimir metrics, Loki logs, dashboards, alerts, oncall"
-    service_dns: "192.168.0.107"
-    port: 31101
+    description: "Homelab observability — Prometheus/Mimir metrics, Loki logs, dashboards, alerts, oncall, Pyroscope profiles. Use for questions about homelab health, performance, errors, resource usage"
+    upstream: "http://192.168.0.107:31101"
     transport: streamable_http
 
   - type: mcp_proxy
     name: argocd
-    description: "Homelab GitOps — Kubernetes application state, sync status, deployments on k3s cluster"
-    service_dns: "192.168.0.107"
-    port: 31102
+    description: "Homelab GitOps — Kubernetes application state, sync status, deployments, rollouts on k3s cluster. Use for questions about what's deployed, app health, sync issues"
+    upstream: "http://192.168.0.107:31102"
     transport: streamable_http
 
   - type: mcp_proxy
     name: memory
-    description: "Structured knowledge graph — entities and relations for cross-session semantic memory"
-    service_dns: "192.168.0.107"
-    port: 31103
+    description: "Structured knowledge graph — entities and relations for cross-session semantic memory (distinct from Claude's own memory system)"
+    upstream: "http://192.168.0.107:31103"
     transport: streamable_http
 
   - type: mcp_proxy
     name: sequential_thinking
     description: "Chain-of-thought scratchpad for step-by-step reasoning on complex problems"
-    service_dns: "192.168.0.107"
-    port: 31104
+    upstream: "http://192.168.0.107:31104"
     transport: streamable_http
 
   - type: mcp_proxy
     name: context7
-    description: "Up-to-date library and framework documentation lookup"
-    service_dns: "192.168.0.107"
-    port: 31105
+    description: "Up-to-date library and framework documentation lookup — use when you need current API docs, code examples, or version-specific details for any open-source library"
+    upstream: "http://192.168.0.107:31105"
     transport: streamable_http
 
   - type: mcp_proxy
     name: lightpanda
-    description: "Headless browser automation — navigate, click, fill forms, extract content from web pages"
-    service_dns: "192.168.0.107"
-    port: 31106
+    description: "Headless browser automation — navigate, click, fill forms, extract content from web pages. Use for scraping, web research, or interacting with sites that require JS"
+    upstream: "http://192.168.0.107:31106"
     transport: sse
 
   - type: mcp_proxy
     name: netbox
-    description: "Network inventory — homelab devices, IP addresses, sites, racks, VLANs, virtual machines"
-    service_dns: "192.168.0.107"
-    port: 31107
+    description: "Network inventory — homelab devices, IP addresses, sites, racks, VLANs, circuits, virtual machines. Use for questions about physical/logical network topology"
+    upstream: "http://192.168.0.107:31107"
     transport: streamable_http
 
   - type: mcp_proxy
     name: distillery
-    description: "Personal knowledge base — user's notes, coding standards, project documentation"
-    service_dns: "192.168.0.107"
-    port: 31108
+    description: "Personal knowledge base — user's notes, coding standards, project documentation, architectural decisions, reference material organized as a taxonomy"
+    upstream: "http://192.168.0.107:31108"
     transport: sse
 
   - type: mcp_proxy
     name: obsidian
-    description: "Obsidian vault — user's markdown notes, daily journal, project notes"
-    service_dns: "192.168.0.107"
-    port: 31109
+    description: "Obsidian vault — user's markdown notes, daily journal, project notes. Use for retrieving or updating personal notes in the Obsidian knowledge graph"
+    upstream: "http://192.168.0.107:31109"
     transport: streamable_http
+
+  - type: cli_passthrough
+    name: gh
+    description: "GitHub CLI — repos, pull requests, issues, code search, releases, actions. Use for any GitHub operation that doesn't already have a dedicated MCP tool"
+    command: gh
+    deny_subcommands: ["auth", "config", "secret", "variable", "alias"]
+    env:
+      - GH_TOKEN
+    install:
+      env:
+        GH_VERSION: "2.85.0"
+      script: |
+        curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+          | tar xz --strip-components=2 -C "$CELLARETTE_BIN" "gh_${GH_VERSION}_linux_amd64/bin/gh"
+        chmod +x "$CELLARETTE_BIN/gh"
+
+  - type: cli_passthrough
+    name: codex
+    description: "OpenAI Codex CLI — delegate complex coding tasks, refactors, or multi-file edits to an independent Codex agent. Use when you want a second implementation pass or deeper root-cause investigation"
+    command: codex
+    env:
+      - OPENAI_API_KEY
+    install:
+      script: |
+        npm install -g @openai/codex@latest
+        [ -f "$CELLARETTE_BIN/bin/codex" ] && ln -sf "$CELLARETTE_BIN/bin/codex" "$CELLARETTE_BIN/codex"

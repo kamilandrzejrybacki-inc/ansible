@@ -53,6 +53,18 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send(200, {"status": "ok"})
             return
+        if self.path.startswith("/api/memories/search"):
+            if not _auth_ok(self.headers):
+                self._send(401, {"error": "Unauthorized"})
+                return
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0].lower().strip()
+            memories = _load()
+            if q:
+                memories = [m for m in memories if q in (m.get("content") or "").lower()
+                            or q in (m.get("title") or "").lower()]
+            self._send(200, {"memories": memories, "total": len(memories)})
+            return
         if self.path.startswith("/api/memories"):
             if not _auth_ok(self.headers):
                 self._send(401, {"error": "Unauthorized"})

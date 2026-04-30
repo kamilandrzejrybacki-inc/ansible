@@ -32,7 +32,7 @@ knowledge_sources:
     type: supermemory
     url: "http://hermes-supermemory:3100"
     order: 1
-    modes: [bulk]
+    modes: [bulk, per_turn]
 
   - name: dreaming
     type: dreaming
@@ -47,3 +47,10 @@ knowledge_sources:
     options:
       limit: 5
       api_key: "{{ distillery_api_key }}"
+
+  - name: skills
+    type: skills
+    order: 4
+    modes: [bulk]
+    options:
+      path: "/app/skills"

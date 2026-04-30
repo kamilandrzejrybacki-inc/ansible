@@ -37,6 +37,7 @@ services:
       - HERMES_WEBUI_DEFAULT_MODEL={{ hermes_model }}
       - HERMES_WEBUI_HOST=0.0.0.0
       - HERMES_WEBUI_PORT=8788
+      - HERMES_WEBUI_STATE_DIR=/opt/data/memories
     env_file:
       - .env
     networks:
@@ -133,6 +134,8 @@ services:
       - ./cellarette.yaml:/etc/cellarette/cellarette.yaml:ro
     environment:
       - CELLARETTE_CONFIG=/etc/cellarette/cellarette.yaml
+    env_file:
+      - .env
     networks:
       - hermes
 

@@ -153,6 +153,27 @@ argocd_applications:
     namespace: jupyterlab
     values: {}
 
+  # CI-controlled scaling: selfHeal off, ignoreDifferences on /spec/replicas
+  # so ArgoCD syncs config changes but never fights kubectl scale commands.
+  - name: e2e-supabase
+    chart_path: charts/e2e-supabase
+    namespace: e2e
+    self_heal: false
+    ignore_replicas: true
+    values: {}
+
+  - name: meepmap-e2e
+    chart_path: charts/meepmap-e2e
+    namespace: e2e
+    self_heal: false
+    ignore_replicas: true
+    values: {}
+
+  - name: github-runners-meepmap
+    chart_path: charts/github-runners-meepmap
+    namespace: github-runners
+    values: {}
+
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo
   # (not via the git-based chart repo) because ArgoCD cannot apply the
   # large Prometheus Operator CRDs with client-side apply. The CRDs are

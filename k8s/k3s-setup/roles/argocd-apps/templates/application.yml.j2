@@ -23,6 +23,13 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true
+      selfHeal: {{ item.self_heal | default(true) | lower }}
     syncOptions:
       - CreateNamespace=true
+{% if item.ignore_replicas | default(false) %}
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+{% endif %}

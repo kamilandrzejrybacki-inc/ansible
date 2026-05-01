@@ -21,15 +21,10 @@ spec:
     server: https://kubernetes.default.svc
     namespace: {{ item.namespace }}
   syncPolicy:
+{% if not (item.no_auto_sync | default(false)) %}
     automated:
       prune: true
       selfHeal: {{ item.self_heal | default(true) | lower }}
+{% endif %}
     syncOptions:
       - CreateNamespace=true
-{% if item.ignore_replicas | default(false) %}
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas
-{% endif %}

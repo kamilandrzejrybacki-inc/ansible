@@ -153,20 +153,18 @@ argocd_applications:
     namespace: jupyterlab
     values: {}
 
-  # CI-controlled scaling: selfHeal off, ignoreDifferences on /spec/replicas
-  # so ArgoCD syncs config changes but never fights kubectl scale commands.
+  # CI-controlled scaling: no automated ArgoCD sync so scale-up/down
+  # during test runs is never reverted. Manual sync required for chart updates.
   - name: e2e-supabase
     chart_path: charts/e2e-supabase
     namespace: e2e
-    self_heal: false
-    ignore_replicas: true
+    no_auto_sync: true
     values: {}
 
   - name: meepmap-e2e
     chart_path: charts/meepmap-e2e
     namespace: e2e
-    self_heal: false
-    ignore_replicas: true
+    no_auto_sync: true
     values: {}
 
   - name: github-runners-meepmap

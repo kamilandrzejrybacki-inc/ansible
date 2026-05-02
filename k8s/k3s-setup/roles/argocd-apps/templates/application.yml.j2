@@ -20,6 +20,31 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ item.namespace }}
+{% if item.ignore_differences | default([]) %}
+  ignoreDifferences:
+{% for d in item.ignore_differences %}
+    - group: "{{ d.group | default('') }}"
+      kind: "{{ d.kind }}"
+{% if d.name is defined %}
+      name: "{{ d.name }}"
+{% endif %}
+{% if d.namespace is defined %}
+      namespace: "{{ d.namespace }}"
+{% endif %}
+{% if d.json_pointers | default([]) %}
+      jsonPointers:
+{% for p in d.json_pointers %}
+        - "{{ p }}"
+{% endfor %}
+{% endif %}
+{% if d.jq_path_expressions | default([]) %}
+      jqPathExpressions:
+{% for p in d.jq_path_expressions %}
+        - "{{ p }}"
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
   syncPolicy:
 {% if not (item.no_auto_sync | default(false)) %}
     automated:

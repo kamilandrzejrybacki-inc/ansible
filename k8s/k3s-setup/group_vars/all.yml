@@ -102,6 +102,12 @@ argocd_applications:
     chart_path: charts/n8n-workers
     namespace: n8n
     values: {}
+    ignore_differences:
+      - group: apps
+        kind: Deployment
+        name: n8n-workers
+        json_pointers:
+          - /spec/replicas
 
   - name: github-runners
     chart_path: charts/github-runners

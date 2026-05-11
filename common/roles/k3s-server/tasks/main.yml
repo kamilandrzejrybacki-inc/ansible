@@ -1,0 +1,48 @@
+---
+- name: Compute k3s server INSTALL_K3S_EXEC string
+  ansible.builtin.set_fact:
+    k3s_server_exec: >-
+      server
+      {% for san in k3s_server_tls_sans %} --tls-san={{ san }}{% endfor %}
+      {{ k3s_server_extra_args }}
+
+- name: Fetch upstream k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+    force: true
+
+- name: Run k3s installer (server mode, idempotent upgrade-in-place)
+  ansible.builtin.command: /usr/local/bin/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: "{{ k3s_server_exec }}"
+    K3S_KUBECONFIG_MODE: "{{ k3s_kubeconfig_mode }}"
+  register: _k3s_server_install
+  changed_when: "'No change detected' not in _k3s_server_install.stdout
+                  and 'No change detected' not in _k3s_server_install.stderr"
+
+- name: Ensure k3s server is enabled + running
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Wait for k3s node-token to be issued
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    state: present
+    timeout: 120
+
+- name: Read k3s node-token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: _k3s_node_token_blob
+  no_log: true
+
+- name: Expose node-token as a cacheable fact for agent plays
+  ansible.builtin.set_fact:
+    k3s_node_token: "{{ _k3s_node_token_blob.content | b64decode | trim }}"
+    cacheable: true
+  no_log: true

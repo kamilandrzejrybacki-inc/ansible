@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: k3s-server
+  author: kamil-rybacki
+  description: >-
+    Install or upgrade k3s as a control-plane server using the upstream
+    installer. Exposes the node-token as a fact so paired k3s-agent
+    roles can join automatically.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+dependencies: []

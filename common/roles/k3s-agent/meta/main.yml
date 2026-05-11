@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: k3s-agent
+  author: kamil-rybacki
+  description: >-
+    Install or upgrade k3s as an agent and join an existing control
+    plane using k3s_server_url and k3s_node_token.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+dependencies: []

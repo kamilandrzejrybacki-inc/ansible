@@ -1,0 +1,46 @@
+# infrastructure/k3s-cluster-setup/setup.yml
+#
+# Install a k3s cluster: one server (control-plane) plus N agents.
+#
+# Inventory groups:
+#   [k3s_server]   exactly one host
+#   [k3s_agents]   zero or more hosts
+#
+# Run:
+#   ansible-playbook infrastructure/k3s-cluster-setup/setup.yml \
+#     -i infrastructure/k3s-cluster-setup/inventory/hosts.ini
+#
+# Idempotent: re-running upgrades each node to k3s_version in-place.
+# Adding a new machine: append it to [k3s_agents] and re-run.
+---
+- name: Pre-flight — exactly one k3s server is required
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Assert k3s_server group has exactly one host
+      ansible.builtin.assert:
+        that:
+          - groups['k3s_server'] | default([]) | length == 1
+        fail_msg: >-
+          [k3s_server] must contain exactly one host. Multi-server HA
+          requires --cluster-init / external datastore — out of scope
+          for this playbook.
+
+- name: Install k3s server (control-plane)
+  hosts: k3s_server
+  become: true
+  gather_facts: true
+  roles:
+    - k3s-server
+
+- name: Install k3s agents and join the control-plane
+  hosts: k3s_agents
+  become: true
+  gather_facts: true
+  vars:
+    _k3s_server_host: "{{ groups['k3s_server'][0] }}"
+    k3s_server_url: "https://{{ hostvars[_k3s_server_host].ansible_host
+                                 | default(_k3s_server_host) }}:6443"
+    k3s_node_token: "{{ hostvars[_k3s_server_host].k3s_node_token }}"
+  roles:
+    - k3s-agent

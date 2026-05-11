@@ -1,0 +1,16 @@
+---
+# Must match the version on the server.
+k3s_version: "v1.32.3+k3s1"
+
+# URL of the k3s control-plane API server (https://<server-ip>:6443).
+# Set by the cluster playbook from the server host's ansible_host.
+k3s_server_url: ""
+
+# Node-token from the server. Set by the cluster playbook via hostvars.
+k3s_node_token: ""
+
+# Extra args appended to the k3s agent command line. Common flags:
+#   --node-ip=<ip>             (force node IP)
+#   --flannel-iface=<iface>    (pick the iface flannel binds to)
+#   --node-label key=value     (label this agent)
+k3s_agent_extra_args: ""

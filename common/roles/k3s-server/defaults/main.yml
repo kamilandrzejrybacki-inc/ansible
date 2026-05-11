@@ -1,0 +1,19 @@
+---
+# Version of k3s to install. Pin to a known-good release.
+k3s_version: "v1.32.3+k3s1"
+
+# Kubeconfig file mode on the server (read by the kamil user).
+k3s_kubeconfig_mode: "0644"
+
+# Extra args appended to the k3s server command line. Common flags:
+#   --disable=traefik (disable bundled ingress)
+#   --tls-san=<hostname-or-ip> (extra cert SAN, repeatable)
+#   --node-ip=<ip>             (force node IP)
+#   --flannel-iface=<iface>    (pick the iface flannel binds to)
+k3s_server_extra_args: ""
+
+# TLS SAN entries appended as --tls-san=<val>. Pre-populate any IP /
+# DNS name external clients (other nodes, kubeconfig users) may reach
+# the API server through, so the server cert stays valid after IP
+# changes.
+k3s_server_tls_sans: []

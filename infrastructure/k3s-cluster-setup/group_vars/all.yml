@@ -1,0 +1,16 @@
+---
+k3s_version: "v1.32.3+k3s1"
+
+# Server-side flags. Empty by default to match the existing single-node
+# setup on lw-c1 (no `--disable` flags — traefik stays). Add only after
+# confirming the cluster doesn't depend on whatever you'd disable.
+k3s_server_extra_args: ""
+
+# Extra SANs on the API-server cert so other nodes / kubeconfigs can
+# reach it through any of these addresses without re-issuing certs.
+k3s_server_tls_sans:
+  - "192.168.0.107"
+  - "lw-c1"
+  - "lw-c1.local"
+
+k3s_agent_extra_args: ""

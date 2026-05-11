@@ -24,3 +24,4 @@ ignore:
   - docs/
   - '*.md'
   - dev-tools/claude-code-setup/files/
+  - ansible.cfg

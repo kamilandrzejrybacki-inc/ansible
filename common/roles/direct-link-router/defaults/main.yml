@@ -1,0 +1,25 @@
+---
+# Identifier suffix for generated files (e.g. "c1", "c2"). Must be
+# unique on the target host across all instantiations of this role.
+direct_link_peer_label: ""
+
+# LAN-side interface (where the rest of the LAN reaches this host).
+direct_link_lan_iface: "eno1"
+
+# Peer-side interface (USB-ethernet adapter pointing at peer).
+direct_link_usb_iface: ""
+
+# Source-binding alias placed on usb_iface. Must be inside the LAN /24
+# (so the peer can ARP for the gateway) and not collide with any host
+# in the DHCP pool. Each role instantiation MUST use a unique alias.
+direct_link_router_alias_ip: ""
+direct_link_router_alias_prefix: 24
+
+# Peer's IP (host-route target reachable via usb_iface).
+# Leave empty before the peer exists; the role will skip the route.
+direct_link_peer_ip: ""
+
+# Which iptables chain to insert the forward-ACCEPT rules into. Use
+# DOCKER-USER on Docker hosts (Docker leaves that chain alone for
+# user rules), FORWARD otherwise.
+direct_link_iptables_chain: "DOCKER-USER"

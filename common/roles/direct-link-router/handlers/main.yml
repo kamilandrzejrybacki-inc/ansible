@@ -3,7 +3,7 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
-- name: Restart homelab-router service
+- name: Restart direct-link-router service
   ansible.builtin.systemd:
-    name: homelab-router.service
+    name: "direct-link-router-{{ direct_link_peer_label }}.service"
     state: restarted

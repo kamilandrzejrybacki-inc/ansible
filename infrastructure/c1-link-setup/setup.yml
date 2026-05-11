@@ -7,9 +7,32 @@
 # Run: ansible-playbook infrastructure/c1-link-setup/setup.yml \
 #        -i infrastructure/c1-link-setup/inventory/hosts.ini
 ---
-- name: Configure Node1 (lw-main) as L3 router for lw-c1 direct cable
+- name: Configure lw-main as L3 router for lw-c1 direct cable
   hosts: node1
   become: true
   gather_facts: true
+  pre_tasks:
+    - name: Stop + disable legacy homelab-router.service (renamed in refactor)
+      ansible.builtin.systemd:
+        name: homelab-router.service
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Remove legacy router files (renamed in refactor)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/homelab-router.service
+        - /usr/local/sbin/homelab-router-setup.sh
+        - /etc/sysctl.d/99-homelab-router.conf
   roles:
-    - c1-link-router
+    - role: direct-link-router
+      vars:
+        direct_link_peer_label: "c1"
+        direct_link_lan_iface: "{{ c1_link_lan_iface }}"
+        direct_link_usb_iface: "{{ c1_link_usb_iface }}"
+        direct_link_router_alias_ip: "{{ c1_link_router_alias_ip }}"
+        direct_link_router_alias_prefix: "{{ c1_link_router_alias_prefix }}"
+        direct_link_peer_ip: "{{ c1_link_c1_ip }}"
+        direct_link_iptables_chain: "DOCKER-USER"

@@ -1,0 +1,51 @@
+---
+- name: Validate required role parameters
+  ansible.builtin.assert:
+    that:
+      - direct_link_peer_label | length > 0
+      - direct_link_usb_iface | length > 0
+      - direct_link_router_alias_ip | length > 0
+    fail_msg: >-
+      direct-link-router requires direct_link_peer_label,
+      direct_link_usb_iface, and direct_link_router_alias_ip to be set.
+
+- name: Persist sysctl settings for direct-link router ({{ direct_link_peer_label }})
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: "/etc/sysctl.d/99-direct-link-router-{{ direct_link_peer_label }}.conf"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: "net.ipv4.ip_forward", value: "1" }
+    - { name: "net.ipv4.conf.all.proxy_arp", value: "1" }
+    - { name: "net.ipv4.conf.{{ direct_link_lan_iface }}.proxy_arp", value: "1" }
+    - { name: "net.ipv4.conf.{{ direct_link_usb_iface }}.proxy_arp", value: "1" }
+
+- name: Deploy direct-link-router setup script ({{ direct_link_peer_label }})
+  ansible.builtin.template:
+    src: setup.sh.j2
+    dest: "/usr/local/sbin/direct-link-router-{{ direct_link_peer_label }}.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart direct-link-router service
+
+- name: Deploy direct-link-router systemd unit ({{ direct_link_peer_label }})
+  ansible.builtin.template:
+    src: service.j2
+    dest: "/etc/systemd/system/direct-link-router-{{ direct_link_peer_label }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart direct-link-router service
+
+- name: Enable + start direct-link-router service ({{ direct_link_peer_label }})
+  ansible.builtin.systemd:
+    name: "direct-link-router-{{ direct_link_peer_label }}.service"
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,28 @@
+# infrastructure/c1-c2-link-setup/setup.yml
+#
+# Configures lw-c1 as an L3 router for its USB-ethernet direct cable
+# to lw-c2. After c2 has an OS installed and its NIC configured with
+# c2_link_c2_ip, c2 becomes reachable from the LAN through c1 (which is
+# itself reachable from the LAN through lw-main — two-hop proxy ARP).
+#
+# Until c2 is online, c2_link_c2_ip can stay empty: the script
+# enables forwarding + brings the c2-side NIC up but skips the host
+# route. Re-run after c2 is provisioned to install the route.
+#
+# Run: ansible-playbook infrastructure/c1-c2-link-setup/setup.yml \
+#        -i infrastructure/c1-c2-link-setup/inventory/hosts.ini
+---
+- name: Configure lw-c1 as L3 router for lw-c2 direct cable
+  hosts: compute
+  become: true
+  gather_facts: true
+  roles:
+    - role: direct-link-router
+      vars:
+        direct_link_peer_label: "c2"
+        direct_link_lan_iface: "{{ c2_link_lan_iface }}"
+        direct_link_usb_iface: "{{ c2_link_usb_iface }}"
+        direct_link_router_alias_ip: "{{ c2_link_router_alias_ip }}"
+        direct_link_router_alias_prefix: "{{ c2_link_router_alias_prefix }}"
+        direct_link_peer_ip: "{{ c2_link_c2_ip | default('') }}"
+        direct_link_iptables_chain: "FORWARD"

@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: direct-link-router
+  author: kamil-rybacki
+  description: >-
+    Configure a host as an L3 router for a point-to-point USB-ethernet
+    direct cable to a peer. Uses proxy ARP + IPv4 forwarding so the peer
+    appears on the LAN /24 without bridging or NAT. Multi-instance:
+    deploy once per peer with a unique direct_link_peer_label.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+dependencies: []

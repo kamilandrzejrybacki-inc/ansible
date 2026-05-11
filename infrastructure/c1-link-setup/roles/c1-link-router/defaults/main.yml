@@ -1,6 +1,0 @@
----
-c1_link_lan_iface: "eno1"
-c1_link_usb_iface: "enx3c52a1db0e64"
-c1_link_router_alias_ip: "192.168.0.250"
-c1_link_router_alias_prefix: 24
-c1_link_c1_ip: "192.168.0.107"

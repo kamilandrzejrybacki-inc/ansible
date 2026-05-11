@@ -1,0 +1,19 @@
+---
+# lw-c1's eno1 is the USB-eth cable BACK to lw-main; that is the
+# "LAN side" from c1's perspective — proxy ARP on this interface
+# answers ARP requests coming from lw-main for c2's IP.
+c2_link_lan_iface: "eno1"
+
+# lw-c1's second USB-eth NIC connects to lw-c2.
+c2_link_usb_iface: "enx00e04c360158"
+
+# Source-binding alias on c2-side NIC. Distinct from lw-main's
+# .250 to keep the two L3 routers from clashing if both ever
+# share an L2 segment by accident.
+c2_link_router_alias_ip: "192.168.0.249"
+c2_link_router_alias_prefix: 24
+
+# lw-c2's LAN IP. Leave empty until lw-c2 has an OS and a
+# configured NIC; populate then re-run the playbook to install
+# the host route on lw-c1.
+c2_link_c2_ip: ""

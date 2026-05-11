@@ -1,0 +1,3 @@
+---
+# All defaults live on the role itself (common/roles/n8n-vault-render).
+# Override here when a specific cluster / Vault layout differs.

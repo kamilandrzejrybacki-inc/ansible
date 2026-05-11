@@ -1,0 +1,36 @@
+---
+# Vault location (lw-main runs Vault in a Docker container).
+n8n_vault_addr: "http://127.0.0.1:8200"
+
+# Where to read the high-privilege token. The default token in
+# ~/.vault-ansible.yml is policy-scoped and cannot read secret/homelab/*,
+# so the role pulls the root token from /opt/vault/init-keys.json (which
+# requires sudo on the Vault host).
+n8n_vault_root_token_file: "/opt/vault/init-keys.json"
+
+# KV v2 mount name and the n8n branch under it.
+n8n_vault_mount: "secret"
+n8n_vault_primary_path: "homelab/n8n"
+n8n_vault_base: "homelab"
+n8n_vault_postgres_path: "homelab/n8n-postgres"
+
+# Keys at the primary n8n path that should NOT be exported to the
+# rendered Secret (matches the on-host shim's EXCLUDED_KEYS).
+n8n_vault_excluded_keys:
+  - "owner_email"
+  - "owner_password"
+  - "workflows_repo_token"
+
+# Kubernetes target.
+n8n_main_namespace: "n8n"
+n8n_main_secret_name: "n8n-main-secrets"
+
+# Where the rendered manifest is written and applied from.
+n8n_main_manifest_dir: "/var/lib/homelab/n8n-cluster"
+n8n_main_kubeconfig: "/home/{{ lookup('env', 'USER') }}/.kube/config"
+
+# k3s control-plane to fetch kubeconfig from (only used when the local
+# kubeconfig is missing).
+n8n_main_k3s_server_host: "192.168.0.107"
+n8n_main_k3s_server_user: "kamil"
+n8n_main_k3s_server_key: "/home/{{ lookup('env', 'USER') }}/.ssh/id_ed25519"

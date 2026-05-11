@@ -1,0 +1,111 @@
+---
+- name: Read Vault root token from init-keys
+  ansible.builtin.slurp:
+    src: "{{ n8n_vault_root_token_file }}"
+  register: _vault_init_blob
+  become: true
+  no_log: true
+
+- name: Decode Vault root token
+  ansible.builtin.set_fact:
+    _n8n_vault_token: >-
+      {{ (_vault_init_blob.content | b64decode | from_json).root_token }}
+  no_log: true
+
+- name: List sibling service paths under {{ n8n_vault_base }}/
+  ansible.builtin.uri:
+    url: "{{ n8n_vault_addr }}/v1/{{ n8n_vault_mount }}/metadata/{{ n8n_vault_base }}/?list=true"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ _n8n_vault_token }}"
+    return_content: true
+    status_code: [200]
+  register: _vault_list
+  no_log: true
+
+- name: Pick non-folder service entries (skip subdirs)
+  ansible.builtin.set_fact:
+    _n8n_service_paths: >-
+      {{ _vault_list.json.data['keys'] | reject('match', '.*/$') | list }}
+
+- name: Read primary n8n path
+  ansible.builtin.uri:
+    url: "{{ n8n_vault_addr }}/v1/{{ n8n_vault_mount }}/data/{{ n8n_vault_primary_path }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ _n8n_vault_token }}"
+    return_content: true
+    status_code: [200]
+  register: _vault_primary
+  no_log: true
+
+- name: Read postgres / queue secrets
+  ansible.builtin.uri:
+    url: "{{ n8n_vault_addr }}/v1/{{ n8n_vault_mount }}/data/{{ n8n_vault_postgres_path }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ _n8n_vault_token }}"
+    return_content: true
+    status_code: [200]
+  register: _vault_postgres
+  no_log: true
+
+- name: Read each sibling service path
+  ansible.builtin.uri:
+    url: "{{ n8n_vault_addr }}/v1/{{ n8n_vault_mount }}/data/{{ n8n_vault_base }}/{{ item }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ _n8n_vault_token }}"
+    return_content: true
+    status_code: [200, 404]
+  register: _vault_services
+  loop: "{{ _n8n_service_paths }}"
+  loop_control:
+    label: "{{ item }}"
+  no_log: true
+
+- name: Ensure manifest output dir exists
+  ansible.builtin.file:
+    path: "{{ n8n_main_manifest_dir }}"
+    state: directory
+    owner: "{{ lookup('env', 'USER') }}"
+    group: "{{ lookup('env', 'USER') }}"
+    mode: "0700"
+  become: true
+
+- name: Render n8n-main Secret manifest
+  ansible.builtin.template:
+    src: secret.yaml.j2
+    dest: "{{ n8n_main_manifest_dir }}/n8n-main-secrets.yaml"
+    owner: "{{ lookup('env', 'USER') }}"
+    group: "{{ lookup('env', 'USER') }}"
+    mode: "0600"
+  vars:
+    _primary_data: "{{ _vault_primary.json.data.data }}"
+    _postgres_data: "{{ _vault_postgres.json.data.data }}"
+    _primary_leaf: "{{ n8n_vault_primary_path.split('/') | last }}"
+    _service_results: "{{ _vault_services.results }}"
+  no_log: true
+
+- name: Ensure kubeconfig is present (fetch from k3s server if missing)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -f "{{ n8n_main_kubeconfig }}" ]; then
+      mkdir -p "$(dirname "{{ n8n_main_kubeconfig }}")"
+      scp -i "{{ n8n_main_k3s_server_key }}" \
+        -o StrictHostKeyChecking=no \
+        "{{ n8n_main_k3s_server_user }}@{{ n8n_main_k3s_server_host }}:/etc/rancher/k3s/k3s.yaml" \
+        "{{ n8n_main_kubeconfig }}"
+      sed -i "s|server: https://127.0.0.1:6443|server: https://{{ n8n_main_k3s_server_host }}:6443|" \
+        "{{ n8n_main_kubeconfig }}"
+      chmod 0600 "{{ n8n_main_kubeconfig }}"
+    fi
+  args:
+    creates: "{{ n8n_main_kubeconfig }}"
+
+- name: Apply n8n-main Secret to the cluster
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ n8n_main_kubeconfig }}
+    apply -f {{ n8n_main_manifest_dir }}/n8n-main-secrets.yaml
+  register: _n8n_secret_apply
+  changed_when: "'configured' in _n8n_secret_apply.stdout or 'created' in _n8n_secret_apply.stdout"

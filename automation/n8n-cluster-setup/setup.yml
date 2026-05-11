@@ -1,0 +1,19 @@
+# automation/n8n-cluster-setup/setup.yml
+#
+# Render the n8n-main-secrets Kubernetes Secret from Vault and apply it
+# to the k3s cluster. Run this BEFORE `helm install n8n-main` and on
+# every Vault rotation.
+#
+# Targets localhost (the Vault host = lw-main). The role fetches the
+# kubeconfig from the k3s server on first run.
+#
+# Run:
+#   ansible-playbook automation/n8n-cluster-setup/setup.yml \
+#     -i automation/n8n-cluster-setup/inventory/hosts.ini
+---
+- name: Render n8n-main Secret from Vault → k3s
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - n8n-vault-render

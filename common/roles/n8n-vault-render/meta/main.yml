@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: n8n-vault-render
+  author: kamil-rybacki
+  description: >-
+    Read every secret under homelab/* from Vault, mirror the on-host
+    shim's namespacing (N8N_VAR_<key> for the primary n8n path,
+    N8N_VAR_<service>_<key> for every sibling service), pull the
+    core n8n secrets (encryption key, postgres + redis passwords) from
+    homelab/n8n-postgres, and apply the result as a Kubernetes Secret
+    used by the n8n-main + n8n-workers helm charts.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+dependencies: []

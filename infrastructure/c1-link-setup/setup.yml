@@ -1,0 +1,15 @@
+# infrastructure/c1-link-setup/setup.yml
+#
+# Configures lw-main as an L3 router for the USB-ethernet direct cable
+# to lw-c1. After topology change (2026-05-11), lw-c1 has no switch
+# connection and reaches the rest of the LAN only through this cable.
+#
+# Run: ansible-playbook infrastructure/c1-link-setup/setup.yml \
+#        -i infrastructure/c1-link-setup/inventory/hosts.ini
+---
+- name: Configure Node1 (lw-main) as L3 router for lw-c1 direct cable
+  hosts: node1
+  become: true
+  gather_facts: true
+  roles:
+    - c1-link-router

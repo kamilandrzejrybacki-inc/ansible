@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: c1-link-router
+  author: kamil-rybacki
+  description: >-
+    Configure lw-main as an L3 router for the USB-ethernet direct cable
+    to lw-c1. Enables proxy ARP and IPv4 forwarding so lw-c1 appears on
+    the LAN /24 through lw-main without bridging or NAT.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+dependencies: []

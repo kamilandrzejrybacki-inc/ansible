@@ -1,0 +1,41 @@
+---
+- name: Persist sysctl settings for L3 router
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-homelab-router.conf
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: "net.ipv4.ip_forward", value: "1" }
+    - { name: "net.ipv4.conf.all.proxy_arp", value: "1" }
+    - { name: "net.ipv4.conf.{{ c1_link_lan_iface }}.proxy_arp", value: "1" }
+    - { name: "net.ipv4.conf.{{ c1_link_usb_iface }}.proxy_arp", value: "1" }
+
+- name: Deploy homelab-router setup script
+  ansible.builtin.template:
+    src: homelab-router-setup.sh.j2
+    dest: /usr/local/sbin/homelab-router-setup.sh
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart homelab-router service
+
+- name: Deploy homelab-router systemd unit
+  ansible.builtin.copy:
+    src: homelab-router.service
+    dest: /etc/systemd/system/homelab-router.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart homelab-router service
+
+- name: Enable + start homelab-router service
+  ansible.builtin.systemd:
+    name: homelab-router.service
+    enabled: true
+    state: started
+    daemon_reload: true

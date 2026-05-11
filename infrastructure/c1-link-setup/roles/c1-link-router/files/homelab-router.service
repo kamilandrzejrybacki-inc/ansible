@@ -1,0 +1,12 @@
+[Unit]
+Description=Homelab L3 router glue (lw-c1 direct cable)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/homelab-router-setup.sh
+
+[Install]
+WantedBy=multi-user.target

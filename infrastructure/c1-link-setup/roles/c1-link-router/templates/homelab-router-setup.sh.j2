@@ -1,0 +1,28 @@
+#!/bin/bash
+# Managed by Ansible (role: c1-link-router) — do not edit manually.
+#
+# Configures lw-main as an L3 router for the lw-c1 USB-ethernet
+# direct cable. Idempotent: safe to run on every boot.
+set -u
+
+USB={{ c1_link_usb_iface }}
+LAN={{ c1_link_lan_iface }}
+C1={{ c1_link_c1_ip }}
+ROUTER_ALIAS={{ c1_link_router_alias_ip }}/{{ c1_link_router_alias_prefix }}
+
+/usr/sbin/sysctl -w net.ipv4.ip_forward=1
+/usr/sbin/sysctl -w net.ipv4.conf.all.proxy_arp=1
+/usr/sbin/sysctl -w "net.ipv4.conf.${LAN}.proxy_arp=1"
+/usr/sbin/sysctl -w "net.ipv4.conf.${USB}.proxy_arp=1"
+
+/sbin/ip addr show dev "${USB}" | grep -q "${ROUTER_ALIAS}" \
+  || /sbin/ip addr add "${ROUTER_ALIAS}" dev "${USB}" noprefixroute
+
+/sbin/ip route replace "${C1}/32" dev "${USB}"
+
+for chain_arg in "-i ${LAN} -o ${USB}" "-i ${USB} -o ${LAN}"; do
+  /usr/sbin/iptables -C DOCKER-USER ${chain_arg} -j ACCEPT 2>/dev/null \
+    || /usr/sbin/iptables -I DOCKER-USER 1 ${chain_arg} -j ACCEPT
+done
+
+exit 0

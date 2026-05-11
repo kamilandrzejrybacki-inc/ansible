@@ -1,0 +1,9 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart homelab-router service
+  ansible.builtin.systemd:
+    name: homelab-router.service
+    state: restarted

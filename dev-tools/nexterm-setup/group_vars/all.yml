@@ -28,7 +28,7 @@ nexterm_ssh_key_path: "~/.ssh/id_ed25519"
 # Connections to pre-configure
 nexterm_connections:
   - name: lw-main
-    ip: "192.168.0.105"
+    ip: "172.20.0.1"
     port: 22
     username: kamil-rybacki
   - name: lw-s1

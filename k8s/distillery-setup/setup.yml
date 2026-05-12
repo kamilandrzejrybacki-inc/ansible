@@ -84,14 +84,14 @@
   connection: local
   gather_facts: false
   vars:
-    redis_host: "10.0.1.2"
+    redis_host: "192.168.0.115"
     redis_port: "6379"
     redis_db: "0"
     qdrant_url: "http://qdrant.qdrant.svc.cluster.local:6333"
     ollama_url: "http://ollama.distillery.svc.cluster.local:11434"
     llm_base_url: "http://omniroute.omniroute.svc.cluster.local:20128"
     llm_model: "free"
-    obsidian_url: "http://10.0.1.2:27124"
+    obsidian_url: "http://192.168.0.115:27124"
     embedding_model: "nomic-embed-text"
     collection_name: "knowledge"
     stream_name: "knowledge:ingest"
@@ -154,4 +154,4 @@
             http://192.168.0.107:30633
           Update your local .env:
             DISTILLERY_QDRANT_URL=http://192.168.0.107:30633
-            DISTILLERY_REDIS_URL=redis://:<redis_password>@10.0.1.2:6379/0
+            DISTILLERY_REDIS_URL=redis://:<redis_password>@192.168.0.115:6379/0

@@ -49,14 +49,14 @@
   tasks:
     - name: Add NAS to dynamic inventory
       ansible.builtin.add_host:
-        name: "10.0.1.2"
+        name: "192.168.0.115"
         groups: nas_hosts
         ansible_user: "kamil"
         ansible_python_interpreter: /usr/bin/python3
         postgres_dsn: >-
-          postgresql://postgres_exporter:{{ postgres_password or hostvars['localhost']['_vault_secrets']['exporter_password'] | default('') }}@10.0.1.2:5432/postgres?sslmode=disable
+          postgresql://postgres_exporter:{{ postgres_password or hostvars['localhost']['_vault_secrets']['exporter_password'] | default('') }}@192.168.0.115:5432/postgres?sslmode=disable
         mariadb_dsn: >-
-          exporter:{{ mariadb_password or hostvars['localhost']['_vault_secrets']['mariadb_exporter_password'] | default('') }}@tcp(10.0.1.2:3306)/
+          exporter:{{ mariadb_password or hostvars['localhost']['_vault_secrets']['mariadb_exporter_password'] | default('') }}@tcp(192.168.0.115:3306)/
         mariadb_password: "{{ mariadb_password or hostvars['localhost']['_vault_secrets']['mariadb_exporter_password'] | default('') }}"
         redis_password: "{{ redis_password or hostvars['localhost']['_vault_secrets']['redis_password'] | default('') }}"
 

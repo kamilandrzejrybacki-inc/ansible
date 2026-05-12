@@ -27,7 +27,7 @@
         ══════════════════════════════════════════════
 
         [1/4] IP addresses of target machines
-              (comma-separated, e.g. 192.168.0.108,10.0.1.2)
+              (comma-separated, e.g. 192.168.0.108,192.168.0.115)
       default: "{{ hostvars['localhost']['saved_target_hosts'] | default('') }}"
       private: false
 
@@ -37,7 +37,7 @@
       private: false
 
     - name: mimir_host
-      prompt: "[3/4] Mimir host IP (masternode, e.g. 192.168.0.105)"
+      prompt: "[3/4] Mimir host IP (masternode, e.g. 192.168.0.111)"
       default: "{{ hostvars['localhost']['saved_mimir_host'] | default('') }}"
       private: false
 

@@ -11,7 +11,7 @@
   vars_prompt:
     - name: target_host_ip
       prompt: "Target host with running services"
-      default: "10.0.1.2"
+      default: "192.168.0.115"
       private: false
     - name: target_ssh_user
       prompt: "SSH user"

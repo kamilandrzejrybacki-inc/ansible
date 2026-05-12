@@ -36,7 +36,7 @@
         ══════════════════════════════════════════════
 
         [1/2] IP or hostname of the target machine
-      default: "10.0.1.2"
+      default: "192.168.0.115"
       private: false
 
     - name: target_ssh_user

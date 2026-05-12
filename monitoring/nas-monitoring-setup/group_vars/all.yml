@@ -18,16 +18,16 @@ redis_exporter_port: 9121
 docker_exporter_port: 9338
 
 # Remote write targets (Mimir/Loki on same host)
-mimir_host: "10.0.1.2"
+mimir_host: "192.168.0.115"
 mimir_port: 9009
-loki_host: "10.0.1.2"
+loki_host: "192.168.0.115"
 loki_port: 3100
 
 # Database connections (from Vault or vars_prompt)
 postgres_dsn: ""       # Set at deploy time
 mariadb_dsn: ""        # Set at deploy time
-mariadb_host: "10.0.1.2"
-redis_addr: "10.0.1.2:6379"
+mariadb_host: "192.168.0.115"
+redis_addr: "192.168.0.115:6379"
 redis_password: ""     # Set at deploy time
 
 # Textfile collector

@@ -13,3 +13,4 @@ host_vars/*/vault.yml
 __pycache__/
 *.pyc
 *.pyo
+.tplink-admin

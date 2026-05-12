@@ -14,7 +14,7 @@ pihole_dns_ip: "172.20.0.10"
 caddy_dns_ip: "172.20.0.3"
 
 # Explicit host overrides so Lightpanda resolves homelab services directly to Caddy.
-# Pi-hole's custom.list entries (pointing to 192.168.0.105) take precedence over
+# Pi-hole's custom.list entries (pointing to 192.168.0.111) take precedence over
 # the dnsmasq wildcard, so we override them here per-container via /etc/hosts.
 # New services added to Pi-hole's wildcard (not in custom.list) resolve automatically.
 lightpanda_extra_hosts:

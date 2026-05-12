@@ -3,7 +3,7 @@
 # Uses a standalone REST API server on lw-nas (no Obsidian desktop app needed).
 
 # Standalone REST API on lw-nas (deployed by files/obsidian-rest-api/setup.yml)
-obsidian_host: "10.0.1.2"
+obsidian_host: "192.168.0.115"
 obsidian_port: "27124"
 obsidian_protocol: "http"
 

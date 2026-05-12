@@ -89,12 +89,12 @@
     etc_hosts:
       host.docker.internal: host-gateway
 
-- name: Allow Caddy metrics from NAS link (10.0.1.0/24)
+- name: Allow Caddy metrics from NAS link (192.168.0.0/24)
   community.general.ufw:
     rule: allow
     port: "2019"
     proto: tcp
-    src: 10.0.1.0/24
+    src: 192.168.0.0/24
     comment: "Caddy admin metrics for Alloy"
 
 - name: Allow Caddy metrics from LAN (192.168.0.0/16)

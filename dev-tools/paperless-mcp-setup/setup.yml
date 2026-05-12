@@ -5,7 +5,7 @@
 # upload, tag, and manage Paperless-NGX documents directly from Claude.
 #
 # Prerequisites:
-#   - Paperless-NGX running on NAS lw-nas (10.0.1.2:8000)
+#   - Paperless-NGX running on NAS lw-nas (192.168.0.115:8000)
 #   - API token stored in Vault at secret/homelab/paperless
 #   - Vault token in ~/.vault-ansible.yml
 #

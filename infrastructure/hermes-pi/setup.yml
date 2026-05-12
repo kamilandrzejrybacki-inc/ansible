@@ -201,8 +201,8 @@
     - name: Add lw-main to SSH known_hosts
       ansible.builtin.known_hosts:
         path: "{{ hermes_install_dir }}/data/.ssh/known_hosts"
-        name: "192.168.0.105"
-        key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 192.168.0.105 2>/dev/null') }}"
+        name: "192.168.0.111"
+        key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 192.168.0.111 2>/dev/null') }}"
         state: present
 
     - name: Fix SSH dir ownership

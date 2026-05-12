@@ -47,7 +47,7 @@
         ══════════════════════════════════════════════
 
         [1/4] IP or hostname of the shared database host
-      default: "10.0.1.2"
+      default: "192.168.0.115"
       private: false
 
     - name: target_ssh_user

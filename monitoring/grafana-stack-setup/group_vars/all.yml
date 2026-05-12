@@ -69,7 +69,7 @@ probe_authelia_services:
   - outline
 
 # Remote Mimir/Loki endpoints (on lw-nas)
-mimir_remote_host: "10.0.1.2"
+mimir_remote_host: "192.168.0.115"
 mimir_remote_port: 9009
-loki_remote_host: "10.0.1.2"
+loki_remote_host: "192.168.0.115"
 loki_remote_port: 3100

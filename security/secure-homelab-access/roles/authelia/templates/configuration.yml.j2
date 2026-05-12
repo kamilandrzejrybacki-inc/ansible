@@ -35,7 +35,7 @@ access_control:
     - name: vpn_and_lan
       networks:
         - "{{ vpn_subnet }}"   # WireGuard VPN clients
-        - "10.0.1.0/24"        # NAS direct link
+        - "192.168.0.0/24"        # NAS direct link
         - "192.168.0.0/16"     # LAN (home network)
     - name: docker_internal
       networks:

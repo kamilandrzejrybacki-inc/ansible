@@ -188,4 +188,4 @@ argocd_applications:
   # Source: https://grafana.github.io/helm-charts, chart: k8s-monitoring ~1.0
   # Namespace: monitoring
   # Key settings: opencost disabled, prometheus-operator-crds disabled,
-  #   remote-write to Mimir/Loki on 10.0.1.2
+  #   remote-write to Mimir/Loki on 192.168.0.115

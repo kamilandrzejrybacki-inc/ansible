@@ -5,7 +5,7 @@
 # 1. Deploys a standalone Obsidian-compatible REST API on lw-nas that serves
 #    the knowledge vault (/opt/knowledge-vault/content) as HTTP.
 # 2. Generates an API key and stores it in Vault (secret/homelab/obsidian).
-# 3. Registers mcp-obsidian in Claude Code pointing at http://10.0.1.2:27124.
+# 3. Registers mcp-obsidian in Claude Code pointing at http://192.168.0.115:27124.
 #
 # Prerequisites:
 #   - Docker running on lw-nas

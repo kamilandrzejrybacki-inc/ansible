@@ -213,7 +213,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ paperless_port | default(8000) }}
+	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ paperless_port | default(8000) }}
 }
 
 # Stirling PDF (PDF tools on lw-nas)
@@ -224,7 +224,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ stirling_port | default(8080) }}
+	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ stirling_port | default(8080) }}
 }
 
 # Filebrowser (file management on lw-nas)
@@ -235,7 +235,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ filebrowser_port | default(8082) }}
+	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ filebrowser_port | default(8082) }}
 }
 
 # ArgoCD UI (K8s on lw-c1) — WireGuard/LAN only
@@ -315,7 +315,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ nas_ip | default('10.0.1.2') }}:{{ quartz_port }}
+	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ quartz_port }}
 }
 
 # JupyterLab (K8s on lw-c1) — WireGuard/LAN only

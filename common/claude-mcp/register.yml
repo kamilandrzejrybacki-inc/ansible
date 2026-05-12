@@ -21,7 +21,7 @@
 #     vars:
 #       mcp_name: "paperless"
 #       mcp_command: "npx"
-#       mcp_args: ["-y", "paperless-mcp", "http://10.0.1.2:8000", "{{ api_token }}"]
+#       mcp_args: ["-y", "paperless-mcp", "http://192.168.0.115:8000", "{{ api_token }}"]
 #
 #   - name: Register Grafana MCP
 #     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/claude-mcp/register.yml"

@@ -9,9 +9,8 @@ c1_link_usb_iface: "enx3c52a1db0e64"
 c1_link_router_alias_ip: "192.168.0.250"
 c1_link_router_alias_prefix: 24
 
-# All hosts reachable through the c1 cable — c1 itself plus anything
-# chained behind it (lw-c2 sits behind lw-c1 over a second USB-eth).
-# Each entry gets a /32 host route on lw-main and a proxy-ARP answer.
+# All hosts reachable through the c1 cable. Only lw-c1 itself now —
+# lw-c2 was moved off the c1↔c2 daisy chain and onto the TP-Link
+# switch (yellow port), so c2's traffic no longer transits this cable.
 c1_link_reachable_ips:
   - "192.168.0.107"  # lw-c1
-  - "192.168.0.240"  # lw-c2 (via lw-c1)

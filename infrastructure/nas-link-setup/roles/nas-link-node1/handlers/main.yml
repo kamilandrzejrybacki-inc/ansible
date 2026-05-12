@@ -1,8 +1,0 @@
----
-- name: apply netplan
-  ansible.builtin.command: netplan apply
-  changed_when: true
-
-- name: reload ufw
-  community.general.ufw:
-    state: reloaded

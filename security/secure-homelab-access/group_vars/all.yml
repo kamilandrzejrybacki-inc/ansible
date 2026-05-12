@@ -94,9 +94,9 @@ subdomain_jupyterlab: "jupyterlab"
 jupyterlab_nodeport: 30888
 
 # -- Excalidraw (lw-s1) -------------------------------------------------------
-excalidraw_host: "192.168.0.108"
-excalidraw_port: 8083
-excalidraw_storage_port: 3002
+excalidraw_host: "192.168.0.107"
+excalidraw_port: 30683
+excalidraw_storage_port: 30684
 
 # -- CrowdSec -----------------------------------------------------------------
 crowdsec_container_name: "crowdsec"

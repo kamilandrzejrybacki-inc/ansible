@@ -19,5 +19,5 @@ nas_bind_ip: "192.168.0.115"
 allowed_clients:
   - "192.168.0.111"        # lw-main via direct link
   - "192.168.0.111"   # lw-main via LAN
-  - "192.168.0.108"   # lw-s1
+
   - "192.168.0.107"   # lw-c1

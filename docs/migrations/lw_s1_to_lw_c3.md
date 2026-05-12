@@ -1,9 +1,9 @@
 # Migration: lw-s1 → lw-c3 (k3s compute node)
 
-**Status:** Phase 0 in progress
+**Status:** COMPLETED 2026-05-12 — all 7 phases ran; lw-c3 is a k3s agent, docker purged, n8n + excalidraw on the cluster
 **Owner:** kamil-rybacki
 **Started:** 2026-05-11
-**Cutover ETA:** TBD (blocked on lw-nas re-discovery)
+**Cutover ETA:** done 2026-05-12
 
 ## Goal
 

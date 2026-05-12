@@ -182,7 +182,7 @@
 		not remote_ip private_ranges 10.8.0.0/24
 	}
 	respond @public "Forbidden" 403
-	reverse_proxy http://{{ n8n_host_ip | default('192.168.0.108') }}:{{ n8n_port | default(5678) }}
+	reverse_proxy http://{{ n8n_host_ip | default('192.168.0.107') }}:{{ n8n_port | default(30678) }}
 }
 
 # HashiCorp Vault — no Authelia (Vault uses own OIDC auth)
@@ -298,12 +298,12 @@
 	import cf_tls
 {% endif %}
 	handle /api/v2/* {
-		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_storage_port | default(3002) }}
+		reverse_proxy http://{{ excalidraw_host | default('192.168.0.107') }}:{{ excalidraw_storage_port | default(30684) }}
 	}
 
 	handle {
 		import authelia
-		reverse_proxy http://{{ excalidraw_host | default('192.168.0.108') }}:{{ excalidraw_port }}
+		reverse_proxy http://{{ excalidraw_host | default('192.168.0.107') }}:{{ excalidraw_port }}
 	}
 }
 

@@ -1,6 +1,0 @@
----
-n8n_vault_shim_container_name: n8n-vault-shim
-n8n_vault_shim_image: n8n-vault-shim
-n8n_vault_shim_build_dir: /tmp/n8n-vault-shim-build
-n8n_vault_shim_force_rebuild: false
-n8n_network_name: n8n-net

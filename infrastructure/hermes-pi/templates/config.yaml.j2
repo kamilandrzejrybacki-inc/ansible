@@ -15,7 +15,7 @@ mcp_servers:
   cellarette:
     url: "{{ hermes_cellarette_url }}"
   n8n:
-    url: "http://192.168.0.108:5678/mcp-server/http"
+    url: "http://n8n-main.n8n.svc.cluster.local:5678/mcp-server/http"
     headers:
       Authorization: "Bearer {{ n8n_mcp_token }}"
 

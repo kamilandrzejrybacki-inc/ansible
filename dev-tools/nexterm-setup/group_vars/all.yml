@@ -31,7 +31,7 @@ nexterm_connections:
     ip: "172.20.0.1"
     port: 22
     username: kamil-rybacki
-  - name: lw-s1
+  - name: lw-c3
     ip: "192.168.0.108"
     port: 22
     username: kamil

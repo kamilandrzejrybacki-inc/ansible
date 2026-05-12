@@ -9,6 +9,9 @@ c1_link_usb_iface: "enx3c52a1db0e64"
 c1_link_router_alias_ip: "192.168.0.250"
 c1_link_router_alias_prefix: 24
 
-# lw-c1 LAN IP (k3s node IP — do not change without reissuing
-# kubeadm/k3s TLS-SAN).
-c1_link_c1_ip: "192.168.0.107"
+# All hosts reachable through the c1 cable — c1 itself plus anything
+# chained behind it (lw-c2 sits behind lw-c1 over a second USB-eth).
+# Each entry gets a /32 host route on lw-main and a proxy-ARP answer.
+c1_link_reachable_ips:
+  - "192.168.0.107"  # lw-c1
+  - "192.168.0.240"  # lw-c2 (via lw-c1)

@@ -34,5 +34,5 @@
         direct_link_usb_iface: "{{ c1_link_usb_iface }}"
         direct_link_router_alias_ip: "{{ c1_link_router_alias_ip }}"
         direct_link_router_alias_prefix: "{{ c1_link_router_alias_prefix }}"
-        direct_link_peer_ip: "{{ c1_link_c1_ip }}"
+        direct_link_peer_ips: "{{ c1_link_reachable_ips }}"
         direct_link_iptables_chain: "DOCKER-USER"

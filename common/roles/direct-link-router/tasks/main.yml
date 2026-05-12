@@ -9,6 +9,23 @@
       direct-link-router requires direct_link_peer_label,
       direct_link_usb_iface, and direct_link_router_alias_ip to be set.
 
+- name: Detect NetworkManager presence
+  ansible.builtin.stat:
+    path: /etc/NetworkManager
+  register: _nm_dir
+
+- name: Mark USB interface as NetworkManager-unmanaged
+  ansible.builtin.template:
+    src: nm-unmanage.conf.j2
+    dest: "/etc/NetworkManager/conf.d/99-unmanage-direct-link-{{ direct_link_peer_label }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: direct_link_unmanage_nm and _nm_dir.stat.exists
+  notify:
+    - Reload NetworkManager
+    - Restart direct-link-router service
+
 - name: Persist sysctl settings for direct-link router ({{ direct_link_peer_label }})
   ansible.posix.sysctl:
     name: "{{ item.name }}"

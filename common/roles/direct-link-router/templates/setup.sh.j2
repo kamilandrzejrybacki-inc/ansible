@@ -6,9 +6,6 @@ set -u
 LAN={{ direct_link_lan_iface }}
 USB={{ direct_link_usb_iface }}
 ALIAS={{ direct_link_router_alias_ip }}/{{ direct_link_router_alias_prefix }}
-{% if direct_link_peer_ip %}
-PEER={{ direct_link_peer_ip }}
-{% endif %}
 
 /usr/sbin/sysctl -w net.ipv4.ip_forward=1
 /usr/sbin/sysctl -w net.ipv4.conf.all.proxy_arp=1
@@ -20,9 +17,9 @@ PEER={{ direct_link_peer_ip }}
 /sbin/ip addr show dev "${USB}" | grep -q "${ALIAS}" \
   || /sbin/ip addr add "${ALIAS}" dev "${USB}" noprefixroute
 
-{% if direct_link_peer_ip %}
-/sbin/ip route replace "${PEER}/32" dev "${USB}"
-{% endif %}
+{% for peer in direct_link_peer_ips %}
+/sbin/ip route replace {{ peer }}/32 dev "${USB}"
+{% endfor %}
 
 for chain_arg in "-i ${LAN} -o ${USB}" "-i ${USB} -o ${LAN}"; do
   /usr/sbin/iptables -C {{ direct_link_iptables_chain }} ${chain_arg} -j ACCEPT 2>/dev/null \

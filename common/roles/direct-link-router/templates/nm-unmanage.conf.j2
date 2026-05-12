@@ -1,0 +1,6 @@
+# Managed by Ansible (role: direct-link-router, peer: {{ direct_link_peer_label }})
+# Prevents NetworkManager from touching the USB-eth interface so the
+# direct-link-router setup script keeps full control of its addresses
+# and routes.
+[keyfile]
+unmanaged-devices=interface-name:{{ direct_link_usb_iface }}

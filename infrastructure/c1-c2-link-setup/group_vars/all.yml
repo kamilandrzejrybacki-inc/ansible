@@ -13,7 +13,7 @@ c2_link_usb_iface: "enx00e04c360158"
 c2_link_router_alias_ip: "192.168.0.249"
 c2_link_router_alias_prefix: 24
 
-# lw-c2's LAN IP. Leave empty until lw-c2 has an OS and a
-# configured NIC; populate then re-run the playbook to install
-# the host route on lw-c1.
-c2_link_c2_ip: ""
+# All hosts reachable through the c2 cable. Currently just lw-c2;
+# extend if anything ever chains behind c2 too.
+c2_link_reachable_ips:
+  - "192.168.0.240"  # lw-c2

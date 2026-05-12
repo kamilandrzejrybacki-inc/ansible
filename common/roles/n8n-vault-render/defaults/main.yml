@@ -1,6 +1,6 @@
 ---
 # Vault location (lw-main runs Vault in a Docker container).
-n8n_vault_addr: "http://127.0.0.1:8200"
+n8n_vault_addr: "http://192.168.0.107:30822"
 
 # Where to read the high-privilege token. The default token in
 # ~/.vault-ansible.yml is policy-scoped and cannot read secret/homelab/*,

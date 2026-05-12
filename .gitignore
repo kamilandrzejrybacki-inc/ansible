@@ -10,3 +10,6 @@ host_vars/*/vault.yml
 *.env.local
 .grepai/
 .superpowers/
+__pycache__/
+*.pyc
+*.pyo

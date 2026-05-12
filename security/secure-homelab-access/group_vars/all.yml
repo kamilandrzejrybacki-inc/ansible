@@ -43,8 +43,6 @@ cockpit_autologin_user: "kamil-rybacki"
 cockpit_autologin_password: ""   # Set via vars_prompt or ~/.homelab-setup-vars.yml
 
 # -- Homepage (Dashboard) -----------------------------------------------------
-homepage_container_name: "homepage"
-homepage_data_dir: "{{ docker_data_dir }}/homepage"
 
 # -- Pi-hole (DNS) -----------------------------------------------------------
 pihole_container_name: "pihole"

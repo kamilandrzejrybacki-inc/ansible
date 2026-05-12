@@ -605,8 +605,6 @@
     - role: cockpit
       tags: [cockpit, terminal]
 
-    - role: homepage
-      tags: [homepage, dashboard]
 
   post_tasks:
     - name: Deployment complete

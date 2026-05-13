@@ -144,7 +144,7 @@
 	reverse_proxy http://{{ docker_gateway_ip }}:{{ grafana_port | default(3000) }}
 }
 
-# n8n (workflow automation on lw-s1) — WireGuard/LAN only
+# n8n (workflow automation, k8s)
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -265,7 +265,7 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
 }
 
-# Excalidraw whiteboard (lw-s1)
+# Excalidraw whiteboard (k8s)
 {{ _scheme }}{{ subdomain_excalidraw }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers

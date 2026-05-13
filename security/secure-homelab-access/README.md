@@ -14,10 +14,10 @@ Internet → Public IP:51820/UDP → WireGuard VPN (wg-easy)
                                        │
                                     Authelia (2FA: TOTP / WebAuthn)
                                        │
-                 ┌─────────────────────┼─────────────────────┐
-                 │                     │                     │
-             Homepage              Cockpit               Services
-            (dashboard)        (auto-login)         (Nexterm, etc.)
+                 ┌───────────────────────────────────────┐
+                 │                                       │
+             Homepage                               Services
+            (dashboard)                         (Nexterm, etc.)
 ```
 
 ### Security Layers
@@ -37,7 +37,6 @@ Internet → Public IP:51820/UDP → WireGuard VPN (wg-easy)
 | WireGuard (wg-easy) | VPN tunnel + peer management | `wg.yourdomain.com` |
 | Caddy | Reverse proxy, HTTPS termination | — |
 | Authelia | 2FA authentication gateway | `auth.yourdomain.com` |
-| Cockpit | System management + web terminal (auto-login) | `cockpit.yourdomain.com` |
 | Homepage | Service dashboard | `home.yourdomain.com` |
 | Pi-hole | Ad-blocking DNS server | `pihole.yourdomain.com` |
 | CrowdSec | Threat intelligence bouncer | — |
@@ -76,8 +75,7 @@ You'll be walked through a setup wizard that asks for:
 | 7 | Authelia admin password | *(hidden)* |
 | 8 | Authelia admin email | `you@example.com` |
 | 9 | Pi-hole admin password | *(hidden)* |
-| 10 | Cockpit auto-login password | *(hidden, for Basic auth injection)* |
-| 11 | Cloudflare API token | *(optional, press Enter to skip)* |
+| 10 | Cloudflare API token | *(optional, press Enter to skip)* |
 | 12 | Cloudflare tunnel name | *(optional)* |
 | 13 | SMTP username | *(optional)* |
 | 14 | SMTP app password | *(optional)* |
@@ -107,17 +105,6 @@ Point `*.yourdomain.com` to your VPN server address (`10.8.0.1`) using:
 
 ## Notable Features
 
-### Cockpit Auto-Login
-
-Caddy injects a `Basic` auth header directly into requests to Cockpit:
-
-```
-header_up Authorization "Basic {$COCKPIT_BASIC_AUTH}"
-header_down -WWW-Authenticate
-```
-
-The `COCKPIT_BASIC_AUTH` env var is set to `base64(username:password)` and passed to the Caddy container. This means navigating to `cockpit.yourdomain.com` logs you in automatically after Authelia 2FA — no separate Cockpit login prompt.
-
 ### Cloudflare Tunnel (Optional)
 
 When a Cloudflare API token is provided, the playbook:
@@ -132,7 +119,7 @@ When `security/vault-setup` is deployed first, this playbook:
 - Pre-fills all prompt defaults (just press Enter)
 - Stores all credentials back to Vault after deployment
 
-Secret paths within `secret/homelab/infrastructure`: `authelia_*`, `caddy_*`, `cloudflare_*`, `pihole_*`, `wireguard_*`, `cockpit_*`.
+Secret paths within `secret/homelab/infrastructure`: `authelia_*`, `caddy_*`, `cloudflare_*`, `pihole_*`, `wireguard_*`.
 
 ## Overriding Defaults
 

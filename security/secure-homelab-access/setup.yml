@@ -338,7 +338,7 @@
       register: _late_oidc_stat
       loop:
         - nexterm
-        - headlamp
+        - pingvin
         - argocd
       tags: [always]
 
@@ -397,7 +397,7 @@
         - oidc_client_secret_outline
         - oidc_client_secret_vault
         - oidc_client_secret_nexterm
-        - oidc_client_secret_headlamp
+        - oidc_client_secret_pingvin
         - oidc_client_secret_argocd
       no_log: true
       tags: [always]
@@ -409,7 +409,7 @@
         authelia_oidc_client_secret_outline:  "{{ _oidc_secrets_slurp.results[2].content | b64decode | trim }}"
         authelia_oidc_client_secret_vault:    "{{ _oidc_secrets_slurp.results[3].content | b64decode | trim }}"
         authelia_oidc_client_secret_nexterm:  "{{ _oidc_secrets_slurp.results[4].content | b64decode | trim }}"
-        authelia_oidc_client_secret_headlamp: "{{ _oidc_secrets_slurp.results[5].content | b64decode | trim }}"
+        authelia_oidc_client_secret_pingvin:  "{{ _oidc_secrets_slurp.results[5].content | b64decode | trim }}"
         authelia_oidc_client_secret_argocd:   "{{ _oidc_secrets_slurp.results[6].content | b64decode | trim }}"
       no_log: true
       tags: [always]
@@ -423,9 +423,9 @@
         - { key: grafana,  secret: "{{ authelia_oidc_client_secret_grafana }}" }
         - { key: outline,  secret: "{{ authelia_oidc_client_secret_outline }}" }
         - { key: vault,    secret: "{{ authelia_oidc_client_secret_vault }}" }
-        - { key: nexterm,  secret: "{{ authelia_oidc_client_secret_nexterm }}" }
-        - { key: headlamp, secret: "{{ authelia_oidc_client_secret_headlamp }}" }
-        - { key: argocd,   secret: "{{ authelia_oidc_client_secret_argocd }}" }
+        - { key: nexterm,        secret: "{{ authelia_oidc_client_secret_nexterm }}" }
+        - { key: pingvin-share,  secret: "{{ authelia_oidc_client_secret_pingvin }}" }
+        - { key: argocd,         secret: "{{ authelia_oidc_client_secret_argocd }}" }
       changed_when: false
       no_log: true
       tags: [always]
@@ -436,7 +436,7 @@
         authelia_oidc_client_secret_outline_hash:  "{{ _oidc_hashes.results[1].stdout | trim }}"
         authelia_oidc_client_secret_vault_hash:    "{{ _oidc_hashes.results[2].stdout | trim }}"
         authelia_oidc_client_secret_nexterm_hash:  "{{ _oidc_hashes.results[3].stdout | trim }}"
-        authelia_oidc_client_secret_headlamp_hash: "{{ _oidc_hashes.results[4].stdout | trim }}"
+        authelia_oidc_client_secret_pingvin_hash:  "{{ _oidc_hashes.results[4].stdout | trim }}"
         authelia_oidc_client_secret_argocd_hash:   "{{ _oidc_hashes.results[5].stdout | trim }}"
       no_log: true
       tags: [always]

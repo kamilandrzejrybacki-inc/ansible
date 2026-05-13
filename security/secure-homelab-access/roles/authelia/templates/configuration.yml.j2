@@ -173,16 +173,16 @@ identity_providers:
         token_endpoint_auth_method: client_secret_post
         userinfo_signed_response_alg: none
 
-      # Headlamp — Kubernetes dashboard OIDC
-      - client_id: headlamp
-        client_name: Headlamp
-        client_secret: "{{ authelia_oidc_client_secret_headlamp_hash | default('') }}"
+      # Pingvin Share — file sharing
+      - client_id: pingvin-share
+        client_name: Pingvin Share
+        client_secret: "{{ authelia_oidc_client_secret_pingvin_hash | default('') }}"
         public: false
         authorization_policy: one_factor
         consent_mode: implicit
         scopes: [openid, profile, email, groups]
         redirect_uris:
-          - "https://{{ subdomain_headlamp | default('headlamp') }}.{{ domain }}/oidc-callback"
+          - "https://{{ subdomain_filebrowser | default('files') }}.{{ domain }}/api/oauth/callback/oidc"
         response_types: [code]
         grant_types: [authorization_code]
         token_endpoint_auth_method: client_secret_basic

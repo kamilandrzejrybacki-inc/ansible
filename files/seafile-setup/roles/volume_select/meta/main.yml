@@ -1,7 +1,0 @@
----
-galaxy_info:
-  role_name: volume_select
-  author: kamilrybacki
-  description: Interactively select a mounted volume for data storage
-  min_ansible_version: "2.10"
-dependencies: []

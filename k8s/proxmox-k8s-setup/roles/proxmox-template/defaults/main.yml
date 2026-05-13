@@ -1,2 +1,0 @@
----
-cloudinit_image_download_dir: "/var/lib/vz/template/iso"

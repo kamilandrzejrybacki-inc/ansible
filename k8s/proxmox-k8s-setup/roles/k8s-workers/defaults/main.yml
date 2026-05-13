@@ -1,2 +1,0 @@
----
-# kubeadm_join_command is set dynamically by k8s-controlplane role

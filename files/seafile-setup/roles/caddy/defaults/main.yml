@@ -1,5 +1,0 @@
----
-caddy_container_name: seafile-caddy
-caddy_image: caddy:2-alpine
-caddy_domain: ""
-caddy_config_dir: /opt/seafile/caddy

@@ -1,7 +1,0 @@
----
-galaxy_info:
-  role_name: hacs
-  author: kamilrybacki
-  description: Install HACS (Home Assistant Community Store) into HA custom_components
-  min_ansible_version: "2.10"
-dependencies: []

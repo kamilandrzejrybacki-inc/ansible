@@ -1,7 +1,0 @@
----
-galaxy_info:
-  role_name: caddy
-  author: kamilrybacki
-  description: Deploy Caddy reverse proxy with automatic HTTPS
-  min_ansible_version: "2.10"
-dependencies: []

@@ -257,14 +257,13 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ guacamole_nodeport }}
 }
 
-# Headlamp K8s dashboard (K8s on lw-c1)
+# Headlamp K8s dashboard — auth handled by Headlamp's own OIDC, no forward_auth needed
 {{ _scheme }}{{ subdomain_headlamp }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	import authelia
 	reverse_proxy {{ k8s_node_ip }}:{{ headlamp_nodeport }}
 }
 

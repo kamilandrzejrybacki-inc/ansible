@@ -113,12 +113,6 @@
       default: "{{ hostvars['localhost']['saved_caddy_email'] | default('') }}"
       private: false
 
-    # -- Cockpit --
-    - name: prompt_cockpit_password
-      prompt: "[7/14] Cockpit system user password (for auto-login passthrough)"
-      default: "{{ hostvars['localhost']['saved_cockpit_password'] | default('') }}"
-      private: true
-
     # -- WireGuard --
     - name: prompt_wireguard_password
       prompt: "[8/14] WireGuard admin UI password (for managing VPN peers)"
@@ -212,7 +206,6 @@
         domain: "{{ prompt_domain }}"
         ssh_port: "{{ prompt_ssh_port }}"
         caddy_email: "{{ prompt_caddy_email }}"
-        cockpit_autologin_password: "{{ prompt_cockpit_password }}"
         wireguard_password: "{{ prompt_wireguard_password }}"
         authelia_default_user: "{{ prompt_authelia_user }}"
         authelia_default_email: "{{ prompt_authelia_email }}"
@@ -490,7 +483,6 @@
           saved_domain: "{{ domain }}"
           saved_ssh_port: "{{ ssh_port }}"
           saved_caddy_email: "{{ caddy_email }}"
-          saved_cockpit_password: "{{ cockpit_autologin_password }}"
           saved_wireguard_password: "{{ wireguard_password }}"
           saved_authelia_user: "{{ authelia_default_user }}"
           saved_authelia_password: "{{ prompt_authelia_password }}"
@@ -556,7 +548,6 @@
             Services:
               {{ subdomain_auth }}.{{ domain }}     → Authelia 2FA portal
               {{ subdomain_home }}.{{ domain }}     → Homepage dashboard
-              {{ subdomain_cockpit }}.{{ domain }}  → System management + terminal
               {{ subdomain_wireguard }}.{{ domain }} → WireGuard peer management
               {{ subdomain_pihole }}.{{ domain }}   → Pi-hole DNS dashboard
 
@@ -602,8 +593,6 @@
     - role: caddy
       tags: [caddy, proxy]
 
-    - role: cockpit
-      tags: [cockpit, terminal]
 
 
   post_tasks:
@@ -623,7 +612,6 @@
           2. Once connected via VPN, access services at:
              https://{{ subdomain_auth }}.{{ domain }}    → Authelia 2FA (set up first)
              https://{{ subdomain_home }}.{{ domain }}    → Dashboard
-             https://{{ subdomain_cockpit }}.{{ domain }} → Terminal & system mgmt
              https://{{ subdomain_wireguard }}.{{ domain }} → VPN peer management
              https://{{ subdomain_pihole }}.{{ domain }}  → DNS / ad-blocking
 

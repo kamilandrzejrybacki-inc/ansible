@@ -93,22 +93,6 @@
 	reverse_proxy {{ homepage_container_name }}:3000
 }
 
-# Cockpit system management + terminal (no Authelia — Cockpit uses Linux PAM)
-{{ _scheme }}{{ subdomain_cockpit }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	reverse_proxy https://{{ docker_gateway_ip }}:{{ cockpit_port }} {
-		transport http {
-			tls_insecure_skip_verify
-		}
-		header_up Host {{ subdomain_cockpit }}.{{ domain }}
-		header_up Authorization "Basic {$COCKPIT_BASIC_AUTH}"
-		header_down -WWW-Authenticate
-	}
-}
 
 # WireGuard admin UI
 {{ _scheme }}{{ subdomain_wireguard }}.{{ domain }} {

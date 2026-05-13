@@ -4,7 +4,7 @@
 # Stores secrets to Vault for the current service.
 # Requires:
 #   _vault_available   – set by check.yml
-#   vault_service_name – e.g. "openclaw", "infrastructure"
+#   vault_service_name – e.g. "n8n", "infrastructure"
 #   vault_secrets_data – dict of key/value pairs to store
 #
 # Usage:

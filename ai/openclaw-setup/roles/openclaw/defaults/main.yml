@@ -1,3 +1,0 @@
----
-# OpenClaw deployment is managed by ArgoCD via charts/openclaw.
-# This role only manages the K8s Secret bootstrap from Vault.

@@ -4,7 +4,7 @@
 # Loads secrets from Vault for the current service.
 # Requires:
 #   _vault_available  – set by check.yml
-#   vault_service_name – e.g. "openclaw", "infrastructure"
+#   vault_service_name – e.g. "n8n", "infrastructure"
 #
 # Sets fact:
 #   _vault_secrets (dict) – key/value pairs from Vault, empty dict if unavailable
@@ -13,7 +13,7 @@
 #   - name: Load secrets from Vault
 #     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
 #     vars:
-#       vault_service_name: "openclaw"
+#       vault_service_name: "n8n"
 #
 # After loading, access secrets with: _vault_secrets.<key> | default('')
 

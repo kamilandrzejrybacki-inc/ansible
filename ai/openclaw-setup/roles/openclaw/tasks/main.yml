@@ -1,3 +1,0 @@
----
-# OpenClaw deployment is managed by ArgoCD via charts/openclaw.
-# Secret management is handled directly in setup.yml.

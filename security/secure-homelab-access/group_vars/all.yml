@@ -83,6 +83,7 @@ skooner_nodeport: 30801
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
+vault_nodeport: 30822
 
 # -- Excalidraw (lw-s1) -------------------------------------------------------
 excalidraw_host: "192.168.0.107"

@@ -165,7 +165,7 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy http://vault:{{ vault_port | default(8200) }}
+	reverse_proxy http://{{ k8s_node_ip }}:{{ vault_nodeport | default(30822) }}
 }
 
 # Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)

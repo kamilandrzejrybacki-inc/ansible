@@ -64,6 +64,20 @@
     cat {{ caddy_data_dir }}/Caddyfile | docker exec -i {{ caddy_container_name }} sh -c 'cat > /etc/caddy/Caddyfile'
   changed_when: false
 
+- name: Read Skooner service account token from k8s
+  ansible.builtin.command: >
+    kubectl get secret skooner-token -n skooner
+    -o jsonpath='{.data.token}'
+  register: _skooner_token_b64
+  failed_when: false
+  changed_when: false
+
+- name: Decode Skooner token
+  ansible.builtin.set_fact:
+    skooner_sa_token: "{{ _skooner_token_b64.stdout | b64decode | trim }}"
+  when: _skooner_token_b64.rc == 0
+  no_log: true
+
 - name: Deploy Caddy container
   community.docker.docker_container:
     name: "{{ caddy_container_name }}"
@@ -74,6 +88,7 @@
       CROWDSEC_API_KEY: "{{ crowdsec_bouncer_key | default('disabled') }}"
       CF_API_TOKEN: "{{ cloudflare_api_token | default('') }}"
       COCKPIT_BASIC_AUTH: "{{ (cockpit_autologin_user + ':' + cockpit_autologin_password) | b64encode }}"
+      SKOONER_TOKEN: "{{ skooner_sa_token | default('') }}"
     ports:
       - "80:80"
       - "443:443"

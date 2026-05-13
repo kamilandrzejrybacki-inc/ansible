@@ -88,8 +88,7 @@ argocd_nodeport_http: 30080
 headlamp_nodeport: 30801
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
-subdomain_jupyterlab: "jupyterlab"
-jupyterlab_nodeport: 30888
+pingvin_nodeport: 30815
 
 # -- Excalidraw (lw-s1) -------------------------------------------------------
 excalidraw_host: "192.168.0.107"

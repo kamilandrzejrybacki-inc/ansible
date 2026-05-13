@@ -73,6 +73,7 @@ subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
 subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
+subdomain_coder: "coder"
 quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------
@@ -84,6 +85,7 @@ omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
 vault_nodeport: 30822
+coder_nodeport: 30700
 
 # -- Excalidraw (lw-s1) -------------------------------------------------------
 excalidraw_host: "192.168.0.107"

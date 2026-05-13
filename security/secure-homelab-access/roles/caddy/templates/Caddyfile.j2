@@ -168,6 +168,16 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ vault_nodeport | default(30822) }}
 }
 
+# Coder (agent workspace control plane) — no Authelia (Coder uses own auth)
+{{ _scheme }}{{ subdomain_coder }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ k8s_node_ip }}:{{ coder_nodeport | default(30700) }}
+}
+
 # Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)
 {{ _scheme }}{{ subdomain_nexterm }}.{{ domain }} {
 	import rate_limit

@@ -1,0 +1,136 @@
+---
+# Coder Bootstrap Playbook
+# One-time: creates Postgres DB + user, writes coder-db-url k8s secret, applies ArgoCD app.
+#
+# After this playbook runs, ArgoCD manages Coder from:
+#   github.com/kamilandrzejrybacki-inc/homelab-agent-platform helm/coder/values.yaml
+#
+# Prerequisites:
+#   - shared-postgres running in shared-postgres namespace (NodePort 30543)
+#   - ArgoCD deployed
+#   - ~/.kube/lw-c1.yaml kubeconfig
+#   - ~/.vault-ansible.yml with vault_addr and vault_token
+#
+# Usage:
+#   ansible-playbook k8s/coder-setup/setup.yml
+
+- name: Bootstrap Coder — Postgres + k8s secret + ArgoCD app
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/lw-c1.yaml"
+    postgres_host: "192.168.0.107"
+    postgres_port: "30543"
+    postgres_admin_user: "postgres"
+    coder_db_name: "coder"
+    coder_db_user: "coder"
+    platform_repo_root: "{{ lookup('env', 'HOME') }}/Code/homelab-agent-platform"
+  vars_prompt:
+    - name: postgres_admin_password
+      prompt: |
+
+        ══════════════════════════════════════════════
+          Coder Bootstrap Wizard
+        ══════════════════════════════════════════════
+
+        shared-postgres admin password
+      private: true
+
+    - name: coder_db_password
+      prompt: "Coder DB password (leave blank to auto-generate)"
+      private: true
+      default: ""
+
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Generate DB password if not provided
+      ansible.builtin.set_fact:
+        _coder_db_password: >-
+          {{ coder_db_password if coder_db_password | length > 0
+             else lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}
+      no_log: true
+
+    - name: Create Coder Postgres user
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ coder_db_user }}"
+        password: "{{ _coder_db_password }}"
+        state: present
+      no_log: true
+
+    - name: Create Coder Postgres database
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ coder_db_name }}"
+        owner: "{{ coder_db_user }}"
+        state: present
+
+    - name: Store Coder secrets in Vault
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
+      vars:
+        vault_service_name: "coder"
+        vault_secrets_data:
+          db_password: "{{ _coder_db_password }}"
+
+    - name: Create coder namespace
+      ansible.builtin.command: >
+        kubectl create namespace coder --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _ns_coder
+      changed_when: "'created' in _ns_coder.stdout"
+
+    - name: Create agent-workspaces namespace
+      ansible.builtin.command: >
+        kubectl create namespace agent-workspaces --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _ns_workspaces
+      changed_when: "'created' in _ns_workspaces.stdout"
+
+    - name: Create coder-db-url k8s secret
+      ansible.builtin.command: >-
+        kubectl create secret generic coder-db-url
+        --namespace coder
+        --from-literal=url=postgres://{{ coder_db_user }}:{{ _coder_db_password }}@shared-postgres.shared-postgres.svc.cluster.local:5432/{{ coder_db_name }}?sslmode=disable
+        --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _secret
+      changed_when: "'created' in _secret.stdout or 'configured' in _secret.stdout"
+      no_log: true
+
+    - name: Apply Coder ArgoCD application
+      ansible.builtin.command: >
+        kubectl apply -f {{ platform_repo_root }}/helm/coder/argocd-app.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_local_path }}"
+      register: _app
+      changed_when: "'created' in _app.stdout or 'configured' in _app.stdout"
+
+    - name: Bootstrap complete
+      ansible.builtin.debug:
+        msg: |
+          Coder bootstrap complete.
+
+          - Postgres: database '{{ coder_db_name }}' created, user '{{ coder_db_user }}'
+          - Vault: password stored at homelab/coder
+          - K8s: coder-db-url secret in coder namespace
+          - ArgoCD: Coder app registered — will sync from homelab-agent-platform/helm/coder
+
+          Next:
+            1. Ensure homelab-agent-platform is pushed to GitHub (ArgoCD pulls from it)
+            2. Deploy Caddy update:
+                 ansible-playbook security/secure-homelab-access/setup.yml
+            3. Open https://coder.kamilandrzejrybacki.dpdns.org → create admin account
+            4. Upload coder/templates/interactive-workspace/ as a template in the UI
+            5. Start a workspace and run: claude

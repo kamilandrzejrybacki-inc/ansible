@@ -35,6 +35,24 @@
     - CLAUDE.md
     - RTK.md
 
+# Codex / OpenCode / Gemini-CLI read AGENTS.md from $HOME and ~/.codex.
+# Use the same content as CLAUDE.md so all agentic tools follow the
+# Cellarette-first policy.
+- name: Ensure ~/.codex exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.codex"
+    state: directory
+    mode: "0755"
+
+- name: Deploy AGENTS.md (shared by Codex, OpenCode, Gemini CLI)
+  ansible.builtin.copy:
+    src: "claude/AGENTS.md"
+    dest: "{{ item }}"
+    mode: "0644"
+  loop:
+    - "{{ ansible_env.HOME }}/AGENTS.md"
+    - "{{ ansible_env.HOME }}/.codex/AGENTS.md"
+
 - name: Copy rules directory
   ansible.builtin.copy:
     src: claude/rules/

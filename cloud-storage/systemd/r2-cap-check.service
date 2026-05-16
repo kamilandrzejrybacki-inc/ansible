@@ -1,0 +1,13 @@
+[Unit]
+Description=R2 bucket size watchdog (alerts + hard-deletes excess)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=kamil-rybacki
+Group=kamil-rybacki
+EnvironmentFile=%h/.config/homelab-s3-remotes.env
+ExecStart=/home/kamil-rybacki/Code/ansible/cloud-storage/r2-cap-check.sh
+StandardOutput=journal
+StandardError=journal

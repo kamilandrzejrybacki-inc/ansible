@@ -1,0 +1,16 @@
+[Unit]
+Description=Homelab MinIO → Backblaze B2 critical backup sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=kamil-rybacki
+Group=kamil-rybacki
+EnvironmentFile=%h/.config/homelab-s3-remotes.env
+ExecStart=/home/kamil-rybacki/Code/ansible/cloud-storage/06-sync-minio-to-cloud.sh --confirm
+StandardOutput=journal
+StandardError=journal
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

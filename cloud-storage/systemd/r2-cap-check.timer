@@ -1,0 +1,10 @@
+[Unit]
+Description=Run R2 cap check every hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=r2-cap-check.service
+
+[Install]
+WantedBy=timers.target

@@ -133,7 +133,7 @@
 	}
 }
 
-# Grafana (monitoring stack on lw-main)
+# Grafana (monitoring stack — migrated to k3s, NodePort 30130)
 {{ _scheme }}{{ subdomain_grafana }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -141,7 +141,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ docker_gateway_ip }}:{{ grafana_port | default(3000) }}
+	reverse_proxy http://{{ grafana_host_ip | default('192.168.0.107') }}:{{ grafana_port | default(30130) }}
 }
 
 # n8n (workflow automation, k8s)

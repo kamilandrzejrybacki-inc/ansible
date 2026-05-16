@@ -1,0 +1,78 @@
+{
+  "version": 3,
+  "lines": [
+    [
+      {
+        "id": "5",
+        "type": "context-percentage-usable",
+        "color": "magenta"
+      },
+      {
+        "id": "5289fd5e-249c-403b-ac07-4859ff3eaa83",
+        "type": "session-clock",
+        "backgroundColor": "bgBrightCyan"
+      },
+      {
+        "id": "6a0252e9-91de-4c3d-b7a0-c645cbe1025b",
+        "type": "session-cost",
+        "backgroundColor": "bgBrightMagenta"
+      },
+      {
+        "id": "7",
+        "type": "git-changes",
+        "color": "yellow"
+      }
+    ],
+    [
+      {
+        "id": "6352cbdf-3884-4b08-ad89-08d5e2186bc0",
+        "type": "model",
+        "backgroundColor": "bgBrightMagenta"
+      },
+      {
+        "id": "2b26ddfe-cf62-43d5-bb43-38778c59fa36",
+        "type": "session-usage",
+        "backgroundColor": "bgMagenta"
+      },
+      {
+        "id": "885c8e64-da1b-4fcc-bf1d-1474600903e9",
+        "type": "weekly-usage",
+        "backgroundColor": "bgBrightYellow"
+      },
+      {
+        "id": "5354e3db-a4a6-4583-932b-b0cdf280c317",
+        "type": "reset-timer",
+        "backgroundColor": "bgBrightBlack"
+      },
+      {
+        "id": "47d78a2c-a4fe-4a66-bfb8-7e27e62ccff7",
+        "type": "weekly-reset-timer",
+        "backgroundColor": "bgYellow"
+      }
+    ],
+    []
+  ],
+  "flexMode": "full-minus-40",
+  "compactThreshold": 60,
+  "colorLevel": 1,
+  "defaultPadding": " ",
+  "inheritSeparatorColors": false,
+  "globalBold": false,
+  "powerline": {
+    "enabled": true,
+    "separators": [
+      ""
+    ],
+    "separatorInvertBackground": [
+      false
+    ],
+    "startCaps": [
+      ""
+    ],
+    "endCaps": [
+      ""
+    ],
+    "theme": "minimal",
+    "autoAlign": true
+  }
+}

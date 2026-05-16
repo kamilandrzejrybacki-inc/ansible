@@ -53,6 +53,20 @@
     - "{{ ansible_env.HOME }}/AGENTS.md"
     - "{{ ansible_env.HOME }}/.codex/AGENTS.md"
 
+# ccstatusline — Claude Code status-line plugin. Settings file holds user's
+# preferred blocks/colors/layout. Idempotent: ansible copy compares content.
+- name: Ensure ~/.config/ccstatusline exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/ccstatusline"
+    state: directory
+    mode: "0755"
+
+- name: Deploy ccstatusline settings (shared visual config)
+  ansible.builtin.copy:
+    src: "claude/ccstatusline-settings.json"
+    dest: "{{ ansible_env.HOME }}/.config/ccstatusline/settings.json"
+    mode: "0644"
+
 - name: Copy rules directory
   ansible.builtin.copy:
     src: claude/rules/

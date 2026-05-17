@@ -311,6 +311,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
+	redir / /admin 302
 	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}
 }
 

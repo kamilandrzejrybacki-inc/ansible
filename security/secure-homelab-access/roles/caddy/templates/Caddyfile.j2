@@ -310,12 +310,11 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	# Strip any client-supplied Remote-User before Authelia can set it.
-	# Authelia's forward_auth re-injects it after validating the session.
-	request_header -Remote-User
 	import authelia
-	# Inject shared secret so cellarette can trust Remote-User is from Authelia,
-	# not a spoofed header via the NodePort bypass.
+	# Inject shared secret AFTER Authelia validates. Caddy's request_header runs
+	# after forward_auth in the handler chain, so this header reaches the backend
+	# only on authenticated requests. cellarette trusts the session only when this
+	# matches — blocks NodePort spoofing without needing to strip Remote-User.
 	request_header +X-Cellarette-Authelia {env.CELLARETTE_AUTHELIA_SECRET}
 	redir / /admin/ 302
 	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}

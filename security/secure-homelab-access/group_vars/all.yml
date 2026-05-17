@@ -38,6 +38,7 @@ authelia_data_dir: "{{ docker_data_dir }}/authelia"
 
 
 # -- Homepage (Dashboard) -----------------------------------------------------
+homepage_container_name: "homepage"
 
 # -- Pi-hole (DNS) -----------------------------------------------------------
 pihole_container_name: "pihole"

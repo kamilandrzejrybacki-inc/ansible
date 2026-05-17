@@ -65,25 +65,40 @@
   changed_when: false
 
 - name: Fetch Cellarette Authelia bypass secret from Vault
-  ansible.builtin.uri:
-    url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] }}/data/homelab/cellarette"
-    headers:
-      X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
-    status_code: [200, 404]
-    timeout: 10
-  register: _vault_cellarette
-  failed_when: false
+  ansible.builtin.shell: |
+    python3 - <<'PYEOF'
+    import yaml, urllib.request, json, sys, os
+    conn_file = os.path.expanduser("~/.vault-ansible.yml")
+    if not os.path.exists(conn_file):
+        print("", end="")
+        sys.exit(0)
+    with open(conn_file) as f:
+        d = yaml.safe_load(f)
+    addr = d.get("vault_addr", "")
+    token = d.get("vault_token", "")
+    mount = d.get("vault_kv_mount", "secret")
+    if not addr or not token:
+        print("", end="")
+        sys.exit(0)
+    try:
+        req = urllib.request.Request(
+            f"{addr}/v1/{mount}/data/homelab/cellarette",
+            headers={"X-Vault-Token": token}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+            print(data["data"]["data"].get("authelia_bypass_token", ""), end="")
+    except Exception:
+        print("", end="")
+    PYEOF
+  register: _authelia_bypass_raw
   changed_when: false
   no_log: true
-  when: hostvars['localhost']['_vault_available'] | default(false) | bool
 
 - name: Set Cellarette Authelia bypass secret fact
   ansible.builtin.set_fact:
-    caddy_authelia_bypass_secret: "{{ _vault_cellarette.json.data.data.authelia_bypass_token | default('') }}"
+    caddy_authelia_bypass_secret: "{{ _authelia_bypass_raw.stdout | trim }}"
   no_log: true
-  when:
-    - hostvars['localhost']['_vault_available'] | default(false) | bool
-    - _vault_cellarette.status == 200
 
 - name: Read Skooner service account token from k8s
   ansible.builtin.command: >

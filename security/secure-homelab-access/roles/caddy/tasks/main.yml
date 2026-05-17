@@ -64,6 +64,27 @@
     cat {{ caddy_data_dir }}/Caddyfile | docker exec -i {{ caddy_container_name }} sh -c 'cat > /etc/caddy/Caddyfile'
   changed_when: false
 
+- name: Fetch Cellarette Authelia bypass secret from Vault
+  ansible.builtin.uri:
+    url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] }}/data/homelab/cellarette"
+    headers:
+      X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
+    status_code: [200, 404]
+    timeout: 10
+  register: _vault_cellarette
+  failed_when: false
+  changed_when: false
+  no_log: true
+  when: hostvars['localhost']['_vault_available'] | default(false) | bool
+
+- name: Set Cellarette Authelia bypass secret fact
+  ansible.builtin.set_fact:
+    caddy_authelia_bypass_secret: "{{ _vault_cellarette.json.data.data.authelia_bypass_token | default('') }}"
+  no_log: true
+  when:
+    - hostvars['localhost']['_vault_available'] | default(false) | bool
+    - _vault_cellarette.status == 200
+
 - name: Read Skooner service account token from k8s
   ansible.builtin.command: >
     kubectl get secret skooner-token -n skooner
@@ -88,6 +109,7 @@
       CROWDSEC_API_KEY: "{{ crowdsec_bouncer_key | default('disabled') }}"
       CF_API_TOKEN: "{{ cloudflare_api_token | default('') }}"
       SKOONER_TOKEN: "{{ skooner_sa_token | default('') }}"
+      CELLARETTE_AUTHELIA_SECRET: "{{ caddy_authelia_bypass_secret | default('') }}"
     ports:
       - "80:80"
       - "443:443"

@@ -303,3 +303,14 @@
 	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ quartz_port }}
 }
 
+# Cellarette MCP gateway admin UI (K8s on lw-c1, admin port)
+{{ _scheme }}{{ subdomain_cellarette }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}
+}
+

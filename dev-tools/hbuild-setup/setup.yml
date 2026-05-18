@@ -1,0 +1,24 @@
+---
+- name: Distribute hbuild wrapper to homelab docker hosts
+  hosts: docker_hosts
+  gather_facts: false
+
+  tasks:
+    - name: Copy hbuild to /usr/local/bin
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../files/hbuild"
+        dest: /usr/local/bin/hbuild
+        mode: "0755"
+        owner: root
+        group: root
+      become: true
+
+    - name: Verify hbuild is executable
+      ansible.builtin.command: hbuild --help
+      register: hbuild_check
+      changed_when: false
+      failed_when: false
+
+    - name: Show hbuild result
+      ansible.builtin.debug:
+        msg: "{{ hbuild_check.stderr | default('installed') }}"

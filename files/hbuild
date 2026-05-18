@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# hbuild — homelab docker buildx wrapper
+# Routes builds to centralized buildkitd at 192.168.0.107:30551.
+# Shared cache at registry 192.168.0.107:30500/cache warms across all machines.
+set -euo pipefail
+
+REGISTRY="192.168.0.107:30500"
+BUILDER="homelab"
+CACHE_REF="${REGISTRY}/cache"
+
+if ! docker buildx inspect "${BUILDER}" &>/dev/null 2>&1; then
+  echo "==> Creating homelab buildx builder" >&2
+  docker buildx create \
+    --name "${BUILDER}" \
+    --driver remote \
+    tcp://192.168.0.107:30551 \
+    --platform linux/amd64,linux/arm64
+fi
+
+exec docker buildx build \
+  --builder "${BUILDER}" \
+  --cache-from "type=registry,ref=${CACHE_REF}" \
+  --cache-to   "type=registry,ref=${CACHE_REF},mode=max" \
+  "$@"

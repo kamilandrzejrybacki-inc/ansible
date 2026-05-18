@@ -1,4 +1,69 @@
 {
+  "disabledMcpjsonServers": [
+    "github",
+    "context7",
+    "exa",
+    "memory",
+    "playwright",
+    "sequential-thinking"
+  ],
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jcodemunch-mcp hook-event create"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jcodemunch-mcp hook-event remove"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jcodemunch-mcp hook-pretooluse"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jcodemunch-mcp hook-posttooluse"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jcodemunch-mcp hook-precompact"
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "npx -y ccstatusline@latest",
@@ -45,15 +110,12 @@
       }
     }
   },
-  "disabledMcpjsonServers": [
-    "github",
-    "context7",
-    "exa",
-    "memory",
-    "playwright",
-    "sequential-thinking"
-  ],
+  "sandbox": {
+    "enabled": false
+  },
   "effortLevel": "high",
   "advisorModel": "opus",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "agentPushNotifEnabled": true,
+  "model": "sonnet"
 }

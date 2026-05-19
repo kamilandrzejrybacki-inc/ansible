@@ -178,6 +178,10 @@ argocd_applications:
     namespace: github-runners
     values: {}
 
+  - name: agentmemory
+    chart_path: charts/agentmemory
+    namespace: agentmemory
+
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo
   # (not via the git-based chart repo) because ArgoCD cannot apply the
   # large Prometheus Operator CRDs with client-side apply. The CRDs are

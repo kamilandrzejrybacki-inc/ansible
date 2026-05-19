@@ -16,6 +16,10 @@ BUCKET="${BUCKET:-k3s-snapshots}"
 ACCESS_KEY="${MC_ACCESS_KEY:?MC_ACCESS_KEY required}"
 SECRET_KEY="${MC_SECRET_KEY:?MC_SECRET_KEY required}"
 
+# Off-cluster mirror destination on lw-main (192.168.0.111).
+# Populated by post-upload rsync — breaks circular dependency (MinIO is in-cluster).
+OFFCLUSTER_DEST="root@192.168.0.111:/var/backups/k3s/"
+
 mkdir -p "$SNAPSHOT_DIR"
 
 # Hot copy + gzip
@@ -32,6 +36,16 @@ if command -v mc >/dev/null 2>&1; then
   echo "[backup] uploaded to s3://${BUCKET}/${SNAPSHOT_NAME}"
 else
   echo "[backup] WARN mc not installed — snapshot kept locally only"
+fi
+
+# Off-cluster mirror: rsync snapshot to lw-main so backups survive cluster failure.
+# Prereq: lw-c1 root → lw-main SSH authorized_keys entry (one-time setup).
+if ssh -o BatchMode=yes -o ConnectTimeout=5 root@192.168.0.111 "mkdir -p /var/backups/k3s" 2>/dev/null; then
+  rsync -az --remove-source-files "${SNAPSHOT_DIR}/${SNAPSHOT_NAME}" "${OFFCLUSTER_DEST}" \
+    && echo "[backup] mirrored to lw-main:${OFFCLUSTER_DEST}${SNAPSHOT_NAME}" \
+    || echo "[backup] WARN rsync to lw-main failed — snapshot in MinIO only"
+else
+  echo "[backup] WARN lw-main unreachable — snapshot in MinIO only"
 fi
 
 # Rotate local copies

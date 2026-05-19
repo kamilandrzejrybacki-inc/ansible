@@ -176,6 +176,18 @@ argocd_applications:
     chart_path: charts/agentmemory
     namespace: agentmemory
 
+  # Phase 1 networking: MetalLB L2 LB + Traefik access control
+  # Apply ONLY in maintenance window (Task 4): MetalLB up + klipper-lb down simultaneously.
+  - name: metallb
+    chart_path: charts/metallb
+    namespace: metallb-system
+    values: {}
+
+  - name: traefik-config
+    chart_path: charts/traefik-config
+    namespace: kube-system
+    values: {}
+
   # k8s-monitoring is deployed directly from the Grafana Helm chart repo
   # (not via the git-based chart repo) because ArgoCD cannot apply the
   # large Prometheus Operator CRDs with client-side apply. The CRDs are

@@ -29,6 +29,7 @@ etcd-s3: true
 etcd-s3-endpoint: "192.168.0.107:30910"     # MinIO NodePort
 etcd-s3-bucket: "k3s-snapshots"
 etcd-s3-region: "homelab"
-etcd-s3-insecure: true
+# etcd-s3-insecure: true  -- REMOVED. MinIO must have TLS enabled before Phase 4.
+# Prereq: enable cert-manager wildcard cert on MinIO, set etcd-s3-endpoint to https://...
 # Access keys provided via /etc/k3s-backup.env or directly here.
 # Prefer env file referenced by k3s.service override — credentials NOT in config.yaml.

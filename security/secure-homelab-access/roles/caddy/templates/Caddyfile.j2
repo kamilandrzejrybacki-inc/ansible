@@ -90,7 +90,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy {{ homepage_container_name }}:3000
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
 
@@ -133,7 +133,7 @@
 	}
 }
 
-# Grafana (monitoring stack — migrated to k3s, NodePort 30130)
+# Grafana (monitoring stack — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_grafana }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -141,10 +141,10 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ grafana_host_ip | default('192.168.0.107') }}:{{ grafana_port | default(30130) }}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# n8n (workflow automation, k8s)
+# n8n (workflow automation — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -155,7 +155,7 @@
 		not remote_ip private_ranges 10.8.0.0/24
 	}
 	respond @public "Forbidden" 403
-	reverse_proxy http://{{ n8n_host_ip | default('192.168.0.107') }}:{{ n8n_port | default(30678) }}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
 # HashiCorp Vault — no Authelia (Vault uses own OIDC auth)
@@ -185,7 +185,7 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy nexterm:{{ nexterm_port | default(6989) }}
+	reverse_proxy {{ k8s_node_ip }}:{{ nexterm_nodeport | default(30989) }}
 }
 
 # Paperless (document management on lw-nas)
@@ -221,7 +221,7 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ pingvin_nodeport }}
 }
 
-# ArgoCD UI (K8s on lw-c1) — WireGuard/LAN only
+# ArgoCD UI — WireGuard/LAN only, via Traefik IngressRoute
 {{ _scheme }}{{ subdomain_argocd }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -233,7 +233,7 @@
 	}
 	respond @public "Forbidden" 403
 	import authelia
-	reverse_proxy {{ k8s_node_ip }}:{{ argocd_nodeport_http }}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
 # Guacamole browser-based remote desktop (K8s on lw-c1) — WireGuard only
@@ -275,7 +275,7 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
 }
 
-# Excalidraw whiteboard (k8s)
+# Excalidraw whiteboard — main via Traefik IngressRoute, storage API still NodePort
 {{ _scheme }}{{ subdomain_excalidraw }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -288,7 +288,7 @@
 
 	handle {
 		import authelia
-		reverse_proxy http://{{ excalidraw_host | default('192.168.0.107') }}:{{ excalidraw_port }}
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 	}
 }
 
@@ -301,6 +301,67 @@
 {% endif %}
 	import authelia
 	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ quartz_port }}
+}
+
+# AgentMemory (k8s, AI agent memory store — via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_agentmemory | default('agentmemory') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# Meepmap (mapping app — via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_meepmap | default('meepmap') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# MinIO console (object storage UI — via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_minio | default('minio') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# Loki (log aggregation — LAN/VPN only, via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_loki | default('loki') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# Mimir (metrics storage — LAN/VPN only, via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_mimir | default('mimir') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
 # Cellarette MCP gateway admin UI (K8s on lw-c1, admin port)

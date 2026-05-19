@@ -76,10 +76,17 @@ subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
 subdomain_coder: "coder"
 subdomain_cellarette: "cellarette"
+subdomain_agentmemory: "agentmemory"
+subdomain_meepmap: "meepmap"
+subdomain_minio: "minio"
+subdomain_loki: "loki"
+subdomain_mimir: "mimir"
 quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------
 k8s_node_ip: "192.168.0.107"
+# MetalLB VIP — Traefik LoadBalancer IP (Phase 1+). Caddy proxies IngressRoute services here.
+traefik_vip: "192.168.0.50"
 argocd_nodeport: 30443
 argocd_nodeport_http: 30080
 skooner_nodeport: 30801
@@ -89,6 +96,8 @@ pingvin_nodeport: 30815
 vault_nodeport: 30822
 coder_nodeport: 30750
 cellarette_nodeport: 30701
+nexterm_nodeport: 30989
+homepage_nodeport: 30300
 
 # -- Excalidraw (lw-s1) -------------------------------------------------------
 excalidraw_host: "192.168.0.107"

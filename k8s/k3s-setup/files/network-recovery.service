@@ -1,0 +1,20 @@
+[Unit]
+Description=Bounce LAN interface to refresh switch MAC table after boot
+# Runs after network is up but before k3s server starts serving on the iface.
+# Cures the "TCP RST despite ping works" symptom seen after unclean shutdowns.
+After=network-online.target
+Before=k3s.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/sbin/ip link set eno1 down
+ExecStart=/bin/sleep 2
+ExecStart=/usr/sbin/ip link set eno1 up
+# Wait briefly for link to come back up before exit
+ExecStartPost=/bin/sleep 3
+
+[Install]
+WantedBy=multi-user.target

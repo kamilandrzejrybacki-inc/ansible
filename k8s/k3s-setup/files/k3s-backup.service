@@ -1,0 +1,13 @@
+[Unit]
+Description=k3s state backup (sqlite snapshot → MinIO)
+After=network-online.target k3s.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/k3s-backup.env
+ExecStart=/usr/local/bin/k3s-backup.sh
+# Don't fail the timer if backup script errors (e.g. MinIO down) — log and move on
+SuccessExitStatus=0 1
+StandardOutput=journal
+StandardError=journal

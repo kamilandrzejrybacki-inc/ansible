@@ -136,7 +136,7 @@ argocd_applications:
 
   - name: mcp-servers
     chart_path: charts/mcp-servers
-    namespace: default
+    namespace: mcp-servers
     values: {}
 
   - name: cellarette

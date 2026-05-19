@@ -1,5 +1,5 @@
 [Unit]
-Description=Homelab MinIO → Backblaze B2 critical backup sync
+Description=Homelab MinIO → B2 + Tigris + R2 offsite backup
 After=network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,9 @@ Wants=network-online.target
 Type=oneshot
 User=kamil-rybacki
 Group=kamil-rybacki
-EnvironmentFile=%h/.config/homelab-s3-remotes.env
+# %h resolves before User= drops privileges, so it would point at root's home.
+# Hardcode absolute path to the actual user's env file.
+EnvironmentFile=/home/kamil-rybacki/.config/homelab-s3-remotes.env
 ExecStart=/home/kamil-rybacki/Code/ansible/cloud-storage/06-sync-minio-to-cloud.sh --confirm
 StandardOutput=journal
 StandardError=journal

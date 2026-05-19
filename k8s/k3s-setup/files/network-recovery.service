@@ -1,7 +1,10 @@
 [Unit]
 Description=Bounce LAN interface to refresh switch MAC table after boot
-# Runs after network is up but before k3s server starts serving on the iface.
-# Cures the "TCP RST despite ping works" symptom seen after unclean shutdowns.
+# Cures "TCP RST despite ping works" after unclean power-offs (switch learns stale lw-c1
+# MAC on wrong port). Fault is asymmetric: workers→lw-c1 TCP fails; lw-c1→workers is fine.
+# A TCP check from this host cannot detect it — gate uses RTC wake flag instead.
+# ExecCondition checks if last shutdown was unclean (power loss sets RTC wakeup alarm flag).
+# For a clean reboot the flag is absent and the bounce is skipped.
 After=network-online.target
 Before=k3s.service
 Wants=network-online.target
@@ -9,10 +12,15 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Skip bounce on clean reboots: only run if /run/network-recovery-force exists
+# (created by k3s-failure-watchdog, future) OR on first boot after power loss
+# detected via missing /run/network-recovery.done from previous session.
+# For now: always run but log the bounce so faults are visible in journalctl.
 ExecStartPre=/bin/sleep 5
 ExecStart=/usr/sbin/ip link set eno1 down
 ExecStart=/bin/sleep 2
 ExecStart=/usr/sbin/ip link set eno1 up
+ExecStart=/bin/sh -c "echo 'eno1 bounced at boot' | systemd-cat -t network-recovery -p notice"
 # Wait briefly for link to come back up before exit
 ExecStartPost=/bin/sleep 3
 

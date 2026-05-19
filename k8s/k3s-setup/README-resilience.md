@@ -27,8 +27,12 @@ Triggers at next boot. Won't run immediately (oneshot, RemainAfterExit).
 ### k3s backup (interim sqlite, manual install)
 
 ```bash
-# Install mc on lw-c1
-sudo curl -sLo /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
+# Install mc on lw-c1 — pinned version with SHA256 verification
+MC_VERSION="RELEASE.2025-08-13T08-35-41Z"
+MC_SHA256="01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891"
+sudo curl -sLo /usr/local/bin/mc \
+  "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.${MC_VERSION}"
+echo "${MC_SHA256}  /usr/local/bin/mc" | sha256sum -c   # must print: /usr/local/bin/mc: OK
 sudo chmod +x /usr/local/bin/mc
 
 # Create MinIO bucket (one-time, via mc)

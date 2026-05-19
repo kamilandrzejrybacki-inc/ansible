@@ -1,4 +1,7 @@
 ---
+- name: Set AGENTMEMORY_URL environment variable
+  ansible.builtin.include_tasks: env-agentmemory.yml
+
 - name: Get current MCP server list
   ansible.builtin.command: claude mcp list
   register: current_mcp_servers

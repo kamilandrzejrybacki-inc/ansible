@@ -5,6 +5,7 @@ claude_marketplaces:
   - "czlonkowski/n8n-skills"
   - "openai/codex-plugin-cc"
   - "JuliusBrussee/caveman"
+  - "rohitg00/agentmemory"
 
 claude_plugins:
   - "superpowers@claude-plugins-official"
@@ -13,6 +14,7 @@ claude_plugins:
   - "n8n-mcp-skills@n8n-mcp-skills"
   - "codex@openai-codex"
   - "caveman@caveman"
+  - "agentmemory@agentmemory"
 
 # Plugins bundled with an installed marketplace that must stay disabled.
 claude_blocked_plugins:

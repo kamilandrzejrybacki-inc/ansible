@@ -1,0 +1,17 @@
+---
+- name: Set AGENTMEMORY_URL in /etc/environment
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    regexp: '^AGENTMEMORY_URL='
+    line: 'AGENTMEMORY_URL=http://192.168.0.107:30311'
+    create: true
+    mode: "0644"
+  become: true
+
+- name: Set AGENTMEMORY_URL in ~/.zshrc
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.zshrc"
+    regexp: '^export AGENTMEMORY_URL='
+    line: 'export AGENTMEMORY_URL=http://192.168.0.107:30311'
+    create: true
+    mode: "0644"

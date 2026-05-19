@@ -7,9 +7,9 @@ Wants=network-online.target
 Type=oneshot
 User=kamil-rybacki
 Group=kamil-rybacki
-# %h resolves before User= drops privileges, so it would point at root's home.
-# Hardcode absolute path to the actual user's env file.
-EnvironmentFile=/home/kamil-rybacki/.config/homelab-s3-remotes.env
+# Env file is sourced by the script itself (uses `export VAR=...` shell syntax
+# which systemd EnvironmentFile cannot parse). systemd just needs HOME set,
+# which it does automatically from User=.
 ExecStart=/home/kamil-rybacki/Code/ansible/cloud-storage/06-sync-minio-to-cloud.sh --confirm
 StandardOutput=journal
 StandardError=journal

@@ -124,12 +124,6 @@ argocd_applications:
     namespace: qdrant
     values: {}
 
-  - name: distillery
-    chart_path: charts/distillery
-    namespace: distillery
-    values: {}
-
-
   - name: hermes
     chart_path: charts/hermes
     namespace: hermes

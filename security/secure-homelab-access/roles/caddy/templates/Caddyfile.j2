@@ -381,3 +381,43 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}
 }
 
+# Kroki — diagram rendering API (mermaid/plantuml/graphviz/...)
+{{ _scheme }}{{ subdomain_kroki }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ kroki_nodeport | default(30880) }}
+}
+
+# TLDraw — stylus whiteboard
+{{ _scheme }}{{ subdomain_tldraw }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ tldraw_nodeport | default(30881) }}
+}
+
+# Kubernetes Dashboard (Skooner replacement) — SA token injected after Authelia
+{{ _scheme }}{{ subdomain_k8s_dashboard }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	# Dashboard authenticates with bearer token. Caddy injects the SA token
+	# AFTER Authelia validates so the user doesn't need to log in twice.
+	request_header +Authorization "Bearer {env.K8S_DASHBOARD_TOKEN}"
+	reverse_proxy https://{{ k8s_node_ip }}:{{ k8s_dashboard_nodeport | default(30802) }} {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}
+

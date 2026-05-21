@@ -251,19 +251,6 @@
 	reverse_proxy {{ k8s_node_ip }}:{{ guacamole_nodeport }}
 }
 
-# Skooner K8s dashboard — Authelia handles auth, SA token auto-injected via header
-{{ _scheme }}{{ subdomain_skooner }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy {{ k8s_node_ip }}:{{ skooner_nodeport }} {
-		header_up Authorization "Bearer {env.SKOONER_TOKEN}"
-	}
-}
-
 # OmniRoute AI gateway dashboard (K8s on lw-c1)
 {{ _scheme }}{{ subdomain_omniroute }}.{{ domain }} {
 	import rate_limit

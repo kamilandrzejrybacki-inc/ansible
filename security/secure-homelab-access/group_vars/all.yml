@@ -68,7 +68,6 @@ subdomain_paperless: "paperless"
 subdomain_pdf: "pdf"
 subdomain_filebrowser: "files"
 subdomain_argocd: "argocd"
-subdomain_skooner: "skooner"
 subdomain_distillery: "distillery"
 subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
@@ -100,7 +99,6 @@ k8s_node_ip: "192.168.0.107"
 traefik_vip: "192.168.0.50"
 argocd_nodeport: 30443
 argocd_nodeport_http: 30080
-skooner_nodeport: 30801
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815

@@ -100,20 +100,6 @@
     caddy_authelia_bypass_secret: "{{ _authelia_bypass_raw.stdout | trim }}"
   no_log: true
 
-- name: Read Skooner service account token from k8s
-  ansible.builtin.command: >
-    kubectl get secret skooner-token -n skooner
-    -o jsonpath='{.data.token}'
-  register: _skooner_token_b64
-  failed_when: false
-  changed_when: false
-
-- name: Decode Skooner token
-  ansible.builtin.set_fact:
-    skooner_sa_token: "{{ _skooner_token_b64.stdout | b64decode | trim }}"
-  when: _skooner_token_b64.rc == 0
-  no_log: true
-
 - name: Read Kubernetes Dashboard SA token from k8s
   ansible.builtin.command: >
     kubectl get secret kubernetes-dashboard-token -n kubernetes-dashboard
@@ -137,7 +123,6 @@
     env:
       CROWDSEC_API_KEY: "{{ crowdsec_bouncer_key | default('disabled') }}"
       CF_API_TOKEN: "{{ cloudflare_api_token | default('') }}"
-      SKOONER_TOKEN: "{{ skooner_sa_token | default('') }}"
       K8S_DASHBOARD_TOKEN: "{{ k8s_dashboard_sa_token | default('') }}"
       CELLARETTE_AUTHELIA_SECRET: "{{ caddy_authelia_bypass_secret | default('') }}"
     ports:

@@ -273,6 +273,10 @@
 - name: Configure workspace PKI (tunnel)
   ansible.builtin.include_tasks: workspace-pki.yml
 
+- name: Configure OIDC sign-in (Authelia)
+  ansible.builtin.include_tasks: configure-oidc.yml
+  when: vault_root_token is defined
+
 - name: Display Vault access information
   ansible.builtin.debug:
     msg: |

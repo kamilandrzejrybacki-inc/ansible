@@ -1,0 +1,127 @@
+---
+# Idempotently wire Vault's OIDC auth method to Authelia + create the
+# default role + admins policy. Runs after vault init/unseal so we have
+# `vault_root_token` available; runs after the kv-seed step so a half-broken
+# mount can't block this.
+#
+# Inputs:
+#   vault_root_token                          (from main.yml)
+#   authelia_oidc_client_secret_vault         (from secure-homelab-access setup
+#                                              vars / saved-vars file)
+#   saved_authelia_subdomain | default("auth")
+#   saved_vault_subdomain    | default("hashi-vault")
+#   saved_domain                              (from ~/.homelab-setup-vars.yml)
+
+- name: Vault OIDC — skip if no Authelia client secret available
+  ansible.builtin.set_fact:
+    _vault_oidc_secret: "{{ authelia_oidc_client_secret_vault | default(saved_authelia_oidc_client_secret_vault | default('')) }}"
+  no_log: true
+
+- name: Vault OIDC — skip block when no secret
+  when: _vault_oidc_secret | length > 0
+  block:
+
+    - name: Vault OIDC — derive discovery + redirect URLs
+      ansible.builtin.set_fact:
+        _vault_oidc_issuer: "https://{{ saved_authelia_subdomain | default('auth') }}.{{ saved_domain }}"
+        _vault_oidc_redirects:
+          - "https://{{ saved_vault_subdomain | default('hashi-vault') }}.{{ saved_domain }}/ui/vault/auth/oidc/oidc/callback"
+          - "http://localhost:8250/oidc/callback"
+
+    - name: Vault OIDC — list enabled auth methods
+      ansible.builtin.uri:
+        url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/sys/auth"
+        method: GET
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        status_code: [200]
+        return_content: true
+      register: _vault_auth_list
+      no_log: true
+
+    - name: Vault OIDC — enable the oidc auth backend if missing
+      ansible.builtin.uri:
+        url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/sys/auth/oidc"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          type: oidc
+          description: "Authelia OIDC sign-in"
+        status_code: [204]
+      when: "'oidc/' not in _vault_auth_list.json"
+
+    - name: Vault OIDC — write auth/oidc/config
+      ansible.builtin.uri:
+        url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/auth/oidc/config"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          oidc_discovery_url: "{{ _vault_oidc_issuer }}"
+          oidc_client_id: vault
+          oidc_client_secret: "{{ _vault_oidc_secret }}"
+          default_role: default
+        status_code: [200, 204]
+      no_log: true
+
+    - name: Vault OIDC — write default role (login lands here when Role field is left blank)
+      ansible.builtin.uri:
+        url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/auth/oidc/role/default"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          user_claim: preferred_username
+          bound_audiences: ["vault"]
+          allowed_redirect_uris: "{{ _vault_oidc_redirects }}"
+          oidc_scopes: [openid, profile, email]
+          role_type: oidc
+          token_policies: [default, admins]
+          token_ttl: 1h
+          token_max_ttl: 8h
+        status_code: [200, 204]
+
+    - name: Vault OIDC — ensure 'admins' policy exists (sudo-on-everything)
+      ansible.builtin.uri:
+        url: "http://{{ vault_bind_address }}:{{ vault_port }}/v1/sys/policies/acl/admins"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          policy: |
+            path "*" {
+              capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+            }
+        status_code: [204]
+
+    - name: Vault OIDC — show readiness
+      ansible.builtin.debug:
+        msg: |
+          Vault OIDC sign-in is wired:
+            Auth method     : oidc/
+            Discovery URL   : {{ _vault_oidc_issuer }}
+            Client ID       : vault
+            Default role    : default      (policies: default, admins)
+            Redirect URIs   :
+              - {{ _vault_oidc_redirects[0] }}
+              - {{ _vault_oidc_redirects[1] }}
+
+          Try it: open https://{{ saved_vault_subdomain | default('hashi-vault') }}.{{ saved_domain }}
+          Method = OIDC, Role left blank → Sign in with OIDC Provider.
+
+- name: Vault OIDC — warn when no client secret was available
+  ansible.builtin.debug:
+    msg: |
+      Skipping OIDC bootstrap: authelia_oidc_client_secret_vault is empty.
+      Run security/secure-homelab-access/setup.yml first (it generates the
+      Authelia clients + saves the secret into ~/.homelab-setup-vars.yml).
+  when: _vault_oidc_secret | length == 0

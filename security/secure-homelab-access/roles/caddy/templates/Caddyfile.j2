@@ -403,6 +403,25 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ tldraw_nodeport | default(30881) }}
 }
 
+# Sentinel (incident dashboard — via Traefik IngressRoute).
+# /webhook/* is the Grafana alert ingress; it has its own SENTINEL_WEBHOOK_SECRET
+# HMAC check, so Authelia must NOT block those POSTs.
+{{ _scheme }}{{ subdomain_sentinel | default('sentinel') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@webhook path /webhook/*
+	handle @webhook {
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
+	handle {
+		import authelia
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
+}
+
 # Kubernetes Dashboard (Skooner replacement) — SA token injected after Authelia
 {{ _scheme }}{{ subdomain_k8s_dashboard }}.{{ domain }} {
 	import rate_limit

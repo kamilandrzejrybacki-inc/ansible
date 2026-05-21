@@ -84,6 +84,7 @@ subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"
 subdomain_tldraw: "tldraw"
 subdomain_k8s_dashboard: "k8s"
+subdomain_sentinel: "sentinel"
 # Notesnook self-hosted (sync server + identity + SSE + monograph).
 # Notesnook mobile/desktop clients reject HTTP, so all 4 must terminate TLS
 # at Caddy. Authelia is NOT imported — the clients use their own E2EE auth.

@@ -421,3 +421,53 @@
 	}
 }
 
+
+
+# Notesnook sync server (REST API for notes/attachments)
+{{ _scheme }}{{ subdomain_notes_api }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	# No Authelia — Notesnook clients use their own E2EE token auth.
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# Notesnook identity server (OpenIddict OIDC for the clients)
+{{ _scheme }}{{ subdomain_notes_auth }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
+# Notesnook SSE (server-sent events for realtime sync notifications)
+{{ _scheme }}{{ subdomain_notes_sse }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	# SSE keeps a long-lived HTTP stream; raise read/write timeouts so Caddy
+	# doesn't drop the connection mid-stream.
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+		flush_interval -1
+		transport http {
+			read_timeout 1h
+			write_timeout 1h
+		}
+	}
+}
+
+# Notesnook Monograph (public note publishing)
+{{ _scheme }}{{ subdomain_notes_share }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}

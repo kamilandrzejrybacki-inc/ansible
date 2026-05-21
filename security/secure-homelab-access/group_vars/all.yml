@@ -84,6 +84,13 @@ subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"
 subdomain_tldraw: "tldraw"
 subdomain_k8s_dashboard: "k8s"
+# Notesnook self-hosted (sync server + identity + SSE + monograph).
+# Notesnook mobile/desktop clients reject HTTP, so all 4 must terminate TLS
+# at Caddy. Authelia is NOT imported — the clients use their own E2EE auth.
+subdomain_notes_api: "notes-api"
+subdomain_notes_auth: "notes-auth"
+subdomain_notes_sse: "notes-sse"
+subdomain_notes_share: "notes-share"
 quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------

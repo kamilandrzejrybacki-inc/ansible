@@ -1,0 +1,5 @@
+{# Locked-down authorized_keys for the sentinel-ops user. Every line restricts
+   the key to: only originate from the cluster CIDRs, no port/agent/X11
+   forwarding, no PTY, and command= forces the wrapper. Without the wrapper,
+   the key holder could not even open a shell. #}
+from="{{ sentinel_ops_from_cidrs }}",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/usr/local/bin/sentinel-ops-runner" {{ sentinel_ops_authorized_key }}

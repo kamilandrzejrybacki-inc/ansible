@@ -1,0 +1,20 @@
+---
+# Local Linux user the Sentinel fixer SSHes into via the dedicated node-ops
+# executor. NOT the operator's personal account. Wrapper script restricts
+# what this user can run.
+sentinel_ops_user: sentinel-ops
+sentinel_ops_home: /var/lib/sentinel-ops
+
+# Public half of the keypair stored alongside the fixer Pod (Secret
+# `sentinel-node-ops-ssh-key`). Override the default at install time so the
+# host doesn't ship with the example key.
+sentinel_ops_authorized_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDjpqsbwFUyrS3C0UAgX2X4CCFSW0PyK1X3200ixvgOS sentinel-fixer-node-ops"
+
+# Cluster CIDRs the SSH connection may originate from. k3s default pod CIDR
+# is 10.42.0.0/16, service CIDR is 10.43.0.0/16; node-to-node traffic also
+# uses the host LAN range so the executor reaching out from a pod will look
+# like the source node's IP after the CNI hop.
+sentinel_ops_from_cidrs: "10.42.0.0/16,10.43.0.0/16,192.168.0.0/24"
+
+# Per-command timeout enforced by the runner wrapper.
+sentinel_ops_cmd_timeout_sec: 30

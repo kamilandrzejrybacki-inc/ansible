@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# Sentinel node-ops bootstrap
+# =============================================================================
+# Drops the `sentinel-ops` user + wrapper script on every k3s node so the
+# Sentinel fixer Pod can ssh in for bare-metal recovery. The authorized_keys
+# command= directive forces every connection through
+# /usr/local/bin/sentinel-ops-runner, which only permits a short list of
+# inspection + targeted-restart commands.
+#
+# The matching k8s side (ExternalSecret pulling the private key from Vault,
+# Job mount, NetworkPolicy egress to node IPs) is in helm/charts/sentinel.
+#
+# Usage:
+#   ansible-playbook -i 'lw-c1,lw-c2,lw-c3,' -u <ssh-user> sentinel-node-ops.yml
+#
+# Optional override: pass the public key at runtime if rotating
+#   -e sentinel_ops_authorized_key='ssh-ed25519 AAAA... sentinel-fixer-node-ops'
+# =============================================================================
+
+- name: Sentinel node-ops user + authorized_keys + wrapper
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - role: sentinel-node-ops

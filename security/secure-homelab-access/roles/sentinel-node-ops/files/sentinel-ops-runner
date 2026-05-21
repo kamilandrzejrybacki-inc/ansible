@@ -1,0 +1,118 @@
+#!/bin/bash
+# /usr/local/bin/sentinel-ops-runner
+#
+# Wrapper script invoked from authorized_keys command=. Reads
+# $SSH_ORIGINAL_COMMAND, matches against the allowlist below, runs with a
+# hard timeout, and logs every invocation to syslog.
+#
+# Real security boundary. The sentinel-ops user has NO sudo and NO group
+# memberships, but without this wrapper the SSH key would be a shell.
+# With it, only the named subcommands are allowed.
+
+set -o pipefail
+exec 2>&1
+
+TS=$(date '+%Y-%m-%dT%H:%M:%S%z')
+SRC_IP="${SSH_CONNECTION%% *}"
+CMD="${SSH_ORIGINAL_COMMAND:-}"
+TIMEOUT="${SENTINEL_OPS_TIMEOUT:-30}"
+
+log() {
+  logger -t sentinel-ops "src=${SRC_IP} decision=$1 cmd=${CMD}"
+}
+
+reject() {
+  log "DENY"
+  echo ">>> sentinel-ops-runner rejected" >&2
+  echo "blocked: ${CMD}" >&2
+  echo "reason: $1" >&2
+  exit 126
+}
+
+# Empty / interactive shell is always rejected.
+if [ -z "${CMD}" ]; then
+  reject "interactive shell denied"
+fi
+
+# Reject any command containing shell metacharacters that would defeat
+# the per-command audit. Pipelines, redirects, subshells, command
+# substitution, conditional chains, and background operators are all
+# forbidden.
+case "${CMD}" in
+  *\;* | *\&\&* | *\|\|* | *\|* | *\>* | *\<* | *\&* | *\`* | *'$('* )
+    reject "shell operator in command"
+    ;;
+esac
+
+# Allowlist of command prefixes. Each entry is a literal prefix; the
+# command must EITHER match exactly OR begin with the prefix followed
+# by a space. This mirrors the executor-side validate_commands() logic
+# in fixer-worker.py so the LLM, the cluster executor, and this wrapper
+# all enforce compatible rules.
+ALLOWED=(
+  # Read-only host inspection
+  "df"
+  "free"
+  "uptime"
+  "ip a"
+  "ip route"
+  "ip neigh"
+  "ss"
+  "vmstat"
+  "lsblk"
+  "lscpu"
+  "uname -a"
+  "hostnamectl"
+  "date"
+
+  # systemd inspection
+  "systemctl status"
+  "systemctl list-units"
+  "systemctl is-active"
+  "systemctl is-failed"
+
+  # logs (read)
+  "journalctl"
+  "tail /var/log"
+  "ls /var/log"
+
+  # ZFS health
+  "zpool status"
+  "zpool list"
+  "zfs list"
+
+  # k3s / containerd diagnostics (read)
+  "crictl ps"
+  "crictl pods"
+  "crictl images"
+
+  # Targeted recovery — restart well-known services.
+  "systemctl restart k3s"
+  "systemctl restart k3s-agent"
+  "systemctl restart caddy"
+  "systemctl restart cloudflared"
+  "systemctl restart docker"
+  "systemctl restart containerd"
+
+  # Filesystem hygiene
+  "fstrim -v"
+)
+
+matched=""
+for prefix in "${ALLOWED[@]}"; do
+  if [ "${CMD}" = "${prefix}" ] || [[ "${CMD}" == "${prefix} "* ]]; then
+    matched="${prefix}"
+    break
+  fi
+done
+
+if [ -z "${matched}" ]; then
+  reject "no allowlist match"
+fi
+
+log "ALLOW"
+echo ">>> sentinel-ops-runner: ${CMD}" >&2
+
+# Run with a hard wall-clock timeout. Use `timeout --foreground` so signals
+# propagate when the SSH client closes early.
+exec timeout --foreground "${TIMEOUT}" bash -c "${CMD}"

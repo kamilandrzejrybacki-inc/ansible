@@ -1,0 +1,53 @@
+---
+- name: Sentinel node-ops — create user
+  ansible.builtin.user:
+    name: "{{ sentinel_ops_user }}"
+    home: "{{ sentinel_ops_home }}"
+    shell: /bin/bash
+    create_home: true
+    system: false
+    state: present
+
+- name: Sentinel node-ops — ensure ~/.ssh exists
+  ansible.builtin.file:
+    path: "{{ sentinel_ops_home }}/.ssh"
+    state: directory
+    owner: "{{ sentinel_ops_user }}"
+    group: "{{ sentinel_ops_user }}"
+    mode: "0700"
+
+- name: Sentinel node-ops — deploy authorized_keys
+  ansible.builtin.template:
+    src: authorized_keys.j2
+    dest: "{{ sentinel_ops_home }}/.ssh/authorized_keys"
+    owner: "{{ sentinel_ops_user }}"
+    group: "{{ sentinel_ops_user }}"
+    mode: "0600"
+
+- name: Sentinel node-ops — deploy runner wrapper
+  ansible.builtin.copy:
+    src: sentinel-ops-runner
+    dest: /usr/local/bin/sentinel-ops-runner
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Sentinel node-ops — confirm runner allowlist version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/sentinel-ops-runner
+  environment:
+    SSH_ORIGINAL_COMMAND: "uname -a"
+    SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 22"
+  changed_when: false
+  failed_when: smoke_result.rc != 0
+  register: smoke_result
+
+- name: Sentinel node-ops — show readiness
+  ansible.builtin.debug:
+    msg: |
+      sentinel-node-ops wired on this node:
+        User             : {{ sentinel_ops_user }}
+        Home             : {{ sentinel_ops_home }}
+        Allowed CIDRs    : {{ sentinel_ops_from_cidrs }}
+        Wrapper          : /usr/local/bin/sentinel-ops-runner
+        Smoke `uname -a` : {{ (smoke_result.stdout_lines | last) | default('?') }}

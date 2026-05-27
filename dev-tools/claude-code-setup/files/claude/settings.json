@@ -5,7 +5,8 @@
     "exa",
     "memory",
     "playwright",
-    "sequential-thinking"
+    "sequential-thinking",
+    "agentmemory"
   ],
   "hooks": {
     "WorktreeCreate": [

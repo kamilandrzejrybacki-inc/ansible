@@ -1,0 +1,72 @@
+---
+# =============================================================================
+# Cellarette SSH pubkey distribution
+# =============================================================================
+# Cellarette ships an SSH cli_passthrough tool that uses a keypair stored in
+# the `cellarette-ssh` k8s secret. Targets reject the key until the matching
+# pubkey lands in ~kamil/.ssh/authorized_keys.
+#
+# This playbook reads the pubkey from the live k8s secret (or Vault as a
+# fallback) and pushes it to every homelab node's `kamil` user.
+#
+# Usage:
+#   ansible-playbook infrastructure/cellarette-key-distribution/setup.yml \
+#     -i infrastructure/cellarette-key-distribution/inventory/hosts.ini \
+#     --ask-become-pass
+# =============================================================================
+
+- name: Fetch cellarette pubkey from cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    kubeconfig_path: "{{ lookup('env', 'KUBECONFIG') | default(lookup('env', 'HOME') ~ '/.kube/lw-c1.yaml', true) }}"
+    cellarette_ssh_secret_name: cellarette-ssh
+    cellarette_ssh_secret_namespace: cellarette
+  tasks:
+    - name: Read cellarette-ssh secret
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        name: "{{ cellarette_ssh_secret_name }}"
+        namespace: "{{ cellarette_ssh_secret_namespace }}"
+      register: _cell_ssh_secret
+
+    - name: Assert secret was found
+      ansible.builtin.assert:
+        that:
+          - _cell_ssh_secret.resources | length > 0
+          - _cell_ssh_secret.resources[0].data.public_key is defined
+        fail_msg: "cellarette-ssh secret missing or has no public_key field"
+
+    - name: Decode pubkey
+      ansible.builtin.set_fact:
+        cellarette_pubkey: "{{ _cell_ssh_secret.resources[0].data.public_key | b64decode | trim }}"
+      no_log: false
+
+    - name: Show pubkey fingerprint
+      ansible.builtin.debug:
+        msg: "Distributing: {{ cellarette_pubkey }}"
+
+- name: Distribute cellarette pubkey to homelab nodes
+  hosts: homelab
+  gather_facts: false
+  become: true
+  vars:
+    cellarette_pubkey: "{{ hostvars['localhost'].cellarette_pubkey }}"
+  tasks:
+    - name: Ensure ~kamil/.ssh exists
+      ansible.builtin.file:
+        path: "/home/{{ target_user }}/.ssh"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0700"
+
+    - name: Add cellarette pubkey to authorized_keys
+      ansible.posix.authorized_key:
+        user: "{{ target_user }}"
+        state: present
+        key: "{{ cellarette_pubkey }}"
+        comment: cellarette@homelab

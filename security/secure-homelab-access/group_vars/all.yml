@@ -91,6 +91,9 @@ subdomain_notes_api: "notes-api"
 subdomain_notes_auth: "notes-auth"
 subdomain_notes_sse: "notes-sse"
 subdomain_notes_share: "notes-share"
+# stt-polish-svc (audio -> article for the Decap CMS widget; k8s NodePort).
+subdomain_stt: "stt"
+stt_nodeport: 30811
 quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------

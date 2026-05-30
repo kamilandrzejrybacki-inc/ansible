@@ -196,6 +196,17 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
+# stt-polish-svc (audio -> article; k8s on lw-c1). The service does its own
+# GitHub-token auth, so NO authelia import here.
+{{ _scheme }}{{ subdomain_stt }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ k8s_node_ip }}:{{ stt_nodeport | default(30811) }}
+}
+
 # ArgoCD UI — WireGuard/LAN only, via Traefik IngressRoute
 {{ _scheme }}{{ subdomain_argocd }}.{{ domain }} {
 	import rate_limit

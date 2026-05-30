@@ -74,6 +74,17 @@
     mode: "0644"
     directory_mode: "0755"
 
+# Vendored, repo-local skills (e.g. the thermo-nuclear code-quality-review
+# standard). Copied directly rather than cloned, since they live in this
+# repo instead of an upstream skill repo. CLAUDE.md makes the review skill
+# the default standard for every review.
+- name: Copy vendored skills directory
+  ansible.builtin.copy:
+    src: claude/skills/
+    dest: "{{ claude_config_dir }}/skills/"
+    mode: "0644"
+    directory_mode: "0755"
+
 - name: Ensure hooks directory exists
   ansible.builtin.file:
     path: "{{ claude_config_dir }}/hooks"

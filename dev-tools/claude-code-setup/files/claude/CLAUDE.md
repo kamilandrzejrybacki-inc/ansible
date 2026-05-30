@@ -82,4 +82,13 @@ Always use jCodemunch-MCP tools for code navigation. Never fall back to Read, Gr
 - If `auto_compacted: true` appears: results were automatically compressed due to turn budget
 - Use `get_session_context` to check what you've already read — avoid re-reading the same files
 
+## Code Review Policy — Thermo-Nuclear Standard
+
+Whenever you perform **any** review — code review, PR review, diff review, pre-merge audit, or a review requested through a slash command or sub-agent — apply the **thermo-nuclear-code-quality-review** skill (`~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md`) as the baseline standard.
+
+- Treat its Non-Negotiable Additional Standards and Approval Bar as the default bar for every review, not an opt-in mode.
+- This applies regardless of who asks or how the review is triggered.
+- The skill sets `disable-model-invocation: true`, so it will not auto-trigger — load and follow `SKILL.md` explicitly at the start of any review task.
+- Lead with structural and maintainability findings; do not flood the review with low-value nits when larger structural issues exist.
+
 @RTK.md

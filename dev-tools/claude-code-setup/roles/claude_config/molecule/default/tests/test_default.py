@@ -34,3 +34,21 @@ def test_rules_file_exists(host):
     rule_file = host.file("/tmp/test-claude-config/rules/coding-style.md")
     assert rule_file.exists
     assert rule_file.is_file
+
+
+def test_skills_directory_deployed(host):
+    """Verify vendored skills directory is copied."""
+    skills_dir = host.file("/tmp/test-claude-config/skills")
+    assert skills_dir.exists
+    assert skills_dir.is_directory
+
+
+def test_thermo_nuclear_skill_deployed(host):
+    """Verify the thermo-nuclear code-quality-review skill is deployed."""
+    skill = host.file(
+        "/tmp/test-claude-config/skills/"
+        "thermo-nuclear-code-quality-review/SKILL.md"
+    )
+    assert skill.exists
+    assert skill.is_file
+    assert "thermo-nuclear-code-quality-review" in skill.content_string

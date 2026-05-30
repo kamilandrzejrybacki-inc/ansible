@@ -13,7 +13,7 @@ Ansible playbook for provisioning [Claude Code](https://claude.com/claude-code) 
 | Role | What it does |
 |------|-------------|
 | `claude_cli` | Installs Node.js 22 (via NodeSource) and Claude Code CLI (`npm install -g @anthropic-ai/claude-code`). Skips if already present. |
-| `claude_config` | Copies `settings.json`, `CLAUDE.md`, `RTK.md`, and `rules/` into `~/.claude/`. Timestamps and backs up existing settings. |
+| `claude_config` | Copies `settings.json`, `CLAUDE.md`, `RTK.md`, `rules/`, and `skills/` (incl. the thermo-nuclear code-quality-review standard) into `~/.claude/`. Timestamps and backs up existing settings. |
 | `plugins` | Registers 5 marketplaces (superpowers, everything-claude-code, n8n-mcp-skills, openai-codex, caveman) and installs 6 plugins (superpowers, serena, everything-claude-code, n8n-mcp-skills, codex, caveman). Disables `context7` per block list. Patches `caveman-activate.js` to emit full-mode rules on session start. |
 | `mcp_servers` | Registers HTTP MCP servers (Gmail, Google Calendar) and the `lightpanda` stdio server (`docker exec`). |
 | `commands` | Deploys any custom slash commands listed in `claude_commands` (empty by default). |
@@ -82,6 +82,7 @@ The `files/` directory contains canonical configuration snapshots:
 - `files/claude/CLAUDE.md` — global project instructions loaded by Claude Code
 - `files/claude/RTK.md` — RTK usage reference loaded alongside `CLAUDE.md`
 - `files/claude/rules/` — rule files across global + language-specific categories
+- `files/claude/skills/` — global Claude Code skills. Includes `thermo-nuclear-code-quality-review/`, the strict maintainability-review standard that `CLAUDE.md` applies to every review
 
 To refresh snapshots after tweaking your live config:
 
@@ -90,4 +91,5 @@ cp ~/.claude/settings.json files/claude/settings.json
 cp ~/.claude/CLAUDE.md     files/claude/CLAUDE.md
 cp ~/.claude/RTK.md        files/claude/RTK.md
 cp -r ~/.claude/rules       files/claude/rules
+cp -r ~/.claude/skills      files/claude/skills
 ```

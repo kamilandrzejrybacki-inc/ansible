@@ -208,17 +208,6 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
-# Stirling PDF (PDF tools on lw-nas)
-{{ _scheme }}{{ subdomain_pdf }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ stirling_port | default(8080) }}
-}
-
 # Pingvin Share (file sharing on k8s lw-c1)
 {{ _scheme }}{{ subdomain_filebrowser }}.{{ domain }} {
 	import rate_limit

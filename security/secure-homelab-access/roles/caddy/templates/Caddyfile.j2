@@ -82,18 +82,6 @@
 	reverse_proxy {{ authelia_container_name }}:9091
 }
 
-# Homepage dashboard
-{{ _scheme }}{{ subdomain_home }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
-
 # WireGuard admin UI
 {{ _scheme }}{{ subdomain_wireguard }}.{{ domain }} {
 	import rate_limit
@@ -208,17 +196,6 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
-# Pingvin Share (file sharing on k8s lw-c1)
-{{ _scheme }}{{ subdomain_filebrowser }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ k8s_node_ip }}:{{ pingvin_nodeport }}
-}
-
 # ArgoCD UI — WireGuard/LAN only, via Traefik IngressRoute
 {{ _scheme }}{{ subdomain_argocd }}.{{ domain }} {
 	import rate_limit
@@ -234,21 +211,6 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# Guacamole browser-based remote desktop (K8s on lw-c1) — WireGuard only
-{{ _scheme }}{{ subdomain_guacamole }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	@public {
-		not remote_ip private_ranges 10.8.0.0/24
-	}
-	respond @public "Forbidden" 403
-	import authelia
-	reverse_proxy {{ k8s_node_ip }}:{{ guacamole_nodeport }}
-}
-
 # OmniRoute AI gateway dashboard (K8s on lw-c1)
 {{ _scheme }}{{ subdomain_omniroute }}.{{ domain }} {
 	import rate_limit
@@ -258,34 +220,6 @@
 {% endif %}
 	import authelia
 	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
-}
-
-# Excalidraw whiteboard — main via Traefik IngressRoute, storage API still NodePort
-{{ _scheme }}{{ subdomain_excalidraw }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	handle /api/v2/* {
-		reverse_proxy http://{{ excalidraw_host | default('192.168.0.107') }}:{{ excalidraw_storage_port | default(30684) }}
-	}
-
-	handle {
-		import authelia
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-}
-
-# Knowledge Vault / Quartz (on lw-nas)
-{{ _scheme }}{{ subdomain_kb }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ quartz_port }}
 }
 
 # AgentMemory (k8s, AI agent memory store — via Traefik IngressRoute)
@@ -366,28 +300,6 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}
 }
 
-# Kroki — diagram rendering API (mermaid/plantuml/graphviz/...)
-{{ _scheme }}{{ subdomain_kroki }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ k8s_node_ip }}:{{ kroki_nodeport | default(30880) }}
-}
-
-# TLDraw — stylus whiteboard
-{{ _scheme }}{{ subdomain_tldraw }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ k8s_node_ip }}:{{ tldraw_nodeport | default(30881) }}
-}
-
 # Sentinel (incident dashboard — via Traefik IngressRoute).
 # /webhook/* is the Grafana alert ingress; it has its own SENTINEL_WEBHOOK_SECRET
 # HMAC check, so Authelia must NOT block those POSTs.
@@ -405,73 +317,4 @@
 		import authelia
 		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 	}
-}
-
-# Kubernetes Dashboard (Skooner replacement) — SA token injected after Authelia
-{{ _scheme }}{{ subdomain_k8s_dashboard }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	# Dashboard authenticates with bearer token. Caddy injects the SA token
-	# AFTER Authelia validates so the user doesn't need to log in twice.
-	request_header +Authorization "Bearer {env.K8S_DASHBOARD_TOKEN}"
-	reverse_proxy https://{{ k8s_node_ip }}:{{ k8s_dashboard_nodeport | default(30802) }} {
-		transport http {
-			tls_insecure_skip_verify
-		}
-	}
-}
-
-
-
-# Notesnook sync server (REST API for notes/attachments)
-{{ _scheme }}{{ subdomain_notes_api }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	# No Authelia — Notesnook clients use their own E2EE token auth.
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
-# Notesnook identity server (OpenIddict OIDC for the clients)
-{{ _scheme }}{{ subdomain_notes_auth }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
-# Notesnook SSE (server-sent events for realtime sync notifications)
-{{ _scheme }}{{ subdomain_notes_sse }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	# SSE keeps a long-lived HTTP stream; raise read/write timeouts so Caddy
-	# doesn't drop the connection mid-stream.
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
-		flush_interval -1
-		transport http {
-			read_timeout 1h
-			write_timeout 1h
-		}
-	}
-}
-
-# Notesnook Monograph (public note publishing)
-{{ _scheme }}{{ subdomain_notes_share }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }

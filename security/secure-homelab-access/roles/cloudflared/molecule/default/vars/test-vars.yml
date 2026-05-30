@@ -1,0 +1,8 @@
+---
+ansible_user: root
+cloudflared_version: "latest"
+cloudflared_install_dir: "/usr/local/bin"
+cloudflared_config_dir: "/etc/cloudflared"
+cloudflared_credentials_dir: "/root/.cloudflared"
+cloudflared_service_user: "root"
+cloudflared_service_name: "cloudflared"

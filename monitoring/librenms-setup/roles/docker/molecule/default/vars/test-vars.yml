@@ -1,0 +1,7 @@
+---
+ansible_user: root
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin

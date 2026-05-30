@@ -1,0 +1,13 @@
+---
+ansible_user: root
+vault_install_dir: "/opt/vault"
+vault_image: "hashicorp/vault:1.17"
+vault_port: 8200
+vault_bind_address: "127.0.0.1"
+vault_storage_backend: "file"
+vault_auto_unseal: true
+vault_keys_file: "/opt/vault/init-keys.json"
+vault_kv_mount: "secret"
+vault_ansible_policy: "ansible-automation"
+vault_health_check_retries: 12
+vault_health_check_delay: 5

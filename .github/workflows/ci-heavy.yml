@@ -9,6 +9,7 @@ on:
     paths:
       - 'security/**'
       - 'monitoring/**'
+      - 'files/**'
 
 permissions:
   contents: read

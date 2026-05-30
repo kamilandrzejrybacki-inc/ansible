@@ -1,0 +1,12 @@
+---
+ansible_user: root
+librenms_version: "26.3.1"
+librenms_port: 8080
+librenms_data_dir: /opt/librenms
+librenms_container_name: librenms
+librenms_hostname: "librenms"
+librenms_snmp_community: "test-community"
+librenms_db_password: "test-db-password"
+librenms_db_root_password: "root_test-db-password"
+librenms_health_check_retries: 20
+librenms_health_check_delay: 10

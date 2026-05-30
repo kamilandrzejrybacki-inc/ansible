@@ -1,0 +1,18 @@
+---
+ansible_user: root
+netbox_image: "netboxcommunity/netbox:v4.2-3.0.2"
+netbox_postgres_image: "postgres:16-alpine"
+netbox_redis_image: "valkey/valkey:8.0-alpine"
+netbox_port: 8081
+netbox_data_dir: /opt/netbox
+netbox_container_name: netbox
+netbox_hostname: "netbox"
+netbox_bind_address: "127.0.0.1"
+netbox_public_url: ""
+netbox_restart_policy: unless-stopped
+netbox_health_check_retries: 30
+netbox_health_check_delay: 15
+netbox_timezone: "Europe/Warsaw"
+netbox_admin_user: admin
+netbox_admin_email: "test@example.com"
+netbox_admin_password: "test-password"

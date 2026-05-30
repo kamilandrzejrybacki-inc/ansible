@@ -1,0 +1,12 @@
+---
+ansible_user: root
+docker_data_dir: "/opt/homelab"
+crowdsec_image: "crowdsecurity/crowdsec:latest"
+crowdsec_container_name: "crowdsec"
+crowdsec_data_dir: "/opt/homelab/crowdsec"
+crowdsec_collections:
+  - crowdsecurity/linux
+  - crowdsecurity/caddy
+  - crowdsecurity/http-cve
+  - crowdsecurity/sshd
+crowdsec_lapi_port: 8080

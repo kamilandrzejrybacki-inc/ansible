@@ -179,16 +179,25 @@
 }
 
 # Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)
+# WebSocket session: disable buffering + drop timeouts so idle terminals
+# (Claude Code waiting on user input, long-running builds) don't get
+# archived as 'connection dropped'.
 {{ _scheme }}{{ subdomain_nexterm }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy {{ k8s_node_ip }}:{{ nexterm_nodeport | default(30989) }}
+	reverse_proxy {{ k8s_node_ip }}:{{ nexterm_nodeport | default(30989) }} {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
 }
 
-# Paperless (document management on lw-nas)
+# Paperless (document management — migrated to k8s, NodePort via k8s_node_ip)
 {{ _scheme }}{{ subdomain_paperless }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -196,7 +205,7 @@
 	import cf_tls
 {% endif %}
 	import authelia
-	reverse_proxy http://{{ nas_ip | default('192.168.0.115') }}:{{ paperless_port | default(8000) }}
+	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
 # Stirling PDF (PDF tools on lw-nas)

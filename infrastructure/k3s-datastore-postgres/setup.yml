@@ -1,0 +1,22 @@
+---
+# IaC the k3s control-plane datastore Postgres container on lw-nas.
+# Read group_vars/all.yml first — applying this can restart the datastore.
+# Dry-run before any real apply:  ansible-playbook setup.yml --check --diff
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add k3s-postgres host to inventory
+      ansible.builtin.add_host:
+        name: "{{ k3s_pg_host }}"
+        groups: k3s_pg_hosts
+        ansible_user: "{{ k3s_pg_ssh_user }}"
+        ansible_python_interpreter: /usr/bin/python3
+
+- name: Manage the k3s datastore Postgres container
+  hosts: k3s_pg_hosts
+  become: true
+  roles:
+    - k3s-datastore-postgres

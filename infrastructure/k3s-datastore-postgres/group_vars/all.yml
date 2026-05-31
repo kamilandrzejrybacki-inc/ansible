@@ -1,0 +1,54 @@
+---
+# IaC for the k3s control-plane datastore Postgres (the `k3s_state` DB that k3s
+# uses via --datastore-endpoint). This container was previously hand-run with a
+# bare `docker run` on 192.168.0.115 and tracked nowhere; this role captures its
+# exact live spec so it is reproducible.
+#
+# ⚠️  APPLYING THIS CAN RESTART THE K3S DATASTORE. If docker detects ANY drift from
+#     the running container, community.docker.docker_container recreates it → the
+#     k3s API↔datastore link drops ~3-5s and the kube-vip control-plane VIP
+#     (192.168.0.60) fails over (~1 min of `kubectl: no route to host`). When the
+#     spec below matches the live container, a real apply is a NO-OP.
+#     ALWAYS dry-run first:  ansible-playbook setup.yml --check --diff
+#     If --check reports "changed", a real run WILL recreate — do it in a
+#     maintenance window only. Rollback: the prior container is kept renamed
+#     `k3s-postgres-pre300` (from the 2026-05-31 max_connections bump) until pruned.
+
+k3s_pg_host: "192.168.0.115"
+k3s_pg_ssh_user: kamil
+k3s_pg_container_name: k3s-postgres
+k3s_pg_image: "postgres:16-alpine"
+k3s_pg_port: 5432
+k3s_pg_data_bind: /mnt/pool/k3s-state/data
+k3s_pg_db: k3s_state
+k3s_pg_user: k3s
+k3s_pg_initdb_args: "--encoding=UTF8 --locale=C"
+
+# Server tuning, passed as postgres -c flags (these OVERRIDE postgresql.auto.conf,
+# so this list is the single source of truth for these settings). max_connections
+# raised 200→300 on 2026-05-31 — the 200 ceiling was hit under bursty load and
+# stalled the API↔datastore link, causing lockstep kube-vip/nfs restarts.
+k3s_pg_command:
+  - "-c"
+  - "max_connections=300"
+  - "-c"
+  - "shared_buffers=512MB"
+  - "-c"
+  - "effective_cache_size=1536MB"
+  - "-c"
+  - "work_mem=4MB"
+  - "-c"
+  - "maintenance_work_mem=128MB"
+  - "-c"
+  - "wal_compression=on"
+  - "-c"
+  - "synchronous_commit=on"
+  - "-c"
+  - "fsync=on"
+
+# POSTGRES_PASSWORD is intentionally NOT managed here: it is only consumed at first
+# initdb (ignored once PGDATA is populated, as it is), and pinning it would force a
+# recreate whenever the value isn't available to the play. For a from-scratch
+# rebuild (empty data volume) pass it explicitly, e.g.
+#   ansible-playbook setup.yml -e k3s_pg_init_password=<superuser-pw>
+k3s_pg_init_password: ""

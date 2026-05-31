@@ -1,0 +1,51 @@
+---
+# Build the env dict: always the functional vars; add POSTGRES_PASSWORD ONLY when a
+# value is supplied (from-scratch init). Omitting it keeps a converge from forcing
+# a recreate, since env is superset-compared and the live container already has its
+# password baked into the data volume.
+- name: Compose container env
+  ansible.builtin.set_fact:
+    _k3s_pg_env: >-
+      {{
+        {
+          'POSTGRES_DB': k3s_pg_db,
+          'POSTGRES_USER': k3s_pg_user,
+          'POSTGRES_INITDB_ARGS': k3s_pg_initdb_args,
+        }
+        | combine({'POSTGRES_PASSWORD': k3s_pg_init_password} if k3s_pg_init_password | length > 0 else {})
+      }}
+
+- name: Ensure the k3s datastore Postgres container matches the declared spec
+  community.docker.docker_container:
+    name: "{{ k3s_pg_container_name }}"
+    image: "{{ k3s_pg_image }}"
+    state: started
+    restart_policy: always
+    command: "{{ k3s_pg_command }}"
+    env: "{{ _k3s_pg_env }}"
+    published_ports:
+      - "{{ k3s_pg_port }}:5432"
+    volumes:
+      - "{{ k3s_pg_data_bind }}:/var/lib/postgresql/data"
+    # Networks are intentionally unmanaged (the container is on the default bridge);
+    # specifying them risks a detach/reattach that would recreate the container.
+    #
+    # published_ports/volumes are set to `ignore` for the IDEMPOTENCE COMPARISON
+    # only — the values above are still applied on (re)create. The hand-created
+    # live container reports an empty HostIp ("" ≡ 0.0.0.0) and a bind with no `:rw`
+    # suffix; docker_container normalizes both, which otherwise flags a spurious
+    # "changed" and would RECREATE the datastore (= control-plane blip) over an
+    # equivalent representation. image/command/env/restart_policy stay strict so a
+    # real tuning or image change IS detected.
+    comparisons:
+      published_ports: ignore
+      volumes: ignore
+
+- name: Confirm datastore is accepting connections
+  ansible.builtin.command: >
+    docker exec {{ k3s_pg_container_name }} pg_isready -U {{ k3s_pg_user }} -d {{ k3s_pg_db }}
+  register: _pg_ready
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: _pg_ready.rc == 0

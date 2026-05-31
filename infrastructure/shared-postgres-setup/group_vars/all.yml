@@ -9,6 +9,20 @@ shared_postgres_restart_policy: unless-stopped
 shared_postgres_health_check_retries: 20
 shared_postgres_health_check_delay: 5
 
+# Server tuning, applied via -c flags on the container command so the values are
+# declarative/GitOps-tracked (they previously lived only in postgresql.auto.conf
+# inside the data volume). max_connections raised 200→300: the 200 ceiling was hit
+# under bursty concurrent load (k3s_state datastore + n8n + coder + prefect), which
+# stalled the k3s API↔datastore link and caused lockstep pod restarts (kube-vip /
+# nfs lost their leader-election leases). ~10 MB/slot worst case → ~+1 GB headroom
+# over 200. The other three match the current live values, pinned so a container
+# recreate can't silently drop them. NB: changing max_connections requires a
+# postgres RESTART (brief k3s control-plane blip) — run the playbook in a window.
+shared_postgres_max_connections: 300
+shared_postgres_shared_buffers: 512MB
+shared_postgres_effective_cache_size: 1536MB
+shared_postgres_work_mem: 4MB
+
 # Tenant definitions — each service gets its own database and user
 shared_postgres_tenants:
   - name: outline

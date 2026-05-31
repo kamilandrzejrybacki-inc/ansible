@@ -3,6 +3,18 @@ services:
   shared-postgres:
     container_name: {{ shared_postgres_container_name }}
     image: {{ shared_postgres_image }}
+    # Server tuning via -c flags (overrides postgresql.auto.conf). See group_vars.
+    # Recreating the container with a changed command RESTARTS postgres.
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections={{ shared_postgres_max_connections }}"
+      - "-c"
+      - "shared_buffers={{ shared_postgres_shared_buffers }}"
+      - "-c"
+      - "effective_cache_size={{ shared_postgres_effective_cache_size }}"
+      - "-c"
+      - "work_mem={{ shared_postgres_work_mem }}"
     environment:
       POSTGRES_PASSWORD: "{{ shared_postgres_superuser_password }}"
     ports:

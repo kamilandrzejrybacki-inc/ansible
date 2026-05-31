@@ -10,14 +10,17 @@ shared_postgres_health_check_retries: 20
 shared_postgres_health_check_delay: 5
 
 # Server tuning, applied via -c flags on the container command so the values are
-# declarative/GitOps-tracked (they previously lived only in postgresql.auto.conf
-# inside the data volume). max_connections raised 200→300: the 200 ceiling was hit
-# under bursty concurrent load (k3s_state datastore + n8n + coder + prefect), which
-# stalled the k3s API↔datastore link and caused lockstep pod restarts (kube-vip /
-# nfs lost their leader-election leases). ~10 MB/slot worst case → ~+1 GB headroom
-# over 200. The other three match the current live values, pinned so a container
-# recreate can't silently drop them. NB: changing max_connections requires a
-# postgres RESTART (brief k3s control-plane blip) — run the playbook in a window.
+# declarative rather than hidden in postgresql.auto.conf.
+#
+# SCOPE: this role manages a SEPARATE shared Postgres for app tenants
+# (outline/netbox/paperless, container `shared-postgres`). It is NOT the k3s
+# datastore. The live k3s datastore is a hand-run `docker run` container named
+# `k3s-postgres` on 192.168.0.115 (bind /mnt/pool/k3s-state/data, db k3s_state,
+# user k3s) that is NOT managed by any ansible role — TODO: bring it under IaC.
+# Its max_connections was raised 200→300 manually on 2026-05-31 (it kept hitting
+# the 200 ceiling under bursty load, stalling the API↔datastore link and causing
+# lockstep kube-vip/nfs leader-election restarts) by recreating that container
+# with the same spec + -c max_connections=300.
 shared_postgres_max_connections: 300
 shared_postgres_shared_buffers: 512MB
 shared_postgres_effective_cache_size: 1536MB

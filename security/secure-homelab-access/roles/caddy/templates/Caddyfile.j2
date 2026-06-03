@@ -244,15 +244,24 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# Meepmap (mapping app — via Traefik IngressRoute)
+# Meepmap (mapping app — via Traefik IngressRoute).
+# /api/billing/webhook is the Stripe webhook ingress; it verifies the Stripe
+# signature itself, so Authelia must NOT block those POSTs (same pattern as
+# sentinel /webhook/*).
 {{ _scheme }}{{ subdomain_meepmap | default('meepmap') }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	import authelia
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	@stripe_webhook path /api/billing/webhook
+	handle @stripe_webhook {
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
+	handle {
+		import authelia
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
 }
 
 # MinIO console (object storage UI — via Traefik IngressRoute)

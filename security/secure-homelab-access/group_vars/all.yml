@@ -100,6 +100,8 @@ quartz_port: 8081
 k8s_node_ip: "192.168.0.107"
 # MetalLB VIP — Traefik LoadBalancer IP (Phase 1+). Caddy proxies IngressRoute services here.
 traefik_vip: "192.168.0.50"
+# Traefik NodePort fallback (web entrypoint) — used while MetalLB VIP is not deployed.
+traefik_nodeport_http: 30820
 argocd_nodeport: 30443
 argocd_nodeport_http: 30080
 omniroute_nodeport: 30787
@@ -108,7 +110,6 @@ pingvin_nodeport: 30815
 vault_nodeport: 30822
 coder_nodeport: 30750
 cellarette_nodeport: 30701
-nexterm_nodeport: 30989
 homepage_nodeport: 30300
 kroki_nodeport: 30880
 tldraw_nodeport: 30881

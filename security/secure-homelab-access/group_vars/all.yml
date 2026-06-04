@@ -107,7 +107,6 @@ argocd_nodeport_http: 30080
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
-vault_nodeport: 30822
 coder_nodeport: 30750
 cellarette_nodeport: 30701
 homepage_nodeport: 30300

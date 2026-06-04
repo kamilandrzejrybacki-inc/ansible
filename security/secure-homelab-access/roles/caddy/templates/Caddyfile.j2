@@ -147,13 +147,15 @@
 }
 
 # HashiCorp Vault — no Authelia (Vault uses own OIDC auth)
+# Vault runs as a docker container on this host (vault_default network,
+# port published on 0.0.0.0:8200) — NOT on k8s. NodePort 30822 is dead.
 {{ _scheme }}{{ subdomain_vault }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy http://{{ k8s_node_ip }}:{{ vault_nodeport | default(30822) }}
+	reverse_proxy http://{{ homelab_host_ip }}:8200
 }
 
 # Coder (agent workspace control plane) — no Authelia (Coder uses own auth)

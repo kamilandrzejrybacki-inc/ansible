@@ -1,0 +1,22 @@
+---
+- name: Configure SSH keepalive settings
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: sshd -t -f %s
+  loop:
+    - { regexp: '^#?TCPKeepAlive', line: "TCPKeepAlive {{ ssh_tcp_keepalive }}" }
+    - { regexp: '^#?ClientAliveInterval', line: "ClientAliveInterval {{ ssh_client_alive_interval }}" }
+    - { regexp: '^#?ClientAliveCountMax', line: "ClientAliveCountMax {{ ssh_client_alive_count_max }}" }
+  notify: Reload sshd
+
+- name: Configure SSH port
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Port '
+    line: "Port {{ ssh_port }}"
+    state: present
+    validate: sshd -t -f %s
+  notify: Reload sshd

@@ -172,15 +172,15 @@
 # WebSocket session: disable buffering + drop timeouts so idle terminals
 # (Claude Code waiting on user input, long-running builds) don't get
 # archived as 'connection dropped'.
-# Nexterm chart exposes a Traefik IngressRoute (Host match), not a NodePort —
-# proxy via Traefik web entrypoint. Switch to traefik_vip once MetalLB is live.
+# Nexterm chart exposes a Traefik IngressRoute (Host match) — proxy via
+# the MetalLB Traefik VIP like the other IngressRoute services.
 {{ _scheme }}{{ subdomain_nexterm }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy {{ k8s_node_ip }}:{{ traefik_nodeport_http | default(30820) }} {
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
 		flush_interval -1
 		transport http {
 			read_timeout 0

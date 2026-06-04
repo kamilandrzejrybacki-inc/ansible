@@ -1,0 +1,15 @@
+---
+# Keepalive + port via a drop-in that sorts BEFORE 99-hardening.conf
+# (fail2ban role) — sshd takes the first value per key, so editing the
+# main sshd_config with lineinfile silently loses to any drop-in.
+- name: Write SSH keepalive drop-in config
+  ansible.builtin.template:
+    src: sshd-keepalive.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-keepalive.conf
+    mode: "0600"
+    validate: sshd -t -f %s
+  notify: Reload sshd
+
+- name: Validate SSH config
+  ansible.builtin.command: sshd -t
+  changed_when: false

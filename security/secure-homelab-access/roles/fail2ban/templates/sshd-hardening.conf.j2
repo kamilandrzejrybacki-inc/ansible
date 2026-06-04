@@ -22,6 +22,6 @@ MaxAuthTries 3
 # Limit concurrent unauthenticated connections (start:rate:full)
 MaxStartups 5:50:10
 
-# Drop inactive sessions after 5 minutes of silence
-ClientAliveInterval 60
-ClientAliveCountMax 5
+# Keepalive / idle-session settings live in 10-keepalive.conf (ssh role).
+# sshd takes the FIRST value it reads per key — 10- sorts before 99-, so
+# do NOT re-declare ClientAlive*/TCPKeepAlive here.

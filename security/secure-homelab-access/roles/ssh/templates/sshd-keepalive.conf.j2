@@ -1,0 +1,13 @@
+# SSH keepalive drop-in — managed by Ansible (ssh role)
+# Named 10-keepalive.conf so it sorts BEFORE 99-hardening.conf: sshd uses
+# the first value it reads per key, so this file wins for keepalive keys.
+#
+# Goal: keep idle interactive sessions (Claude Code waiting on input,
+# long-running builds) alive instead of dropping them after 5 minutes.
+
+TCPKeepAlive {{ ssh_tcp_keepalive }}
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# SSH port (prompted at setup; default 22)
+Port {{ ssh_port }}

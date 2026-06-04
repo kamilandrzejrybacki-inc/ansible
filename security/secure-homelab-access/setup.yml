@@ -565,6 +565,9 @@
       tags: [always]
 
   roles:
+    - role: ssh
+      tags: [ssh, security]
+
     - role: firewall
       tags: [firewall, security]
 

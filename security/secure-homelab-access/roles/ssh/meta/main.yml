@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: ssh
+  author: kamil-rybacki
+  description: SSH server keepalive and hardening settings
+  min_ansible_version: "2.14"
+dependencies: []

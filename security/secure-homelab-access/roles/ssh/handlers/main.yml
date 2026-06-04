@@ -1,0 +1,6 @@
+---
+- name: Reload sshd
+  ansible.builtin.systemd:
+    # Ubuntu names the unit `ssh` (sshd is an alias on most distros).
+    name: ssh
+    state: reloaded

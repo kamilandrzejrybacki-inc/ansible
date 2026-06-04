@@ -262,6 +262,13 @@
 	handle @stripe_webhook {
 		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 	}
+	# PWA manifest is fetched WITHOUT credentials by browsers, so Authelia 302s
+	# it into a CORS error + service-worker failures. It is public, static app
+	# metadata (name/icons) — safe to expose.
+	@manifest path /manifest.webmanifest
+	handle @manifest {
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
 	handle {
 		import authelia
 		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}

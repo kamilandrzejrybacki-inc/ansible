@@ -94,6 +94,9 @@
   register: _authelia_bypass_raw
   changed_when: false
   no_log: true
+  # ~/.vault-ansible.yml lives in the connecting user's home — the play-level
+  # `become: true` would resolve ~ to /root and silently return "".
+  become: false
 
 - name: Set Cellarette Authelia bypass secret fact
   ansible.builtin.set_fact:
@@ -130,6 +133,8 @@
   register: _cellarette_mcp_token_raw
   changed_when: false
   no_log: true
+  # Same ~-resolution issue as the Authelia bypass fetch above.
+  become: false
 
 # Fail closed: if the Vault key is missing, set an unguessable sentinel so the
 # Caddyfile matcher ("Bearer {env.CELLARETTE_MCP_TOKEN}") can never match an

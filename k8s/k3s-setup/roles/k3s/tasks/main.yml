@@ -1,4 +1,20 @@
 ---
+# Kubelet + alloy log tailers each hold an inotify instance per watched pod;
+# the kernel default (128 per UID) exhausts on busy nodes. Root hitting the cap
+# breaks alloy's loki.source.kubernetes tailing ("failed to create fsnotify
+# watcher: too many open files" flooding pod streams) → silent log-shipping
+# gaps exactly when incidents need diagnosing (cms-auth, 2026-06-05).
+- name: Raise inotify limits for kubelet/log-tailing
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-k3s-inotify.conf
+    state: present
+    reload: true
+  loop:
+    - { name: fs.inotify.max_user_instances, value: "512" }
+    - { name: fs.inotify.max_user_watches, value: "524288" }
+
 - name: Install curl (required by K3s installer)
   ansible.builtin.apt:
     name: curl

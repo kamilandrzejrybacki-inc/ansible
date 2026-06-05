@@ -75,6 +75,9 @@ subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
 subdomain_coder: "coder"
 subdomain_cellarette: "cellarette"
+# Cellarette MCP SSE endpoint (Bearer-token gated, no Authelia — MCP clients
+# can't complete a browser SSO flow). Backend is the Traefik IngressRoute.
+subdomain_cellarette_mcp: "cellarette-mcp"
 subdomain_agentmemory: "agentmemory"
 subdomain_meepmap: "meepmap"
 subdomain_minio: "minio"

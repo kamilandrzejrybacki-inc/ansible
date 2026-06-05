@@ -331,6 +331,30 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ cellarette_nodeport | default(30701) }}
 }
 
+# Cellarette MCP gateway — SSE endpoint for Claude Code / MCP clients.
+# NO Authelia: SSE clients cannot complete a browser SSO flow. Gated instead
+# by a static Bearer token (Vault homelab/cellarette.mcp_token) that clients
+# send as an Authorization header. Backend is the Traefik IngressRoute
+# (charts/cellarette/templates/ingressroute.yaml) — the MCP Service itself
+# stays ClusterIP, no NodePort (hardening 2026-05-29 preserved).
+# SSE needs unbuffered streaming + no read timeout, same as hermes/nexterm.
+{{ _scheme }}{{ subdomain_cellarette_mcp }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@unauthorized not header Authorization "Bearer {env.CELLARETTE_MCP_TOKEN}"
+	respond @unauthorized "Unauthorized" 401
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}
+
 # Sentinel (incident dashboard — via Traefik IngressRoute).
 # /webhook/* is the Grafana alert ingress; it has its own SENTINEL_WEBHOOK_SECRET
 # HMAC check, so Authelia must NOT block those POSTs.

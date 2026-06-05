@@ -100,6 +100,45 @@
     caddy_authelia_bypass_secret: "{{ _authelia_bypass_raw.stdout | trim }}"
   no_log: true
 
+- name: Fetch Cellarette MCP gateway token from Vault
+  ansible.builtin.shell: |
+    python3 - <<'PYEOF'
+    import yaml, urllib.request, json, sys, os
+    conn_file = os.path.expanduser("~/.vault-ansible.yml")
+    if not os.path.exists(conn_file):
+        print("", end="")
+        sys.exit(0)
+    with open(conn_file) as f:
+        d = yaml.safe_load(f)
+    addr = d.get("vault_addr", "")
+    token = d.get("vault_token", "")
+    mount = d.get("vault_kv_mount", "secret")
+    if not addr or not token:
+        print("", end="")
+        sys.exit(0)
+    try:
+        req = urllib.request.Request(
+            f"{addr}/v1/{mount}/data/homelab/cellarette",
+            headers={"X-Vault-Token": token}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+            print(data["data"]["data"].get("mcp_token", ""), end="")
+    except Exception:
+        print("", end="")
+    PYEOF
+  register: _cellarette_mcp_token_raw
+  changed_when: false
+  no_log: true
+
+# Fail closed: if the Vault key is missing, set an unguessable sentinel so the
+# Caddyfile matcher ("Bearer {env.CELLARETTE_MCP_TOKEN}") can never match an
+# empty Authorization header.
+- name: Set Cellarette MCP gateway token fact
+  ansible.builtin.set_fact:
+    caddy_cellarette_mcp_token: "{{ _cellarette_mcp_token_raw.stdout | trim | default('DENY-ALL-MCP-TOKEN-UNSET-' + (ansible_date_time.epoch | default('0')), true) }}"
+  no_log: true
+
 - name: Read Kubernetes Dashboard SA token from k8s
   ansible.builtin.command: >
     kubectl get secret kubernetes-dashboard-token -n kubernetes-dashboard
@@ -125,6 +164,7 @@
       CF_API_TOKEN: "{{ cloudflare_api_token | default('') }}"
       K8S_DASHBOARD_TOKEN: "{{ k8s_dashboard_sa_token | default('') }}"
       CELLARETTE_AUTHELIA_SECRET: "{{ caddy_authelia_bypass_secret | default('') }}"
+      CELLARETTE_MCP_TOKEN: "{{ caddy_cellarette_mcp_token }}"
     ports:
       - "80:80"
       - "443:443"

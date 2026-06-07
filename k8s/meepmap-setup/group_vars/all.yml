@@ -4,3 +4,8 @@ meepmap_nodeport: 30900
 
 # k3s node IP — separate from the Docker/Caddy host (192.168.0.111)
 k3s_node_ip: "192.168.0.107"
+
+# Edge reverse-proxy upstream for meepmap. Traffic goes to the Traefik
+# LoadBalancer VIP (MetalLB), which routes by Host to the right release's
+# ClusterIP — so prod (meepmap.*) and test (test.meepmap.*) share one upstream.
+meepmap_upstream: "192.168.0.50"

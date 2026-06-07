@@ -45,6 +45,15 @@
       become: false
 
     - name: Add Meepmap to Caddy config
+      # WARNING: the LIVE meepmap block on the edge was hand-maintained and does
+      # NOT contain these blockinfile markers. Before re-running this play, wrap
+      # the existing block in /opt/homelab/caddy/Caddyfile with
+      # "# BEGIN MEEPMAP" / "# END MEEPMAP" (or delete it) — otherwise blockinfile
+      # appends a SECOND http://meepmap block and Caddy fails to load.
+      #
+      # meepmap.* is PUBLIC (no `import authelia`): the app handles its own auth
+      # (Supabase Google OAuth + disable_signup). Stripe webhook + PWA manifest
+      # are reached without credentials, so they bypass any future auth too.
       ansible.builtin.blockinfile:
         path: /opt/homelab/caddy/Caddyfile
         marker: "# {mark} MEEPMAP"
@@ -53,7 +62,17 @@
           http://{{ meepmap_hostname }}.{{ saved_domain }} {
             import rate_limit
             import proxy_headers
-            reverse_proxy http://{{ k3s_node_ip }}:{{ meepmap_nodeport }}
+            @stripe_webhook path /api/billing/webhook
+            handle @stripe_webhook {
+              reverse_proxy http://{{ meepmap_upstream }}
+            }
+            @manifest path /manifest.webmanifest
+            handle @manifest {
+              reverse_proxy http://{{ meepmap_upstream }}
+            }
+            handle {
+              reverse_proxy http://{{ meepmap_upstream }}
+            }
           }
       notify: reload caddy
 

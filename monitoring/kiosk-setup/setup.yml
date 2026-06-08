@@ -1,0 +1,6 @@
+---
+- name: Configure Grafana NOC wall kiosk
+  hosts: "{{ target_host | default('lw-pi') }}"
+  gather_facts: true
+  roles:
+    - kiosk

@@ -1,0 +1,13 @@
+[Unit]
+Description=Grafana NOC wall kiosk
+After=graphical.target
+
+[Service]
+User={{ kiosk_user }}
+Environment=DISPLAY=:0
+ExecStart=/usr/local/bin/kiosk-start.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

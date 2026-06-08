@@ -1,0 +1,30 @@
+---
+- name: Install chromium + xset
+  ansible.builtin.apt:
+    name: ["{{ kiosk_browser_pkg }}", "x11-xserver-utils"]
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install kiosk start script
+  ansible.builtin.template:
+    src: kiosk-start.sh.j2
+    dest: /usr/local/bin/kiosk-start.sh
+    mode: "0755"
+  become: true
+
+- name: Install kiosk systemd unit
+  ansible.builtin.template:
+    src: kiosk.service.j2
+    dest: /etc/systemd/system/kiosk.service
+    mode: "0644"
+  become: true
+
+- name: Enable kiosk service (starts when a display/graphical session exists)
+  ansible.builtin.systemd:
+    name: kiosk.service
+    enabled: true
+    daemon_reload: true
+  become: true
+  # NOTE: deliberately NOT started here — lw-pi has no screen yet. Start once a
+  # display is attached: `sudo systemctl start kiosk` (or reboot into graphical.target).

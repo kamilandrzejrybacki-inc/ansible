@@ -1,0 +1,8 @@
+---
+# Grafana public-dashboard URL (the ?refresh=… is appended by the start script).
+kiosk_url: ""
+kiosk_user: "kamil"
+kiosk_refresh: "30s"
+# chromium package name: "chromium-browser" on Raspberry Pi OS / older Debian,
+# "chromium" on newer Debian/Ubuntu. Override per host if needed.
+kiosk_browser_pkg: "chromium-browser"

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export DISPLAY=:0
+# disable screen blanking / power management so the wall never sleeps
+xset s off || true
+xset -dpms || true
+xset s noblank || true
+exec {{ kiosk_browser_pkg }} \
+  --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
+  --check-for-update-interval=31536000 \
+  --app="{{ kiosk_url }}?refresh={{ kiosk_refresh }}&kiosk"

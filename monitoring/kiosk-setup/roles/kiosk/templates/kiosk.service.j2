@@ -5,6 +5,8 @@ After=graphical.target
 [Service]
 User={{ kiosk_user }}
 Environment=DISPLAY=:0
+# Needed for a system service to open the user's X session on :0.
+Environment=XAUTHORITY=/home/{{ kiosk_user }}/.Xauthority
 ExecStart=/usr/local/bin/kiosk-start.sh
 Restart=always
 RestartSec=10

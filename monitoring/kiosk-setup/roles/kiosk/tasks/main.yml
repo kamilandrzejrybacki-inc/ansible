@@ -1,5 +1,18 @@
 ---
-- name: Install chromium + xset
+- name: Require a kiosk URL
+  ansible.builtin.assert:
+    that:
+      - kiosk_url | length > 0
+    fail_msg: >-
+      kiosk_url must be set (the Grafana public-dashboard URL).
+      Pass it via -e kiosk_url='https://grafana.../public-dashboards/<token>'.
+
+# NOTE: this role assumes the host provides a graphical session on display :0
+# (e.g. Raspberry Pi OS *Desktop* with autologin, or any DM that auto-logs in
+# kiosk_user). It installs the X *utilities* + browser, not an X server / DM —
+# on a headless base image you must also install xserver-xorg + a DM/autologin,
+# or the kiosk unit cannot open :0. Verify lw-pi's base image before running.
+- name: Install chromium + X utilities
   ansible.builtin.apt:
     name: ["{{ kiosk_browser_pkg }}", "x11-xserver-utils"]
     state: present

@@ -1,6 +1,10 @@
 ---
 # Grafana public-dashboard URL (the ?refresh=… is appended by the start script).
-kiosk_url: ""
+# LAN-ONLY: the in-cluster Grafana NodePort (30130) is not edge-tunnelled, so this
+# is reachable only on the LAN; the same /public-dashboards/<token> via the public
+# grafana.<domain> is Authelia-gated (302). 192.168.0.107 is a k3s node — swap for
+# .108/.240 if that node is down (NodePort is served by every node).
+kiosk_url: "http://192.168.0.107:30130/public-dashboards/54edffd770a345abacb1459ae95e8a32"
 kiosk_user: "kamil"
 kiosk_refresh: "30s"
 # chromium package name: "chromium-browser" on Raspberry Pi OS / older Debian,

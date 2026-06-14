@@ -82,18 +82,6 @@
 	reverse_proxy {{ authelia_container_name }}:9091
 }
 
-# Authelia portal — LAN/in-cluster HTTPS (:443), self-signed (tls internal).
-# Lets in-cluster clients (the omnigent server pod, via hostAlias) fetch OIDC
-# JWKS/userinfo straight from the edge, bypassing Cloudflare (which 403s the
-# urllib User-Agent omnigent's PyJWKClient uses). The pod trusts Caddy's
-# internal CA. cloudflared keeps using the http:// block above for the public
-# path; this only adds a :443 listener for LAN sources. No DNS token needed.
-https://{{ subdomain_auth }}.{{ domain }} {
-	import proxy_headers
-	tls internal
-	reverse_proxy {{ authelia_container_name }}:9091
-}
-
 # WireGuard admin UI
 {{ _scheme }}{{ subdomain_wireguard }}.{{ domain }} {
 	import rate_limit
@@ -144,18 +132,6 @@ https://{{ subdomain_auth }}.{{ domain }} {
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# Omnigent — AI agent meta-harness (native OIDC; NO edge authelia gate —
-# omnigent runs its own OIDC redirect flow, a forward-auth gate would
-# double-redirect and break /auth/callback).
-{{ _scheme }}{{ subdomain_omnigent }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
 # n8n (workflow automation — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit
@@ -182,8 +158,9 @@ https://{{ subdomain_auth }}.{{ domain }} {
 	reverse_proxy http://{{ homelab_host_ip }}:8200
 }
 
-# Coder — RETIRED 2026-06-14 (replaced by the omnigent egress-guarded host).
-# Route removed; control plane + agent workspace torn down.
+# Coder — RETIRED 2026-06-14. Omnigent (its successor) also RETIRED
+# 2026-06-14 (subscription-OAuth harnesses violate Anthropic/OpenAI ToS).
+# Both routes removed; control planes + agent workspaces torn down.
 
 # Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)
 # WebSocket session: disable buffering + drop timeouts so idle terminals

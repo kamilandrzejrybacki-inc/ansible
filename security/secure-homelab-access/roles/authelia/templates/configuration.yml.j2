@@ -208,6 +208,10 @@ identity_providers:
         client_secret: "{{ authelia_oidc_client_secret_omnigent_hash | default('') }}"
         public: false
         authorization_policy: one_factor
+        # Omnigent sends the client secret in the POST body, not the
+        # Authorization header — Authelia defaults to client_secret_basic
+        # and rejects (invalid_client) without this.
+        token_endpoint_auth_method: client_secret_post
         scopes: [openid, profile, email]
         redirect_uris:
           - "https://{{ subdomain_omnigent }}.{{ domain }}/auth/callback"

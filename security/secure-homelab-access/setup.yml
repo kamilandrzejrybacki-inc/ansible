@@ -333,6 +333,7 @@
         - nexterm
         - pingvin
         - argocd
+        - omnigent
       tags: [always]
 
     - name: Generate late-added OIDC secrets for missing files
@@ -392,6 +393,7 @@
         - oidc_client_secret_nexterm
         - oidc_client_secret_pingvin
         - oidc_client_secret_argocd
+        - oidc_client_secret_omnigent
       no_log: true
       tags: [always]
 
@@ -404,6 +406,7 @@
         authelia_oidc_client_secret_nexterm:  "{{ _oidc_secrets_slurp.results[4].content | b64decode | trim }}"
         authelia_oidc_client_secret_pingvin:  "{{ _oidc_secrets_slurp.results[5].content | b64decode | trim }}"
         authelia_oidc_client_secret_argocd:   "{{ _oidc_secrets_slurp.results[6].content | b64decode | trim }}"
+        authelia_oidc_client_secret_omnigent: "{{ _oidc_secrets_slurp.results[7].content | b64decode | trim }}"
       no_log: true
       tags: [always]
 
@@ -419,6 +422,7 @@
         - { key: nexterm,        secret: "{{ authelia_oidc_client_secret_nexterm }}" }
         - { key: pingvin-share,  secret: "{{ authelia_oidc_client_secret_pingvin }}" }
         - { key: argocd,         secret: "{{ authelia_oidc_client_secret_argocd }}" }
+        - { key: omnigent,       secret: "{{ authelia_oidc_client_secret_omnigent }}" }
       changed_when: false
       no_log: true
       tags: [always]
@@ -431,6 +435,7 @@
         authelia_oidc_client_secret_nexterm_hash:  "{{ _oidc_hashes.results[3].stdout | trim }}"
         authelia_oidc_client_secret_pingvin_hash:  "{{ _oidc_hashes.results[4].stdout | trim }}"
         authelia_oidc_client_secret_argocd_hash:   "{{ _oidc_hashes.results[5].stdout | trim }}"
+        authelia_oidc_client_secret_omnigent_hash: "{{ _oidc_hashes.results[6].stdout | trim }}"
       no_log: true
       tags: [always]
 

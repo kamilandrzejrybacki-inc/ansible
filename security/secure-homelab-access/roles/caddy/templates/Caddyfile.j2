@@ -132,6 +132,18 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# Omnigent — AI agent meta-harness (native OIDC; NO edge authelia gate —
+# omnigent runs its own OIDC redirect flow, a forward-auth gate would
+# double-redirect and break /auth/callback).
+{{ _scheme }}{{ subdomain_omnigent }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
 # n8n (workflow automation — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit

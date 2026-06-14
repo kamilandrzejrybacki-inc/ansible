@@ -202,4 +202,17 @@ identity_providers:
         grant_types: [authorization_code]
         userinfo_signed_response_alg: none
 
+      # Omnigent — AI agent meta-harness
+      - client_id: omnigent
+        client_name: Omnigent
+        client_secret: "{{ authelia_oidc_client_secret_omnigent_hash | default('') }}"
+        public: false
+        authorization_policy: one_factor
+        scopes: [openid, profile, email]
+        redirect_uris:
+          - "https://{{ subdomain_omnigent }}.{{ domain }}/auth/callback"
+        response_types: [code]
+        grant_types: [authorization_code]
+        userinfo_signed_response_alg: none
+
 {% endif %}

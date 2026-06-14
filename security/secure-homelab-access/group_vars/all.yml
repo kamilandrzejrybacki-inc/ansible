@@ -87,6 +87,8 @@ subdomain_kroki: "kroki"
 subdomain_tldraw: "tldraw"
 subdomain_k8s_dashboard: "k8s"
 subdomain_sentinel: "sentinel"
+# Omnigent — AI agent meta-harness server (native Authelia OIDC, no edge gate).
+subdomain_omnigent: "omnigent"
 # Notesnook self-hosted (sync server + identity + SSE + monograph).
 # Notesnook mobile/desktop clients reject HTTP, so all 4 must terminate TLS
 # at Caddy. Authelia is NOT imported — the clients use their own E2EE auth.

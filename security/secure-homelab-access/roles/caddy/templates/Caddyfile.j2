@@ -280,6 +280,25 @@
 	}
 }
 
+# Meepmap test world (gated — via Traefik IngressRoute). No Stripe webhook
+# (test runs BILLING_MOCK); the PWA manifest stays public, the rest is behind
+# Authelia. Lives in the template so a caddy redeploy can't wipe it again.
+{{ _scheme }}{{ subdomain_meepmap_test | default('meepmap-test') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@manifest path /manifest.webmanifest
+	handle @manifest {
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
+	handle {
+		import authelia
+		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+	}
+}
+
 # MinIO console (object storage UI — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_minio | default('minio') }}.{{ domain }} {
 	import rate_limit

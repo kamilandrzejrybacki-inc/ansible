@@ -82,6 +82,17 @@
 	reverse_proxy {{ authelia_container_name }}:9091
 }
 
+# Authelia portal — LAN/in-cluster HTTPS (:443) with a real DNS-01 cert.
+# Lets in-cluster clients (the omnigent server pod) fetch OIDC JWKS/userinfo
+# straight from the edge, bypassing Cloudflare — CF 403s the urllib User-Agent
+# omnigent's PyJWKClient uses. cloudflared keeps using the http:// block above
+# for the public path; this block only adds a :443 listener for LAN sources.
+https://{{ subdomain_auth }}.{{ domain }} {
+	import proxy_headers
+	import cf_tls
+	reverse_proxy {{ authelia_container_name }}:9091
+}
+
 # WireGuard admin UI
 {{ _scheme }}{{ subdomain_wireguard }}.{{ domain }} {
 	import rate_limit

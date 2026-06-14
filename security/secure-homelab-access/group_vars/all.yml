@@ -73,7 +73,6 @@ subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
 subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
-subdomain_coder: "coder"
 subdomain_cellarette: "cellarette"
 # Cellarette MCP SSE endpoint (Bearer-token gated, no Authelia — MCP clients
 # can't complete a browser SSO flow). Backend is the Traefik IngressRoute.
@@ -112,7 +111,6 @@ argocd_nodeport_http: 30080
 omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
-coder_nodeport: 30750
 cellarette_nodeport: 30701
 homepage_nodeport: 30300
 kroki_nodeport: 30880

@@ -105,22 +105,6 @@
 	reverse_proxy {{ pihole_container_name }}:{{ pihole_internal_port }}
 }
 
-# Hermes WebUI
-{{ _scheme }}{{ subdomain_hermes }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy {{ hermes_webui_host | default('192.168.0.109') }}:{{ hermes_webui_port | default(8788) }} {
-		flush_interval -1
-		transport http {
-			read_timeout 0
-		}
-	}
-}
-
 # Grafana (monitoring stack — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_grafana }}.{{ domain }} {
 	import rate_limit
@@ -218,17 +202,6 @@
 	respond @public "Forbidden" 403
 	import authelia
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
-# OmniRoute AI gateway dashboard (K8s on lw-c1)
-{{ _scheme }}{{ subdomain_omniroute }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy {{ k8s_node_ip }}:{{ omniroute_nodeport }}
 }
 
 # AgentMemory (k8s, AI agent memory store — via Traefik IngressRoute)
@@ -365,24 +338,5 @@
 			read_timeout 0
 			write_timeout 0
 		}
-	}
-}
-
-# Sentinel (incident dashboard — via Traefik IngressRoute).
-# /webhook/* is the Grafana alert ingress; it has its own SENTINEL_WEBHOOK_SECRET
-# HMAC check, so Authelia must NOT block those POSTs.
-{{ _scheme }}{{ subdomain_sentinel | default('sentinel') }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	@webhook path /webhook/*
-	handle @webhook {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	handle {
-		import authelia
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 	}
 }

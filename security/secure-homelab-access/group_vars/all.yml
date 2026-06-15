@@ -58,7 +58,6 @@ subdomain_auth: "auth"
 subdomain_home: "home"
 subdomain_wireguard: "wg"
 subdomain_pihole: "pihole"
-subdomain_hermes: "hermes"
 subdomain_grafana: "grafana"
 subdomain_vault: "hashi-vault"
 subdomain_nexterm: "nexterm"
@@ -69,7 +68,6 @@ subdomain_pdf: "pdf"
 subdomain_filebrowser: "files"
 subdomain_argocd: "argocd"
 subdomain_distillery: "distillery"
-subdomain_omniroute: "omniroute"
 subdomain_guacamole: "guac"
 subdomain_excalidraw: "excalidraw"
 subdomain_kb: "kb"
@@ -85,7 +83,6 @@ subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"
 subdomain_tldraw: "tldraw"
 subdomain_k8s_dashboard: "k8s"
-subdomain_sentinel: "sentinel"
 # Notesnook self-hosted (sync server + identity + SSE + monograph).
 # Notesnook mobile/desktop clients reject HTTP, so all 4 must terminate TLS
 # at Caddy. Authelia is NOT imported — the clients use their own E2EE auth.
@@ -106,7 +103,6 @@ traefik_vip: "192.168.0.50"
 traefik_nodeport_http: 30820
 argocd_nodeport: 30443
 argocd_nodeport_http: 30080
-omniroute_nodeport: 30787
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
 cellarette_nodeport: 30701

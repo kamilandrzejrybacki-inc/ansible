@@ -167,6 +167,36 @@
 	}
 }
 
+# ntfy (self-hosted push notifications). k8s IngressRoute backend via the Traefik
+# VIP. The subscribe stream (GET /<topic>/json) is long-lived SSE — disable
+# buffering + drop timeouts so subscriptions aren't cut, same as nexterm. ntfy
+# does its own user/token auth, so NO authelia import here.
+{{ _scheme }}{{ subdomain_ntfy }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}
+
+# GlitchTip error tracking. k8s IngressRoute backend via the Traefik VIP. Own
+# user auth + public DSN ingest (SDKs POST error events), so NO authelia.
+{{ _scheme }}{{ subdomain_glitchtip }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
 # Paperless (document management — migrated to k8s, NodePort via k8s_node_ip)
 {{ _scheme }}{{ subdomain_paperless }}.{{ domain }} {
 	import rate_limit

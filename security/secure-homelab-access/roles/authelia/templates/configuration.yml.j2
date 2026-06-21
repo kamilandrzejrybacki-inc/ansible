@@ -173,6 +173,21 @@ identity_providers:
         token_endpoint_auth_method: client_secret_post
         userinfo_signed_response_alg: none
 
+      # GlitchTip — error tracking (django-allauth generic OIDC, provider id "authelia")
+      - client_id: glitchtip
+        client_name: GlitchTip
+        client_secret: "{{ authelia_oidc_client_secret_glitchtip_hash | default('') }}"
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        scopes: [openid, profile, email]
+        redirect_uris:
+          - "https://{{ subdomain_glitchtip | default('glitchtip') }}.{{ domain }}/accounts/oidc/authelia/login/callback/"
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none
+
       # Pingvin Share — file sharing
       - client_id: pingvin-share
         client_name: Pingvin Share

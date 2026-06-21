@@ -78,6 +78,12 @@ subdomain_cellarette_mcp: "cellarette-mcp"
 subdomain_agentmemory: "agentmemory"
 subdomain_meepmap: "meepmap"
 subdomain_minio: "minio"
+# ntfy push notifications — k8s IngressRoute backend (Traefik VIP). No Authelia:
+# the phone app + Grafana/watchdog authenticate with ntfy's own user/token auth.
+subdomain_ntfy: "ntfy"
+# GlitchTip error tracking — k8s IngressRoute backend. Own user auth + public DSN
+# ingest, so NO authelia.
+subdomain_glitchtip: "glitchtip"
 subdomain_loki: "loki"
 subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"

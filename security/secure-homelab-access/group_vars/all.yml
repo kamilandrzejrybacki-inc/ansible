@@ -84,6 +84,9 @@ subdomain_ntfy: "ntfy"
 # GlitchTip error tracking — k8s IngressRoute backend. Own user auth + public DSN
 # ingest, so NO authelia.
 subdomain_glitchtip: "glitchtip"
+# Grafana Faro browser-RUM collector — k8s IngressRoute → Alloy faro.receiver.
+# No authelia (browser beacons; CORS enforced by the receiver).
+subdomain_faro: "faro-collector"
 subdomain_loki: "loki"
 subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"

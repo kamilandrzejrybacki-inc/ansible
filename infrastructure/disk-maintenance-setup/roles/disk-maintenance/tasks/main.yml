@@ -54,3 +54,17 @@
     state: started
     daemon_reload: true
   when: "'docker_hosts' in group_names"
+
+# --- DNS hygiene (k3s nodes) --------------------------------------------------
+# A divergent global `DNS=` in resolved.conf stacks ON TOP of the link/DHCP DNS,
+# pushing the node past 3 upstreams → kubelet caps pod resolv.conf to 3 and spams
+# DNSConfigForming warnings (lw-c3 hit this 2026-06-22). Enforce link-DNS-only —
+# the uniform state lw-c1/lw-c2 already have. Idempotent: re-runs leave the
+# already-commented line untouched.
+- name: Disable divergent global DNS override (k3s nodes rely on link/DHCP DNS)
+  ansible.builtin.replace:
+    path: /etc/systemd/resolved.conf
+    regexp: '^DNS=(.*)$'
+    replace: '#DNS=\1'
+  when: "'k3s_nodes' in group_names"
+  notify: Restart systemd-resolved

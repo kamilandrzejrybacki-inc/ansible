@@ -1,0 +1,10 @@
+---
+# Homelab disk hygiene — keeps the usual hogs bounded automatically.
+# Run: ansible-playbook -i inventory setup.yml
+# Idempotent; safe to re-run. Codifies the 2026-06-22 manual setup.
+- name: Disk maintenance (journald cap + weekly docker prune)
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - disk-maintenance

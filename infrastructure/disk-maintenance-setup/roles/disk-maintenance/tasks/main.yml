@@ -1,0 +1,56 @@
+---
+# --- journald size cap (all hosts) -------------------------------------------
+- name: Ensure journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Cap journald persistent log size
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/cap.conf
+    mode: "0644"
+    content: |
+      [Journal]
+      SystemMaxUse={{ journald_max_use }}
+  notify: Restart journald
+
+# --- weekly docker prune (docker hosts only) ---------------------------------
+# k3s nodes don't run dockerd; kubelet garbage-collects unused images at its
+# disk threshold, so this is scoped to the edge.
+- name: Install docker-prune oneshot service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker-prune.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Prune Docker build cache + unused images (disk hygiene)
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/docker builder prune -af --filter until={{ docker_prune_age }}
+      ExecStart=/usr/bin/docker image prune -af --filter until={{ docker_prune_age }}
+  when: "'docker_hosts' in group_names"
+  notify: Reload systemd
+
+- name: Install docker-prune timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker-prune.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly Docker prune
+      [Timer]
+      OnCalendar={{ docker_prune_oncalendar }}
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
+  when: "'docker_hosts' in group_names"
+  notify: Reload systemd
+
+- name: Enable + start docker-prune timer
+  ansible.builtin.systemd:
+    name: docker-prune.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: "'docker_hosts' in group_names"

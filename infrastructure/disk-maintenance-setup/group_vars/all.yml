@@ -1,0 +1,6 @@
+---
+# Persistent cap on journald's on-disk logs (was 4G on lw-c1/lw-main).
+journald_max_use: "500M"
+# Weekly docker prune schedule (systemd OnCalendar) + age filter for what to drop.
+docker_prune_oncalendar: "Sun 04:00"
+docker_prune_age: "168h"

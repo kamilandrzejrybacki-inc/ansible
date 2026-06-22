@@ -1,0 +1,16 @@
+# Homelab disk-maintenance targets. journald cap applies to all; docker-prune
+# timer only to docker_hosts (the edge runs dockerd; k3s nodes self-GC images).
+[docker_hosts]
+lw-main ansible_host=192.168.0.111 ansible_user=kamil-rybacki
+
+[k3s_nodes]
+lw-c1 ansible_host=192.168.0.107
+lw-c2 ansible_host=192.168.0.240
+lw-c3 ansible_host=192.168.0.108
+
+[nas]
+lw-nas ansible_host=192.168.0.115
+
+[all:vars]
+ansible_user=kamil
+ansible_become=true

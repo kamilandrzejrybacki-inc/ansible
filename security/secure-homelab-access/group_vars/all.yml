@@ -135,3 +135,6 @@ crowdsec_lapi_port: 8080
 fail2ban_maxretry: 5
 fail2ban_bantime: 86400
 fail2ban_findtime: 600
+
+# Authelia display name (commit attribution / UI identity; username stays authelia_default_user)
+authelia_display_name: "Kamil Rybacki"

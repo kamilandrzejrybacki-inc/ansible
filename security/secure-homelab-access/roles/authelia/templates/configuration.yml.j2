@@ -167,6 +167,12 @@ identity_providers:
         consent_mode: implicit
         scopes: [openid, profile, email]
         redirect_uris:
+          # Nexterm's DB sends /api/oidc/callback in the authorization request; a
+          # Traefik middleware (nexterm-oidc-path-fix) rewrites it to the real
+          # backend route /api/auth/oidc/callback. Authelia must register the URL
+          # Nexterm SENDS (/api/oidc/callback) or it rejects with redirect_uri
+          # mismatch. Both registered so either route validates.
+          - "https://{{ nexterm_hostname | default('nexterm') }}.{{ domain }}/api/oidc/callback"
           - "https://{{ nexterm_hostname | default('nexterm') }}.{{ domain }}/api/auth/oidc/callback"
         response_types: [code]
         grant_types: [authorization_code]

@@ -211,7 +211,7 @@
 # walk4change Rust/Axum WebSocket backend. k8s IngressRoute via Traefik VIP.
 # Long-lived WS connections — disable buffering + drop timeouts. No authelia
 # (public app; its own JWT auth).
-walk4change.kamilandrzejrybacki.dpdns.org {
+{{ _scheme }}walk4change.kamilandrzejrybacki.dpdns.org {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}

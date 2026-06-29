@@ -208,6 +208,24 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# walk4change Rust/Axum WebSocket backend. k8s IngressRoute via Traefik VIP.
+# Long-lived WS connections — disable buffering + drop timeouts. No authelia
+# (public app; its own JWT auth).
+walk4change.kamilandrzejrybacki.dpdns.org {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}
+
 # Grafana Faro RUM collector. k8s IngressRoute → Alloy faro.receiver (:12347).
 # No authelia (browser beacons); the faro.receiver enforces CORS to meepmap origins.
 {{ _scheme }}{{ subdomain_faro }}.{{ domain }} {

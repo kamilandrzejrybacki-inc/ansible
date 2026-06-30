@@ -289,7 +289,7 @@
 # /api/billing/webhook is the Stripe webhook ingress; it verifies the Stripe
 # signature itself, so Authelia must NOT block those POSTs (same pattern as
 # sentinel /webhook/*).
-{{ _scheme }}{{ subdomain_meepmap | default('meepmap') }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_meepmap | default('meepmap') }}.{{ domain }}, {{ _scheme }}meepmap.com, {{ _scheme }}www.meepmap.com {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}

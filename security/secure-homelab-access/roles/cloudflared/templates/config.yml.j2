@@ -8,5 +8,10 @@ ingress:
     service: http://localhost:80
   - hostname: "*.{{ domain }}"
     service: http://localhost:80
+  # meepmap.com — primary public domain (separate CF zone, same tunnel + account).
+  - hostname: "meepmap.com"
+    service: http://localhost:80
+  - hostname: "www.meepmap.com"
+    service: http://localhost:80
   # Catch-all (required by cloudflared)
   - service: http_status:404

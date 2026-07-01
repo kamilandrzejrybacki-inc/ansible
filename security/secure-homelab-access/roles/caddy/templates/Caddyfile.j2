@@ -285,6 +285,18 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# tauto (business logic explorer — via Traefik IngressRoute). Authelia gates
+# all routes so contract data is never exposed without authentication.
+{{ _scheme }}{{ subdomain_tauto | default('tauto') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
 # Meepmap (mapping app — via Traefik IngressRoute).
 # /api/billing/webhook is the Stripe webhook ingress; it verifies the Stripe
 # signature itself, so Authelia must NOT block those POSTs (same pattern as

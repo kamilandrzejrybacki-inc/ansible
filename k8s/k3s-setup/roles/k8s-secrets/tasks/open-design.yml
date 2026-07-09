@@ -13,24 +13,11 @@
 # The OAuth browser consent is the only irreducibly-manual step, and it is
 # shared with k8s/coder-setup (coder-codex-credentials uses the same file).
 #
-# ghcr pull auth reuses the same Vault github.runner_pat as every other
-# homelab image pull. The chart seeds open-design-codex-auth into a PVC
-# only if absent, so in-cluster OAuth token refresh persists.
-
-- name: Load github PAT from Vault (ghcr pull)
-  ansible.builtin.uri:
-    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/github"
-    headers:
-      X-Vault-Token: "{{ _vault_token }}"
-    return_content: true
-  register: _od_gh_vault
-  no_log: true
-
-- name: Capture github runner PAT
-  ansible.builtin.set_fact:
-    _od_runner_pat: "{{ (_od_gh_vault.content | from_json).data.data.runner_pat }}"
-  no_log: true
-
+# ghcr pull: reuse the working homelab pull secret (classic ghp_ PAT for user
+# kamilrybacki) by copying it from an existing namespace. The Vault
+# github.runner_pat is a gho_ token WITHOUT package read (403 on ghcr), so it
+# must NOT be used here. The chart seeds open-design-codex-auth into a PVC only
+# if absent, so in-cluster OAuth token refresh persists.
 - name: Check Codex auth file on control machine
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.codex/auth.json"
@@ -105,14 +92,11 @@
   changed_when: "'created' in _od_codex_secret.stdout or 'configured' in _od_codex_secret.stdout"
   no_log: true
 
-- name: Create ghcr-pull secret
+- name: Copy the working ghcr-pull secret into open-design
   ansible.builtin.shell: |
-    kubectl create secret docker-registry ghcr-pull \
-      --namespace open-design \
-      --docker-server=ghcr.io \
-      --docker-username=kamilandrzejrybacki-inc \
-      --docker-password='{{ _od_runner_pat }}' \
-      --dry-run=client -o yaml | kubectl apply -f -
+    kubectl get secret ghcr-pull -n dbt -o json \
+      | python3 -c 'import sys,json;d=json.load(sys.stdin);d["metadata"]={"name":"ghcr-pull","namespace":"open-design"};print(json.dumps(d))' \
+      | kubectl apply -f -
   environment:
     KUBECONFIG: "{{ kubeconfig_local_path }}"
   register: _od_pull_secret

@@ -176,6 +176,13 @@ argocd_applications:
     chart_path: charts/agentmemory
     namespace: agentmemory
 
+  # Open Design (design engine, Codex-CLI driven). Secrets (codex-auth +
+  # ghcr-pull) auto-created by roles/k8s-secrets/tasks/open-design.yml.
+  - name: open-design
+    chart_path: charts/open-design
+    namespace: open-design
+    values: {}
+
   # Phase 1 networking: MetalLB L2 LB + Traefik access control
   # Apply ONLY in maintenance window (Task 4): MetalLB up + klipper-lb down simultaneously.
   - name: metallb

@@ -1,0 +1,75 @@
+---
+# Secrets for charts/open-design in namespace open-design:
+#   - open-design-codex-auth  (key auth.json)      — ChatGPT-OAuth Codex creds
+#   - ghcr-pull               (dockerconfigjson)   — private image pull
+#
+# Mirrors k8s/coder-setup/workspace-secrets.yml: the Codex auth is read
+# from the control machine's ~/.codex/auth.json (one-time `codex login`),
+# NOT Vault — no base64, no manual Vault put. ghcr pull auth reuses the
+# same Vault github.runner_pat as every other homelab image pull.
+#
+# The chart seeds open-design-codex-auth into a PVC only if absent, so
+# in-cluster OAuth token refresh persists (charts/open-design/README.md).
+
+- name: Load github PAT from Vault (ghcr pull)
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/github"
+    headers:
+      X-Vault-Token: "{{ _vault_token }}"
+    return_content: true
+  register: _od_gh_vault
+  no_log: true
+
+- name: Capture github runner PAT
+  ansible.builtin.set_fact:
+    _od_runner_pat: "{{ (_od_gh_vault.content | from_json).data.data.runner_pat }}"
+  no_log: true
+
+- name: Check Codex auth file exists on control machine
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/.codex/auth.json"
+  register: _od_codex_stat
+
+- name: Assert Codex is authenticated
+  ansible.builtin.assert:
+    that: _od_codex_stat.stat.exists
+    fail_msg: "~/.codex/auth.json not found — run 'codex login' (ChatGPT) first"
+
+- name: Read Codex auth
+  ansible.builtin.set_fact:
+    _od_codex_auth: "{{ lookup('file', lookup('env', 'HOME') + '/.codex/auth.json') }}"
+  no_log: true
+
+- name: Ensure open-design namespace
+  ansible.builtin.command: kubectl create namespace open-design
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _od_ns
+  changed_when: _od_ns.rc == 0
+  failed_when: _od_ns.rc != 0 and 'already exists' not in _od_ns.stderr
+
+- name: Create open-design-codex-auth secret
+  ansible.builtin.shell: |
+    kubectl create secret generic open-design-codex-auth \
+      --namespace open-design \
+      --from-literal=auth.json='{{ _od_codex_auth | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _od_codex_secret
+  changed_when: "'created' in _od_codex_secret.stdout or 'configured' in _od_codex_secret.stdout"
+  no_log: true
+
+- name: Create ghcr-pull secret
+  ansible.builtin.shell: |
+    kubectl create secret docker-registry ghcr-pull \
+      --namespace open-design \
+      --docker-server=ghcr.io \
+      --docker-username=kamilandrzejrybacki-inc \
+      --docker-password='{{ _od_runner_pat }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "{{ kubeconfig_local_path }}"
+  register: _od_pull_secret
+  changed_when: "'created' in _od_pull_secret.stdout or 'configured' in _od_pull_secret.stdout"
+  no_log: true

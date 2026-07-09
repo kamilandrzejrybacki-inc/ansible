@@ -7,3 +7,6 @@
 
 - name: Create MCP server secrets
   ansible.builtin.include_tasks: mcp-servers.yml
+
+- name: Create Open Design codex-auth secret
+  ansible.builtin.include_tasks: open-design.yml

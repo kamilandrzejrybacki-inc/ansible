@@ -3,13 +3,19 @@
 #   - open-design-codex-auth  (key auth.json)      — ChatGPT-OAuth Codex creds
 #   - ghcr-pull               (dockerconfigjson)   — private image pull
 #
-# Mirrors k8s/coder-setup/workspace-secrets.yml: the Codex auth is read
-# from the control machine's ~/.codex/auth.json (one-time `codex login`),
-# NOT Vault — no base64, no manual Vault put. ghcr pull auth reuses the
-# same Vault github.runner_pat as every other homelab image pull.
+# Codex auth resolution (fully headless after the first run):
+#   1. If ~/.codex/auth.json exists on the control machine (one-time
+#      `codex login`), use it AND cache it to Vault
+#      secret/homelab/open-design key codex_auth_json.
+#   2. Otherwise fall back to that Vault key — so any runner/machine can
+#      provision without the local file present.
+#   3. If neither, fail with instructions.
+# The OAuth browser consent is the only irreducibly-manual step, and it is
+# shared with k8s/coder-setup (coder-codex-credentials uses the same file).
 #
-# The chart seeds open-design-codex-auth into a PVC only if absent, so
-# in-cluster OAuth token refresh persists (charts/open-design/README.md).
+# ghcr pull auth reuses the same Vault github.runner_pat as every other
+# homelab image pull. The chart seeds open-design-codex-auth into a PVC
+# only if absent, so in-cluster OAuth token refresh persists.
 
 - name: Load github PAT from Vault (ghcr pull)
   ansible.builtin.uri:
@@ -25,20 +31,59 @@
     _od_runner_pat: "{{ (_od_gh_vault.content | from_json).data.data.runner_pat }}"
   no_log: true
 
-- name: Check Codex auth file exists on control machine
+- name: Check Codex auth file on control machine
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.codex/auth.json"
   register: _od_codex_stat
 
-- name: Assert Codex is authenticated
-  ansible.builtin.assert:
-    that: _od_codex_stat.stat.exists
-    fail_msg: "~/.codex/auth.json not found — run 'codex login' (ChatGPT) first"
-
-- name: Read Codex auth
+# --- Path 1: local file present -> use it + cache to Vault ---
+- name: Read Codex auth from control machine
   ansible.builtin.set_fact:
     _od_codex_auth: "{{ lookup('file', lookup('env', 'HOME') + '/.codex/auth.json') }}"
+  when: _od_codex_stat.stat.exists
   no_log: true
+
+- name: Cache Codex auth to Vault for headless re-provisioning
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/open-design"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ _vault_token }}"
+    body_format: json
+    body:
+      data:
+        codex_auth_json: "{{ _od_codex_auth }}"
+    status_code: [200, 204]
+  when: _od_codex_stat.stat.exists
+  no_log: true
+
+# --- Path 2: no local file -> pull from Vault ---
+- name: Fall back to Codex auth from Vault
+  when: not _od_codex_stat.stat.exists
+  block:
+    - name: Load Codex auth from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/open-design"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        return_content: true
+      register: _od_codex_vault
+      no_log: true
+
+    - name: Capture Codex auth from Vault
+      ansible.builtin.set_fact:
+        _od_codex_auth: "{{ (_od_codex_vault.content | from_json).data.data.codex_auth_json }}"
+      no_log: true
+
+- name: Assert Codex auth resolved
+  ansible.builtin.assert:
+    that:
+      - _od_codex_auth is defined
+      - _od_codex_auth | length > 0
+    fail_msg: >-
+      No Codex auth available. Run 'codex login' on the control machine once
+      (writes ~/.codex/auth.json), or seed Vault secret/homelab/open-design
+      key codex_auth_json.
 
 - name: Ensure open-design namespace
   ansible.builtin.command: kubectl create namespace open-design

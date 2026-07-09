@@ -57,6 +57,17 @@ access_control:
       resources:
         - "^/api/.*"
       policy: "bypass"
+    # Open Design: brand assets (logos/icons) + PWA chrome are fetched by the
+    # browser WITHOUT credentials, so they arrive anonymous and 401 under any
+    # gate — bypass the raw-asset reads (low sensitivity). Gate the rest at one
+    # factor (no TOTP wall; the app itself has no internal auth).
+    - domain: "design.{{ domain }}"
+      resources:
+        - "^/api/projects/.*/raw/.*"
+        - "^/(favicon|manifest|apple-touch-icon|icon-maskable).*"
+      policy: "bypass"
+    - domain: "design.{{ domain }}"
+      policy: "one_factor"
     # WAN: full two-factor
     - domain: "*.{{ domain }}"
       policy: "two_factor"
@@ -182,7 +193,7 @@ identity_providers:
       # GlitchTip — error tracking (django-allauth generic OIDC, provider id "authelia")
       - client_id: glitchtip
         client_name: GlitchTip
-        client_secret: "{{ authelia_oidc_client_secret_glitchtip_hash | default('') }}"
+        client_secret: "{{ authelia_oidc_client_secret_glitchtip_hash | default('$plaintext$GLITCHTIP_SECRET_UNSET') }}"
         public: false
         authorization_policy: one_factor
         consent_mode: implicit

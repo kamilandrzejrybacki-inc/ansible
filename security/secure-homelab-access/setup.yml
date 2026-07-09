@@ -434,6 +434,39 @@
       no_log: true
       tags: [always]
 
+    # GlitchTip is the odd one out: its OIDC secret is NOT an edge-generated
+    # file like the others — it lives in Vault (homelab/glitchtip.oidc_secret)
+    # and GlitchTip's own deployment uses it. Source + hash it self-contained
+    # so re-runs render a valid secret (empty here => Authelia refuses to start).
+    - name: Load GlitchTip OIDC secret from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/glitchtip"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        return_content: true
+      register: _glitchtip_vault
+      no_log: true
+      when: _vault_available | default(false) | bool
+      tags: [always]
+
+    - name: Hash GlitchTip OIDC secret (pbkdf2-sha512)
+      ansible.builtin.shell: >
+        docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
+        --password '{{ (_glitchtip_vault.content | from_json).data.data.oidc_secret }}'
+        2>/dev/null | grep 'Digest:' | awk '{print $2}'
+      register: _glitchtip_hash
+      changed_when: false
+      no_log: true
+      when: _glitchtip_vault is not skipped
+      tags: [always]
+
+    - name: Set GlitchTip OIDC hash fact
+      ansible.builtin.set_fact:
+        authelia_oidc_client_secret_glitchtip_hash: "{{ _glitchtip_hash.stdout | trim }}"
+      no_log: true
+      when: _glitchtip_hash is not skipped
+      tags: [always]
+
     - name: Slurp OIDC JWK private key for inline embedding
       ansible.builtin.slurp:
         src: "{{ authelia_data_dir }}/config/jwk.rsa.pem"

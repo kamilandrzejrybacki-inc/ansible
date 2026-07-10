@@ -161,17 +161,6 @@ argocd_applications:
     no_auto_sync: true
     values: {}
 
-  - name: meepmap-e2e
-    chart_path: charts/meepmap-e2e
-    namespace: e2e
-    no_auto_sync: true
-    values: {}
-
-  - name: github-runners-meepmap
-    chart_path: charts/github-runners-meepmap
-    namespace: github-runners
-    values: {}
-
   - name: agentmemory
     chart_path: charts/agentmemory
     namespace: agentmemory

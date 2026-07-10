@@ -240,7 +240,7 @@
 }
 
 # Grafana Faro RUM collector. k8s IngressRoute → Alloy faro.receiver (:12347).
-# No authelia (browser beacons); the faro.receiver enforces CORS to meepmap origins.
+# No authelia (browser beacons); the faro.receiver enforces CORS to allowed origins.
 {{ _scheme }}{{ subdomain_faro }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
@@ -308,77 +308,6 @@
 {% endif %}
 	import authelia
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
-# Meepmap (mapping app — via Traefik IngressRoute).
-# /api/billing/webhook is the Stripe webhook ingress; it verifies the Stripe
-# signature itself, so Authelia must NOT block those POSTs (same pattern as
-# sentinel /webhook/*).
-{{ _scheme }}{{ subdomain_meepmap | default('meepmap') }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	@stripe_webhook path /api/billing/webhook
-	handle @stripe_webhook {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	# PWA manifest is fetched WITHOUT credentials by browsers, so Authelia 302s
-	# it into a CORS error + service-worker failures. It is public, static app
-	# metadata (name/icons) — safe to expose.
-	@manifest path /manifest.webmanifest
-	handle @manifest {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	handle {
-		import authelia
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-}
-
-# meepmap.com — PRIMARY public domain (own block, NO Authelia: it's a separate
-# apex, and Authelia's SSO cookie is dpdns-scoped so it can't session it — a gate
-# here returns an empty 200. The app's own Supabase login is the gate). Routes via
-# the Traefik IngressRoute Host(meepmap.com) (altHost in the meepmap chart).
-{{ _scheme }}meepmap.com {
-	import rate_limit
-	import proxy_headers
-	@stripe_webhook path /api/billing/webhook
-	handle @stripe_webhook {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	@manifest path /manifest.webmanifest
-	handle @manifest {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	handle {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-}
-
-# www.meepmap.com -> apex canonical redirect.
-{{ _scheme }}www.meepmap.com {
-	redir https://meepmap.com{uri} permanent
-}
-
-# Meepmap test world (gated — via Traefik IngressRoute). No Stripe webhook
-# (test runs BILLING_MOCK); the PWA manifest stays public, the rest is behind
-# Authelia. Lives in the template so a caddy redeploy can't wipe it again.
-{{ _scheme }}{{ subdomain_meepmap_test | default('meepmap-test') }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	@manifest path /manifest.webmanifest
-	handle @manifest {
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
-	handle {
-		import authelia
-		reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-	}
 }
 
 # MinIO console (object storage UI — via Traefik IngressRoute)

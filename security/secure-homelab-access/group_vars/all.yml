@@ -79,7 +79,6 @@ subdomain_cellarette: "cellarette"
 subdomain_cellarette_mcp: "cellarette-mcp"
 subdomain_agentmemory: "agentmemory"
 subdomain_tauto: "tauto"
-subdomain_meepmap: "meepmap"
 subdomain_minio: "minio"
 # ntfy push notifications — k8s IngressRoute backend (Traefik VIP). No Authelia:
 # the phone app + Grafana/watchdog authenticate with ntfy's own user/token auth.

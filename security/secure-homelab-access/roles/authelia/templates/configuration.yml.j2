@@ -49,8 +49,9 @@ access_control:
     - domain: "*.{{ domain }}"
       networks: [vpn_and_lan]
       policy: "one_factor"
-    # Nexterm: one-factor from any network — Nexterm has its own OIDC auth layer
-    - domain: "{{ nexterm_hostname | default('nexterm') }}.{{ domain }}"
+    # Termix (termix.<domain>): one-factor — Termix does its own OIDC auth via
+    # Caddy (no forward-auth import), so this rule is advisory.
+    - domain: "{{ subdomain_termix | default('termix') }}.{{ domain }}"
       policy: "one_factor"
     # Grafana API: bypass for token auth (Grizzly, GitHub Actions CI/CD)
     - domain: "grafana.{{ domain }}"
@@ -169,22 +170,20 @@ identity_providers:
         grant_types: [authorization_code]
         userinfo_signed_response_alg: none
 
-      # Nexterm — web SSH terminal manager
-      - client_id: nexterm
-        client_name: Nexterm
-        client_secret: "{{ authelia_oidc_client_secret_nexterm_hash | default('') }}"
+      # Termix — web SSH terminal manager (replaced Nexterm 2026-07-10) on its
+      # own termix.<domain> host. Termix's OIDC callback is a normal frontend
+      # route, so NO path-rewrite hack is needed (unlike Nexterm). Secret sourced
+      # from Vault (homelab/termix.oidc_secret) and hashed in setup.yml,
+      # mirroring the GlitchTip pattern.
+      - client_id: termix
+        client_name: Termix
+        client_secret: "{{ authelia_oidc_client_secret_termix_hash | default('') }}"
         public: false
         authorization_policy: one_factor
         consent_mode: implicit
         scopes: [openid, profile, email]
         redirect_uris:
-          # Nexterm's DB sends /api/oidc/callback in the authorization request; a
-          # Traefik middleware (nexterm-oidc-path-fix) rewrites it to the real
-          # backend route /api/auth/oidc/callback. Authelia must register the URL
-          # Nexterm SENDS (/api/oidc/callback) or it rejects with redirect_uri
-          # mismatch. Both registered so either route validates.
-          - "https://{{ nexterm_hostname | default('nexterm') }}.{{ domain }}/api/oidc/callback"
-          - "https://{{ nexterm_hostname | default('nexterm') }}.{{ domain }}/api/auth/oidc/callback"
+          - "https://{{ subdomain_termix | default('termix') }}.{{ domain }}/users/oidc/callback"
         response_types: [code]
         grant_types: [authorization_code]
         token_endpoint_auth_method: client_secret_post

@@ -467,6 +467,40 @@
       when: _glitchtip_hash is not skipped
       tags: [always]
 
+    # Termix (k8s web SSH terminal, replaced Nexterm). Like GlitchTip, its OIDC
+    # secret lives in Vault (homelab/termix.oidc_secret) — the same plaintext is
+    # rendered into the k8s SopsSecret (termix-secrets.oidc_client_secret) that
+    # feeds Termix's OIDC_CLIENT_SECRET env. Source + hash here so Authelia
+    # registers a matching client secret.
+    - name: Load Termix OIDC secret from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/termix"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        return_content: true
+      register: _termix_vault
+      no_log: true
+      when: _vault_available | default(false) | bool
+      tags: [always]
+
+    - name: Hash Termix OIDC secret (pbkdf2-sha512)
+      ansible.builtin.shell: >
+        docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
+        --password '{{ (_termix_vault.content | from_json).data.data.oidc_secret }}'
+        2>/dev/null | grep 'Digest:' | awk '{print $2}'
+      register: _termix_hash
+      changed_when: false
+      no_log: true
+      when: _termix_vault is not skipped
+      tags: [always]
+
+    - name: Set Termix OIDC hash fact
+      ansible.builtin.set_fact:
+        authelia_oidc_client_secret_termix_hash: "{{ _termix_hash.stdout | trim }}"
+      no_log: true
+      when: _termix_hash is not skipped
+      tags: [always]
+
     - name: Slurp OIDC JWK private key for inline embedding
       ansible.builtin.slurp:
         src: "{{ authelia_data_dir }}/config/jwk.rsa.pem"

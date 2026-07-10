@@ -168,13 +168,15 @@
 # 2026-06-14 (subscription-OAuth harnesses violate Anthropic/OpenAI ToS).
 # Both routes removed; control planes + agent workspaces torn down.
 
-# Nexterm (SSH terminal) — no Authelia (Nexterm uses own OIDC auth)
+# Termix (SSH terminal, replaced Nexterm 2026-07-10, now on its own
+# termix.<domain> host) — no Authelia forward-auth (Termix does its own OIDC).
 # WebSocket session: disable buffering + drop timeouts so idle terminals
 # (Claude Code waiting on user input, long-running builds) don't get
-# archived as 'connection dropped'.
-# Nexterm chart exposes a Traefik IngressRoute (Host match) — proxy via
+# archived as 'connection dropped'. Termix's Auto-Tmux keeps the remote
+# shell alive across disconnects regardless.
+# Termix chart exposes a Traefik IngressRoute (Host match) — proxy via
 # the MetalLB Traefik VIP like the other IngressRoute services.
-{{ _scheme }}{{ subdomain_nexterm }}.{{ domain }} {
+{{ _scheme }}{{ subdomain_termix }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}

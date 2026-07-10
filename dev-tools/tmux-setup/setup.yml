@@ -1,0 +1,24 @@
+---
+# =============================================================================
+# tmux Setup — Termix Auto-Tmux prerequisite
+# =============================================================================
+# Installs tmux on every host Termix SSHes into so Auto-Tmux can keep remote
+# shells (and running agents) alive across browser disconnects/tab-out.
+#
+# Usage:
+#   ansible-playbook dev-tools/tmux-setup/setup.yml \
+#     -i dev-tools/tmux-setup/inventory/hosts.ini
+#
+#   # if any target lacks passwordless sudo:
+#   ansible-playbook ... --ask-become-pass
+#
+#   # limit to specific hosts:
+#   ansible-playbook ... --limit lw-c1,lw-c2
+# =============================================================================
+
+- name: Install tmux for Termix Auto-Tmux
+  hosts: tmux_hosts
+  become: true
+  gather_facts: true
+  roles:
+    - tmux

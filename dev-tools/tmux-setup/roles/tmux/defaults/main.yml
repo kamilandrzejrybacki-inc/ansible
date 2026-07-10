@@ -1,0 +1,4 @@
+---
+# Packages to install. tmux is the only requirement for Termix Auto-Tmux.
+tmux_packages:
+  - tmux

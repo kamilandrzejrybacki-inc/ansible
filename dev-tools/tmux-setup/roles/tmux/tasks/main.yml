@@ -1,0 +1,31 @@
+---
+# Refresh the cache in its own task and tolerate failures — a broken
+# third-party repo (e.g. download.docker.com mirror desync) must not block
+# installing tmux, which lives in the base Ubuntu repos.
+- name: Update apt cache (tolerant of broken third-party repos)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  failed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: Install tmux (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: "{{ tmux_packages }}"
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install tmux (other families — generic fallback)
+  ansible.builtin.package:
+    name: "{{ tmux_packages }}"
+    state: present
+  when: ansible_os_family != "Debian"
+
+- name: Verify tmux is available on PATH
+  ansible.builtin.command: tmux -V
+  register: _tmux_version
+  changed_when: false
+
+- name: Report installed tmux version
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: {{ _tmux_version.stdout }}"

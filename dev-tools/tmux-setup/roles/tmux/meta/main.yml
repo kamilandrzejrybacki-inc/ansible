@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  role_name: tmux
+  author: kamil-rybacki
+  description: Install tmux on Termix SSH targets so Auto-Tmux keeps remote shells alive across disconnects.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions: [all]
+    - name: Debian
+      versions: [all]
+dependencies: []

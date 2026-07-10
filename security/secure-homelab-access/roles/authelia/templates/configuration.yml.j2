@@ -177,7 +177,10 @@ identity_providers:
       # mirroring the GlitchTip pattern.
       - client_id: termix
         client_name: Termix
-        client_secret: "{{ authelia_oidc_client_secret_termix_hash | default('') }}"
+        # Non-fatal fallback: an empty client_secret makes Authelia refuse to
+        # start (fatal). If the Vault hash is ever missing, render a placeholder
+        # so the IdP still boots (Termix OIDC breaks, but no cluster-wide outage).
+        client_secret: "{{ authelia_oidc_client_secret_termix_hash | default('$plaintext$TERMIX_SECRET_UNSET') or '$plaintext$TERMIX_SECRET_UNSET' }}"
         public: false
         authorization_policy: one_factor
         consent_mode: implicit

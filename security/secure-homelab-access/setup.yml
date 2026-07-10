@@ -32,14 +32,20 @@
         file: "{{ lookup('env', 'HOME') }}/.homelab-setup-vars.yml"
       when: _setup_vars_stat.stat.exists
 
+    # tags: always is REQUIRED — without it a tag-limited run (e.g.
+    # --tags caddy,authelia) skips this include, _vault_available is never set,
+    # and every Vault-sourced OIDC secret (glitchtip, termix) silently falls
+    # back to its placeholder/empty default. Empty termix secret = Authelia fatal.
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+      tags: [always]
 
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
         vault_service_name: "infrastructure"
       when: _vault_available | bool
+      tags: [always]
 
 - name: Gather host details
   hosts: localhost
@@ -472,15 +478,19 @@
     # rendered into the k8s SopsSecret (termix-secrets.oidc_client_secret) that
     # feeds Termix's OIDC_CLIENT_SECRET env. Source + hash here so Authelia
     # registers a matching client secret.
+    # NOTE: this runs in the `hosts: homelab` play, but _vault_* facts are set
+    # on localhost in play 1 — so they MUST be read via hostvars['localhost'].
+    # Bare `_vault_available` is undefined here → task skips → empty client_secret
+    # → Authelia refuses to start (fatal). See the correct pattern below.
     - name: Load Termix OIDC secret from Vault
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/termix"
+        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/termix"
         headers:
-          X-Vault-Token: "{{ _vault_token }}"
+          X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
         return_content: true
       register: _termix_vault
       no_log: true
-      when: _vault_available | default(false) | bool
+      when: hostvars['localhost']['_vault_available'] | default(false) | bool
       tags: [always]
 
     - name: Hash Termix OIDC secret (pbkdf2-sha512)

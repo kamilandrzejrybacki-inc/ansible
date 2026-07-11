@@ -49,39 +49,6 @@ k8s_secrets:
     data:
       GITHUB_TOKEN: runner_pat
 
-  - namespace: omniroute
-    name: omniroute-secrets
-    vault_path: omniroute
-    data:
-      GROQ_API_KEY: groq_api_key
-      OPENAI_API_KEY: nvidia_api_key
-      DEEPSEEK_API_KEY: deepseek_api_key
-
-  - namespace: hermes
-    name: hermes-secrets
-    vault_path: hermes
-    data:
-      groq_api_key: groq_api_key
-      telegram_bot_token: telegram_bot_token
-      n8n_mcp_token: n8n_mcp_token
-      openai_access_token: openai_access_token
-      openai_refresh_token: openai_refresh_token
-
-  - namespace: jupyterlab
-    name: jupyterlab-secrets
-    vault_path: jupyterlab
-    data:
-      grafana_url: grafana_url
-      grafana_token: grafana_token
-      loki_url: loki_url
-      prometheus_url: prometheus_url
-
-  - namespace: jupyterlab
-    name: jupyterlab-git-credentials
-    vault_path: jupyterlab-git
-    data:
-      token: token
-
   # distillery-secrets is managed by k8s/distillery-setup/setup.yml
   # (Vault stores all env vars; the playbook assembles the full secret including
   # Redis URL with password and in-cluster service URLs.)
@@ -98,35 +65,9 @@ argocd_apps_repo: "https://github.com/kamilandrzejrybacki-inc/helm.git"
 argocd_apps_target_revision: "main"
 
 argocd_applications:
-  - name: n8n-workers
-    chart_path: charts/n8n-workers
-    namespace: n8n
-    values: {}
-    ignore_differences:
-      - group: apps
-        kind: Deployment
-        name: n8n-workers
-        json_pointers:
-          - /spec/replicas
-
   - name: github-runners
     chart_path: charts/github-runners
     namespace: github-runners
-    values: {}
-
-  - name: omniroute
-    chart_path: charts/omniroute
-    namespace: omniroute
-    values: {}
-
-  - name: qdrant
-    chart_path: charts/qdrant
-    namespace: qdrant
-    values: {}
-
-  - name: hermes
-    chart_path: charts/hermes
-    namespace: hermes
     values: {}
 
   - name: guacamole
@@ -146,19 +87,6 @@ argocd_applications:
   - name: nfs-provisioner
     chart_path: charts/nfs-provisioner
     namespace: nfs-provisioner
-    values: {}
-
-  - name: jupyterlab
-    chart_path: charts/jupyterlab
-    namespace: jupyterlab
-    values: {}
-
-  # CI-controlled scaling: no automated ArgoCD sync so scale-up/down
-  # during test runs is never reverted. Manual sync required for chart updates.
-  - name: e2e-supabase
-    chart_path: charts/e2e-supabase
-    namespace: e2e
-    no_auto_sync: true
     values: {}
 
   - name: agentmemory

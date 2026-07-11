@@ -209,7 +209,10 @@
     approle_role_desired:
       bind_secret_id: true
       secret_id_num_uses: 0
-      secret_id_ttl: 86400
+      # 90d — the bridge secret_id is generated once at provision with no renewer,
+      # so a short TTL (was 86400 = 24h) silently expired it daily and crash-looped
+      # the workspace tunnel. See reference_cellarette_bridge_outage.
+      secret_id_ttl: 7776000
       token_max_ttl: 3600
       token_policies: ["workspace-bridge"]
       token_ttl: 3600

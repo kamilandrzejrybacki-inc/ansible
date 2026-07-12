@@ -184,3 +184,44 @@
       stringData:
         api_key: "{{ _exa_api_key }}"
   no_log: true
+
+# Discord MCP — dedicated read/write bot (NOT the Hermes gateway bot). Token in
+# Vault secret/homelab/discord-mcp key bot_token. Independent block so a discord
+# run isn't gated by the other MCP creds' combined assert (and vice versa).
+- name: Load discord-mcp secrets bundle from Vault
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+  vars:
+    vault_service_name: "discord-mcp"
+
+- name: Capture discord-mcp bundle
+  ansible.builtin.set_fact:
+    _discord_mcp: "{{ _vault_secrets | default({}) }}"
+  no_log: true
+
+- name: Resolve discord bot token
+  ansible.builtin.set_fact:
+    _discord_bot_token: "{{ discord_mcp_bot_token | default(_discord_mcp.bot_token) | default('') }}"
+  no_log: true
+
+- name: Assert discord bot token is present
+  ansible.builtin.assert:
+    that:
+      - _discord_bot_token | length > 0
+    fail_msg: >-
+      Missing Discord MCP bot token. Populate Vault secret/homelab/discord-mcp
+      key bot_token, or pass --extra-vars discord_mcp_bot_token=...
+
+- name: Create discord-mcp-secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_local_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: discord-mcp-secret
+        namespace: "{{ k8s_namespace }}"
+      type: Opaque
+      stringData:
+        bot_token: "{{ _discord_bot_token }}"
+  no_log: true

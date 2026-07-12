@@ -61,6 +61,11 @@
     _hz_discord_token: "{{ (_hz_vault.content | from_json).data.data.discord_bot_token }}"
   no_log: true
 
+- name: Capture cellarette MCP token
+  ansible.builtin.set_fact:
+    _hz_cellarette_mcp_token: "{{ (_hz_vault.content | from_json).data.data.mcp_token | default('') }}"
+  no_log: true
+
 - name: Assert secrets resolved
   ansible.builtin.assert:
     that:
@@ -94,6 +99,7 @@
     kubectl create secret generic hermes-secrets \
       --namespace hermes \
       --from-literal=discord_bot_token='{{ _hz_discord_token | replace("'", "'\"'\"'") }}' \
+      --from-literal=cellarette_mcp_token='{{ _hz_cellarette_mcp_token | replace("'", "'\"'\"'") }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
   register: _hz_discord_secret

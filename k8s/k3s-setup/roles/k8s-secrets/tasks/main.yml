@@ -10,3 +10,7 @@
 
 - name: Create Open Design codex-auth secret
   ansible.builtin.include_tasks: open-design.yml
+
+- name: Create Hermes codex-auth + discord secrets
+  ansible.builtin.include_tasks: hermes.yml
+  tags: [hermes, secrets]

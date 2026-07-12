@@ -89,6 +89,11 @@ argocd_applications:
     namespace: nfs-provisioner
     values: {}
 
+  - name: hermes
+    chart_path: charts/hermes
+    namespace: hermes
+    values: {}
+
   - name: agentmemory
     chart_path: charts/agentmemory
     namespace: agentmemory

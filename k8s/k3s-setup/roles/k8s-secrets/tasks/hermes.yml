@@ -1,0 +1,111 @@
+---
+# Secrets for charts/hermes in namespace hermes:
+#   - hermes-codex-auth  (key auth.json)         — ChatGPT-OAuth Codex creds
+#   - hermes-secrets     (key discord_bot_token) — Discord gateway bot token
+#   - ghcr-pull          (dockerconfigjson)      — private image pull
+#
+# Codex auth resolution (headless after first run): use Hermes's DEDICATED
+# ~/.codex-hermes/auth.json if present (separate OAuth session, NOT open-design's
+# shared ~/.codex) and cache to Vault secret/homelab/hermes key codex_auth_json,
+# else fall back to that Vault key, else fail.
+# ghcr pull: copy the working ghp_ pull secret from ns dbt (the gho_ runner_pat
+# is 403 on ghcr). Chart seeds auth.json into a PVC only if absent so refresh
+# persists.
+- name: Check Hermes Codex auth file on control machine
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/.codex-hermes/auth.json"
+  register: _hz_codex_stat
+
+- name: Read Hermes Codex auth from control machine
+  ansible.builtin.set_fact:
+    _hz_codex_auth: "{{ lookup('file', lookup('env', 'HOME') + '/.codex-hermes/auth.json') }}"
+  when: _hz_codex_stat.stat.exists
+  no_log: true
+
+- name: Cache Codex auth to Vault for headless re-provisioning
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/hermes"
+    method: POST
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    body_format: json
+    body: { data: { codex_auth_json: "{{ _hz_codex_auth }}" } }
+    status_code: [200, 204]
+  when: _hz_codex_stat.stat.exists
+  no_log: true
+
+- name: Fall back to Codex auth from Vault
+  when: not _hz_codex_stat.stat.exists
+  block:
+    - name: Load Codex auth from Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/hermes"
+        headers: { X-Vault-Token: "{{ _vault_token }}" }
+        return_content: true
+      register: _hz_codex_vault
+      no_log: true
+    - name: Capture Codex auth from Vault
+      ansible.builtin.set_fact:
+        _hz_codex_auth: "{{ (_hz_codex_vault.content | from_json).data.data.codex_auth_json }}"
+      no_log: true
+
+- name: Load Discord bot token from Vault
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/hermes"
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    return_content: true
+  register: _hz_vault
+  no_log: true
+
+- name: Capture Discord bot token
+  ansible.builtin.set_fact:
+    _hz_discord_token: "{{ (_hz_vault.content | from_json).data.data.discord_bot_token }}"
+  no_log: true
+
+- name: Assert secrets resolved
+  ansible.builtin.assert:
+    that:
+      - _hz_codex_auth is defined and _hz_codex_auth | length > 0
+      - _hz_discord_token is defined and _hz_discord_token | length > 0
+    fail_msg: >-
+      Missing Hermes secrets. Run 'CODEX_HOME=$HOME/.codex-hermes codex login'
+      once (writes ~/.codex-hermes/auth.json) or seed Vault secret/homelab/hermes
+      key codex_auth_json, and seed discord_bot_token.
+
+- name: Ensure hermes namespace
+  ansible.builtin.command: kubectl create namespace hermes
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _hz_ns
+  changed_when: _hz_ns.rc == 0
+  failed_when: _hz_ns.rc != 0 and 'already exists' not in _hz_ns.stderr
+
+- name: Create hermes-codex-auth secret
+  ansible.builtin.shell: |
+    kubectl create secret generic hermes-codex-auth \
+      --namespace hermes \
+      --from-literal=auth.json='{{ _hz_codex_auth | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _hz_codex_secret
+  changed_when: "'created' in _hz_codex_secret.stdout or 'configured' in _hz_codex_secret.stdout"
+  no_log: true
+
+- name: Create hermes-secrets (discord)
+  ansible.builtin.shell: |
+    kubectl create secret generic hermes-secrets \
+      --namespace hermes \
+      --from-literal=discord_bot_token='{{ _hz_discord_token | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _hz_discord_secret
+  changed_when: "'created' in _hz_discord_secret.stdout or 'configured' in _hz_discord_secret.stdout"
+  no_log: true
+
+- name: Copy the working ghcr-pull secret into hermes
+  ansible.builtin.shell: |
+    kubectl get secret ghcr-pull -n dbt -o json \
+      | python3 -c 'import sys,json;d=json.load(sys.stdin);d["metadata"]={"name":"ghcr-pull","namespace":"hermes"};print(json.dumps(d))' \
+      | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _hz_pull
+  changed_when: "'created' in _hz_pull.stdout or 'configured' in _hz_pull.stdout"
+  no_log: true

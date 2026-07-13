@@ -11,8 +11,10 @@
       "deny_patterns": ["ghp_", "gho_", "Authorization:"],
       "arms": [
         {"id": "control-gh", "label": "raw gh", "treatment": false,
+         "allowed_tools": ["Bash(gh:*)", "Bash(gh-axi:*)", "Read", "Write"],
          "append_system_prompt": "Use the `gh` CLI for all GitHub operations."},
         {"id": "treat-gh-axi", "label": "gh-axi", "treatment": true,
+         "allowed_tools": ["Bash(gh:*)", "Bash(gh-axi:*)", "Read", "Write"],
          "append_system_prompt": "Use `gh-axi` (TOON-output wrapper) for all GitHub operations, not raw gh."}
       ]
     },
@@ -25,8 +27,10 @@
       "expect_contains": [["greet.py", "argv"]],
       "deny_patterns": [],
       "arms": [
-        {"id": "control-baseline", "label": "no AXI skill", "treatment": false},
+        {"id": "control-baseline", "label": "no AXI skill", "treatment": false,
+         "allowed_tools": ["Read", "Write", "Edit", "Bash(python3:*)"]},
         {"id": "treat-axi-skill", "label": "AXI skill", "treatment": true,
+         "allowed_tools": ["Read", "Write", "Edit", "Bash(python3:*)"],
          "append_system_prompt": "Follow the AXI (Agent eXperience Interface) standard: token-efficient content-first default output, minimal schemas, definitive empty states, structured errors with meaningful exit codes (2 for usage errors), concise --help, and reject unknown flags rather than ignoring them."}
       ]
     },

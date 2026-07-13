@@ -67,6 +67,15 @@ A treatment "wins" when it lowers tokens/turns/duration/tool-failures **without*
 success or diff-correctness and **without** adding safety violations. Percentages are the
 control→treatment change; token percentages are the headline for the AXI/gh-axi arms.
 
+**Metric caveat — `input_tokens`:** Claude Code's `usage.input_tokens` reports *uncached*
+input only; prompt-cache reads (usually the bulk of input) are not counted there. So
+`input_tokens` can read implausibly low (e.g. `7`) and is **not** a reliable signal.
+**Use `output_tokens`** (fully counted) as the token headline; `duration` and `turns`
+corroborate.
+
+Observed real result (`gh-vs-gh-axi`, 1 rep): gh-axi **−20.9% output tokens, −23.6%
+duration**, same success/diff-correctness, 0 safety violations.
+
 ## Files
 
 - `eval.py` — the harness (stdlib only; itself AXI-conformant: content-first stdout, exit codes).

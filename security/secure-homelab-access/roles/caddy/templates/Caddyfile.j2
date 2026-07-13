@@ -138,6 +138,17 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# Quartz research notes (read-only static site — via Traefik IngressRoute)
+{{ _scheme }}{{ subdomain_notes | default('notes') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
+}
+
 # n8n (workflow automation — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_n8n }}.{{ domain }} {
 	import rate_limit

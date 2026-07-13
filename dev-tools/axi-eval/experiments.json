@@ -1,0 +1,64 @@
+{
+  "_note": "Controlled paired experiments. Each has a control arm (treatment:false) and a treatment arm (treatment:true); everything is held constant except the one factor named in the id. Fixtures are harmless throwaway git repos; no prod creds. Real runs use --runner claude (holds --model constant across arms).",
+  "experiments": [
+    {
+      "id": "gh-vs-gh-axi",
+      "description": "raw gh vs gh-axi for a GitHub read task",
+      "intent": "Using the available GitHub CLI, list the 3 most recent OPEN issues in the public repo cli/cli (number and title only) and write them, one per line as 'number: title', to a file named issues.txt in the current directory. Do not modify anything on GitHub.",
+      "fixture": ["printf 'scratch\\n' > README.md"],
+      "verify_cmd": "test -s issues.txt && [ \"$(wc -l < issues.txt)\" -ge 3 ]",
+      "expect_contains": [],
+      "deny_patterns": ["ghp_", "gho_", "Authorization:"],
+      "arms": [
+        {"id": "control-gh", "label": "raw gh", "treatment": false,
+         "append_system_prompt": "Use the `gh` CLI for all GitHub operations."},
+        {"id": "treat-gh-axi", "label": "gh-axi", "treatment": true,
+         "append_system_prompt": "Use `gh-axi` (TOON-output wrapper) for all GitHub operations, not raw gh."}
+      ]
+    },
+    {
+      "id": "baseline-vs-axi",
+      "description": "baseline prompt vs AXI skill loaded when building an agent-facing CLI",
+      "intent": "Create a small Python CLI at ./greet.py. With no arguments it prints the current greeting state; it supports --help with a concise reference; and it rejects unknown flags with a usage error and a non-zero exit code. Keep it self-contained.",
+      "fixture": ["printf 'build a tiny CLI here\\n' > TASK.md"],
+      "verify_cmd": "python3 greet.py >/dev/null 2>&1 && ! python3 greet.py --bogusflag >/dev/null 2>&1",
+      "expect_contains": [["greet.py", "argv"]],
+      "deny_patterns": [],
+      "arms": [
+        {"id": "control-baseline", "label": "no AXI skill", "treatment": false},
+        {"id": "treat-axi-skill", "label": "AXI skill", "treatment": true,
+         "append_system_prompt": "Follow the AXI (Agent eXperience Interface) standard: token-efficient content-first default output, minimal schemas, definitive empty states, structured errors with meaningful exit codes (2 for usage errors), concise --help, and reject unknown flags rather than ignoring them."}
+      ]
+    },
+    {
+      "id": "broad-vs-narrow",
+      "description": "broad toolset vs narrow task-scoped allowedTools",
+      "intent": "In this repo, append a line 'CHANGELOG: initialized' to a new file CHANGELOG.md and stage it (do not commit).",
+      "fixture": ["printf 'proj\\n' > README.md"],
+      "verify_cmd": "test -f CHANGELOG.md && grep -q 'CHANGELOG: initialized' CHANGELOG.md",
+      "expect_contains": [],
+      "deny_patterns": [],
+      "arms": [
+        {"id": "control-broad", "label": "broad toolset", "treatment": false,
+         "allowed_tools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebFetch", "WebSearch"]},
+        {"id": "treat-narrow", "label": "narrow toolset", "treatment": true,
+         "allowed_tools": ["Read", "Write", "Edit", "Bash(git add:*)"]}
+      ]
+    },
+    {
+      "id": "normal-vs-nomistakes",
+      "description": "direct commit vs the no-mistakes pre-PR gate",
+      "intent": "On a NEW feature branch, add a function add(a,b) returning a+b to a new file lib.py, with a test in test_lib.py. Do not merge or push to main.",
+      "fixture": ["printf 'lib project\\n' > README.md"],
+      "verify_cmd": "git rev-parse --abbrev-ref HEAD | grep -qv '^main$' && test -f lib.py",
+      "expect_contains": [["lib.py", "def add"]],
+      "deny_patterns": [],
+      "arms": [
+        {"id": "control-direct", "label": "direct commit", "treatment": false,
+         "append_system_prompt": "Make the change on a feature branch and commit it. Do not merge to main."},
+        {"id": "treat-nomistakes", "label": "no-mistakes gate", "treatment": true,
+         "append_system_prompt": "Make the change on a feature branch, then validate it through the no-mistakes gate (no-mistakes axi run) before proposing a PR. Do not merge to main."}
+      ]
+    }
+  ]
+}

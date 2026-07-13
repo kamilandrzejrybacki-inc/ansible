@@ -1,6 +1,10 @@
 ---
 claude_config_dir: "{{ ansible_env.HOME }}/.claude"
 
+# gh-axi: AXI/TOON wrapper over the gh CLI (kunchenguid/gh-axi), pinned. Installed to
+# the ~/.local user prefix (on PATH) — reuses existing `gh` auth, no second credential.
+gh_axi_version: "0.1.27"
+
 claude_skills_repos:
   - repo: "https://github.com/mattpocock/skills"
     name: "mattpocock-skills"

@@ -143,3 +143,20 @@
     path: "{{ claude_config_dir }}/plugins/marketplaces/everything-claude-code/skills/{{ item }}"
     state: absent
   loop: "{{ claude_ecc_skills_pruned }}"
+
+# gh-axi: pinned AXI/TOON wrapper over the gh CLI. User-prefix install (no sudo,
+# no second GitHub credential — reuses existing `gh` auth). The gh-axi skill is
+# delivered by the "Copy vendored skills directory" task above.
+- name: Install gh-axi (pinned) to the user-local prefix
+  ansible.builtin.command:
+    cmd: "npm install -g gh-axi@{{ gh_axi_version }} --prefix {{ ansible_env.HOME }}/.local"
+  register: gh_axi_install
+  changed_when: >-
+    'added' in gh_axi_install.stdout or 'changed' in gh_axi_install.stdout
+    or 'updated' in gh_axi_install.stdout
+
+- name: Verify gh-axi version is the pinned one
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/gh-axi --version"
+  register: gh_axi_version_out
+  changed_when: false
+  failed_when: gh_axi_version not in gh_axi_version_out.stdout

@@ -76,6 +76,24 @@
     _hz_crons_webhook_url: "{{ (_hz_vault.content | from_json).data.data.crons_webhook_url | default('') }}"
   no_log: true
 
+# GitHub token so Hermes can `git push` + open PRs from its OWN pod (see chart
+# deployment.yaml). Reuses the cellarette_gh_token (secret/homelab/github) — the
+# same token cellarette's server-side gh uses. Injected as GH_TOKEN via
+# hermes-secrets key gh_token; the git credential helper reads it at push time.
+- name: Load GitHub push token from Vault (secret/homelab/github)
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/github"
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    return_content: true
+  register: _hz_gh_vault
+  failed_when: false
+  no_log: true
+
+- name: Capture GitHub push token
+  ansible.builtin.set_fact:
+    _hz_gh_token: "{{ (_hz_gh_vault.content | from_json).data.data.cellarette_gh_token | default('') }}"
+  no_log: true
+
 - name: Assert secrets resolved
   ansible.builtin.assert:
     that:
@@ -112,6 +130,7 @@
       --from-literal=cellarette_mcp_token='{{ _hz_cellarette_mcp_token | replace("'", "'\"'\"'") }}' \
       --from-literal=ntfy_bearer_token='{{ _hz_ntfy_bearer_token | replace("'", "'\"'\"'") }}' \
       --from-literal=crons_webhook_url='{{ _hz_crons_webhook_url | replace("'", "'\"'\"'") }}' \
+      --from-literal=gh_token='{{ _hz_gh_token | replace("'", "'\"'\"'") }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
   register: _hz_discord_secret

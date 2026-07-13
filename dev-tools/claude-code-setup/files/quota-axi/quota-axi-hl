@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+// quota-axi-hl — homelab normalization wrapper over quota-axi.
+//
+// quota-axi@0.1.5 stamps a stale window id/label (e.g. Codex's WEEKLY window is
+// tagged `id: five_hour`, `label: session`). This wrapper derives the correct
+// label from the authoritative `windowSeconds` field so EVERY consumer (agents,
+// dashboards, humans) sees a correct label without reading any docs.
+//
+// It is read-only: it only reshapes quota-axi's own read-only output, never reads
+// or prints credentials. `auth`, `--help`, `--version` pass straight through.
+'use strict';
+const { spawnSync } = require('child_process');
+
+const REAL = 'quota-axi';
+const args = process.argv.slice(2);
+
+// Non-quota subcommands / meta flags: pass through unchanged.
+if (args.some(a => ['auth', '--help', '-h', '--version', '-v'].includes(a))) {
+  const r = spawnSync(REAL, args, { stdio: 'inherit' });
+  process.exit(r.status == null ? 1 : r.status);
+}
+
+const wantJson = args.includes('--json');
+const inner = args.filter(a => a !== '--json');
+const r = spawnSync(REAL, ['--json', ...inner], { encoding: 'utf8' });
+// On any failure, fall back to raw quota-axi so exit codes/behavior are preserved.
+if (r.status !== 0 || !r.stdout) {
+  const raw = spawnSync(REAL, args, { stdio: 'inherit' });
+  process.exit(raw.status == null ? 1 : raw.status);
+}
+let data;
+try { data = JSON.parse(r.stdout); } catch (_e) {
+  process.stdout.write(r.stdout);
+  process.exit(r.status);
+}
+
+const NAMED = new Map([[18000, 'session'], [86400, 'daily'], [604800, 'weekly'], [2592000, 'monthly']]);
+function canon(w) {
+  const s = Number(w.windowSeconds);
+  let label = NAMED.get(s);
+  if (!label && s > 0) label = (s % 86400 === 0) ? `${s / 86400}d` : `${Math.round(s / 3600)}h`;
+  if (label) { w.id = label; w.label = label; w.kind = label; }
+  return w;
+}
+for (const p of (data.providers || [])) for (const w of (p.windows || [])) canon(w);
+if (Array.isArray(data.windows)) for (const w of data.windows) canon(w);
+
+if (wantJson) {
+  process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+  process.exit(0);
+}
+
+// Corrected compact TOON output.
+const provRows = (data.providers || []).map(p =>
+  `  ${p.provider},${p.plan || 'unknown'},${p.source || 'unavailable'},${(p.state && p.state.status) || 'unknown'}`);
+const winRows = [];
+for (const p of (data.providers || [])) for (const w of (p.windows || [])) {
+  winRows.push(`  ${p.provider},${w.id},${w.percentRemaining}%,${w.resetsAt || ''},${w.windowSeconds || ''}`);
+}
+let out = '';
+out += 'note: window labels normalized from windowSeconds (quota-axi mislabels Codex weekly as five_hour)\n';
+out += `providers[${provRows.length}]{provider,plan,source,status}:\n${provRows.join('\n')}\n`;
+out += `windows[${winRows.length}]{provider,window,percentRemaining,resetsAt,windowSeconds}:\n${winRows.join('\n')}\n`;
+process.stdout.write(out);
+process.exit(0);

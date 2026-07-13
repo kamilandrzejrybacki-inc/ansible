@@ -205,3 +205,17 @@
   register: quota_axi_version_out
   changed_when: false
   failed_when: quota_axi_version not in quota_axi_version_out.stdout
+
+# quota-axi-hl: label-normalizing wrapper (fixes quota-axi's stale Codex 'five_hour'
+# label → weekly, from windowSeconds) so all consumers read correct windows. Read-only.
+- name: Install quota-axi-hl normalization wrapper to ~/.local/bin
+  ansible.builtin.copy:
+    src: quota-axi/quota-axi-hl
+    dest: "{{ ansible_env.HOME }}/.local/bin/quota-axi-hl"
+    mode: "0755"
+
+- name: Verify quota-axi-hl runs
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/quota-axi-hl auth"
+  register: quota_axi_hl_out
+  changed_when: false
+  failed_when: quota_axi_hl_out.rc not in [0, 1]

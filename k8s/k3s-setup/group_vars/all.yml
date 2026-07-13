@@ -94,6 +94,12 @@ argocd_applications:
     namespace: hermes
     values: {}
 
+  # Local Whisper STT (Speaches) for Hermes voice-message transcription. Same ns as hermes.
+  - name: whisper
+    chart_path: charts/whisper
+    namespace: hermes
+    values: {}
+
   - name: agentmemory
     chart_path: charts/agentmemory
     namespace: agentmemory

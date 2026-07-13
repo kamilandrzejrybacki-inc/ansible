@@ -71,6 +71,11 @@
     _hz_ntfy_bearer_token: "{{ (_hz_vault.content | from_json).data.data.ntfy_bearer_token | default('') }}"
   no_log: true
 
+- name: Capture Discord #crons webhook URL (event-bus / cronjob digest sink)
+  ansible.builtin.set_fact:
+    _hz_crons_webhook_url: "{{ (_hz_vault.content | from_json).data.data.crons_webhook_url | default('') }}"
+  no_log: true
+
 - name: Assert secrets resolved
   ansible.builtin.assert:
     that:
@@ -106,6 +111,7 @@
       --from-literal=discord_bot_token='{{ _hz_discord_token | replace("'", "'\"'\"'") }}' \
       --from-literal=cellarette_mcp_token='{{ _hz_cellarette_mcp_token | replace("'", "'\"'\"'") }}' \
       --from-literal=ntfy_bearer_token='{{ _hz_ntfy_bearer_token | replace("'", "'\"'\"'") }}' \
+      --from-literal=crons_webhook_url='{{ _hz_crons_webhook_url | replace("'", "'\"'\"'") }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
   register: _hz_discord_secret

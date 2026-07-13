@@ -7,3 +7,9 @@
 
 # K8s NFS — dynamic storage for lw-c1 cluster (nfs-subdir-external-provisioner)
 {{ k8s_nfs_path }}    {{ k8s_nfs_allowed_host }}({{ k8s_nfs_options }})
+
+# Obsidian vault (READ-ONLY) for Quartz static-site builds. Vault files live at
+# /opt/knowledge-vault/content on lw-nas (served interactively via the Obsidian Local
+# REST API on :27124; this ro export is for the Quartz build to read markdown directly).
+# Added 2026-07-13.
+/opt/knowledge-vault/content    {{ nfs_allowed_network }}(ro,sync,fsid=14,no_subtree_check,root_squash,all_squash,anonuid=65534,anongid=65534)

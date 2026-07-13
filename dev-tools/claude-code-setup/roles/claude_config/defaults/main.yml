@@ -11,6 +11,10 @@ gh_axi_version: "0.1.27"
 # files/no-mistakes/) + `no-mistakes init`.
 no_mistakes_version: "1.37.0"
 
+# quota-axi: read-only subscription-quota telemetry (kunchenguid/quota-axi), pinned. Reads
+# local Claude/Codex OAuth subscription auth; never routes or mutates. ~/.local prefix.
+quota_axi_version: "0.1.5"
+
 claude_skills_repos:
   - repo: "https://github.com/mattpocock/skills"
     name: "mattpocock-skills"

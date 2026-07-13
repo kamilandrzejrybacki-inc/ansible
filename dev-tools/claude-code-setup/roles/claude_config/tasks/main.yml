@@ -190,3 +190,18 @@
   ansible.builtin.debug:
     msg: "Go toolchain not found — skipped no-mistakes install. Install Go >= 1.25, then re-run."
   when: go_present.rc != 0
+
+# quota-axi: pinned read-only subscription-quota telemetry → ~/.local prefix.
+- name: Install quota-axi (pinned) to the user-local prefix
+  ansible.builtin.command:
+    cmd: "npm install -g quota-axi@{{ quota_axi_version }} --prefix {{ ansible_env.HOME }}/.local"
+  register: quota_axi_install
+  changed_when: >-
+    'added' in quota_axi_install.stdout or 'changed' in quota_axi_install.stdout
+    or 'updated' in quota_axi_install.stdout
+
+- name: Verify quota-axi version is the pinned one
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/quota-axi --version"
+  register: quota_axi_version_out
+  changed_when: false
+  failed_when: quota_axi_version not in quota_axi_version_out.stdout

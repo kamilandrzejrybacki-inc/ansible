@@ -5,6 +5,12 @@ claude_config_dir: "{{ ansible_env.HOME }}/.claude"
 # the ~/.local user prefix (on PATH) — reuses existing `gh` auth, no second credential.
 gh_axi_version: "0.1.27"
 
+# no-mistakes: local pre-PR validation gate (kunchenguid/no-mistakes), pinned. Go binary
+# installed to ~/.local/bin via `go install`. Only opens PRs, never merges. Run with
+# NO_MISTAKES_TELEMETRY=off. Coding projects opt in with a .no-mistakes.yaml (template in
+# files/no-mistakes/) + `no-mistakes init`.
+no_mistakes_version: "1.37.0"
+
 claude_skills_repos:
   - repo: "https://github.com/mattpocock/skills"
     name: "mattpocock-skills"

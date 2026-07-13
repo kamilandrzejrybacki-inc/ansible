@@ -160,3 +160,33 @@
   register: gh_axi_version_out
   changed_when: false
   failed_when: gh_axi_version not in gh_axi_version_out.stdout
+
+# no-mistakes: pinned Go binary → ~/.local/bin (needs the Go toolchain). Only opens
+# PRs, never merges; run with NO_MISTAKES_TELEMETRY=off. Skipped if `go` is absent.
+- name: Check for Go toolchain (no-mistakes install prerequisite)
+  ansible.builtin.command: go version
+  register: go_present
+  changed_when: false
+  failed_when: false
+
+- name: Install no-mistakes gate (pinned) to ~/.local/bin
+  ansible.builtin.command:
+    cmd: "go install github.com/kunchenguid/no-mistakes/cmd/no-mistakes@v{{ no_mistakes_version }}"
+  environment:
+    GOBIN: "{{ ansible_env.HOME }}/.local/bin"
+    NO_MISTAKES_TELEMETRY: "off"
+  register: nm_install
+  changed_when: true
+  when: go_present.rc == 0
+
+- name: Verify no-mistakes version is the pinned one
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/no-mistakes --version"
+  register: nm_version_out
+  changed_when: false
+  failed_when: no_mistakes_version not in nm_version_out.stdout
+  when: go_present.rc == 0
+
+- name: Warn if Go toolchain is missing (no-mistakes not installed)
+  ansible.builtin.debug:
+    msg: "Go toolchain not found — skipped no-mistakes install. Install Go >= 1.25, then re-run."
+  when: go_present.rc != 0

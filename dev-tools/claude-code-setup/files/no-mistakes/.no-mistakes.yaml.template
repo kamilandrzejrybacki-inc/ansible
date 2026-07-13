@@ -1,0 +1,52 @@
+# Homelab .no-mistakes.yaml template — copy to a coding project's repo root and
+# adjust `commands`. Enforces: no autonomous shipping (auto_fix all 0 → the gate
+# blocks at findings and waits for `no-mistakes axi respond`), project settings
+# suppressed for the gate agent, and sensitive infra paths excluded from the
+# pipeline so the gate agent never autonomously edits or ships them.
+#
+# no-mistakes only OPENS PRs, never merges — human review/merge stays mandatory
+# and branch protection is never bypassed. Read config is taken only from the
+# trusted default branch, never the pushed feature branch.
+#
+# Pinned to no-mistakes v1.37.0. Run with NO_MISTAKES_TELEMETRY=off (role sets it).
+
+# One or more agents (ordered fallback). `auto` picks the first available.
+agent: [claude, codex]
+
+# First validation layer = the project's own tests/lint/format. Replace these.
+commands:
+  test: ""        # e.g. "pnpm test" / "pytest -q" / "go test ./..."
+  lint: ""        # e.g. "pnpm lint" / "ruff check ." / "golangci-lint run"
+  format: ""      # e.g. "pnpm format:check" / "ruff format --check ."
+
+# No yolo: every step's auto-fix loop is disabled → findings require an explicit
+# `no-mistakes axi respond --action approve|fix|skip` (a human/driver decision).
+auto_fix:
+  rebase: 0
+  review: 0
+  test: 0
+  document: 0
+  lint: 0
+  ci: 0
+
+# The gate agent must not inherit repo/user agent project settings.
+disable_project_settings: true
+
+# Sensitive infra excluded from the pipeline (gate agent never auto-edits/ships these;
+# they go through human review directly). Extend per repo as needed.
+ignore_patterns:
+  - "charts/**"                 # Helm charts
+  - "**/argocd*/**"             # ArgoCD apps
+  - "**/argocd-apps/**"
+  - "**/rbac*.y*ml"             # RBAC
+  - "**/role*.y*ml"
+  - "**/clusterrole*.y*ml"
+  - "**/networkpolicy*.y*ml"    # NetworkPolicy
+  - "**/*.sops.y*ml"            # SOPS-encrypted
+  - "**/*.enc.y*ml"
+  - "**/secrets/**"             # secret material
+  - "**/*secret*.y*ml"
+  - "**/migrations/**"          # DB migrations
+  - "**/auth/**"                # auth/authz code paths
+  - "k8s/**"                    # cluster manifests
+  - "**/*.tfstate*"             # prod infra state

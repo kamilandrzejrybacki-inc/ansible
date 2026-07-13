@@ -1,0 +1,79 @@
+---
+# Secrets for charts/gnhf-bot in namespace gnhf:
+#   - gnhf-bot-secrets   (discord_bot_token, gh_token, crons_webhook_url) — from Vault
+#   - gnhf-claude-auth   (.credentials.json)                             — from control machine
+#
+# Seed Vault BEFORE running (values never go through chat/git):
+#   vault kv put secret/homelab/gnhf-bot \
+#     discord_bot_token=<ROTATED bot token> \
+#     gh_token=<PAT: push branches + open PRs on ALLOWLISTED repos only; no admin/workflow> \
+#     crons_webhook_url=<#gnhf channel webhook>
+# Claude auth is read from ~/.claude/.credentials.json on the control machine (like botl).
+
+- name: Read Claude Code credentials from control machine
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/.claude/.credentials.json"
+  register: _gnhf_claude_stat
+
+- name: Capture Claude Code credentials
+  ansible.builtin.set_fact:
+    _gnhf_claude_creds: "{{ lookup('file', lookup('env', 'HOME') + '/.claude/.credentials.json') }}"
+  when: _gnhf_claude_stat.stat.exists
+  no_log: true
+
+- name: Load gnhf-bot tokens from Vault
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/gnhf-bot"
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    return_content: true
+  register: _gnhf_vault
+  no_log: true
+
+- name: Capture gnhf-bot tokens
+  ansible.builtin.set_fact:
+    _gnhf_discord_token: "{{ (_gnhf_vault.content | from_json).data.data.discord_bot_token }}"
+    _gnhf_gh_token: "{{ (_gnhf_vault.content | from_json).data.data.gh_token }}"
+    _gnhf_crons_webhook: "{{ (_gnhf_vault.content | from_json).data.data.crons_webhook_url | default('') }}"
+  no_log: true
+
+- name: Assert gnhf-bot secrets resolved
+  ansible.builtin.assert:
+    that:
+      - _gnhf_claude_stat.stat.exists
+      - _gnhf_discord_token is defined and _gnhf_discord_token | length > 0
+      - _gnhf_gh_token is defined and _gnhf_gh_token | length > 0
+    fail_msg: >-
+      Missing gnhf-bot secrets. Ensure ~/.claude/.credentials.json exists on the control
+      machine, and seed Vault secret/homelab/gnhf-bot with discord_bot_token + gh_token
+      (+ crons_webhook_url).
+
+- name: Ensure gnhf namespace
+  ansible.builtin.command: kubectl create namespace gnhf
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _gnhf_ns
+  changed_when: _gnhf_ns.rc == 0
+  failed_when: _gnhf_ns.rc != 0 and 'already exists' not in _gnhf_ns.stderr
+
+- name: Create gnhf-bot-secrets
+  ansible.builtin.shell: |
+    kubectl create secret generic gnhf-bot-secrets \
+      --namespace gnhf \
+      --from-literal=discord_bot_token='{{ _gnhf_discord_token | replace("'", "'\"'\"'") }}' \
+      --from-literal=gh_token='{{ _gnhf_gh_token | replace("'", "'\"'\"'") }}' \
+      --from-literal=crons_webhook_url='{{ _gnhf_crons_webhook | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _gnhf_bot_secret
+  changed_when: "'created' in _gnhf_bot_secret.stdout or 'configured' in _gnhf_bot_secret.stdout"
+  no_log: true
+
+- name: Create gnhf-claude-auth
+  ansible.builtin.shell: |
+    kubectl create secret generic gnhf-claude-auth \
+      --namespace gnhf \
+      --from-literal=.credentials.json='{{ _gnhf_claude_creds | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _gnhf_claude_secret
+  changed_when: "'created' in _gnhf_claude_secret.stdout or 'configured' in _gnhf_claude_secret.stdout"
+  no_log: true

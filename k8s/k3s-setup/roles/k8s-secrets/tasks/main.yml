@@ -14,3 +14,7 @@
 - name: Create Hermes codex-auth + discord secrets
   ansible.builtin.include_tasks: hermes.yml
   tags: [hermes, secrets]
+
+- name: Create gnhf-bot secrets (discord/gh from Vault + Claude creds from control machine)
+  ansible.builtin.include_tasks: gnhf-bot.yml
+  tags: [gnhf-bot, secrets]

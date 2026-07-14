@@ -6,10 +6,11 @@
 #   - feedcord-secrets (ns feedcord) key discord_webhook_url — #releases sink,
 #     merged into appsettings.json by the chart's init container
 #
-# Seed Vault BEFORE running (URLs are secrets — anyone holding one can post):
-#   vault kv put secret/homelab/discord-webhooks \
-#     grafana_alerts=<#alerts webhook URL> \
-#     feedcord=<#releases webhook URL>
+# Vault path secret/homelab/discord-webhooks keys (seeded 2026-07-14):
+#   grafana_alerts          — #alerts (Grafana contact points)
+#   feedcord_releases       — #releases
+#   feedcord_agent_ideas    — #agent-ideas
+#   feedcord_agent_research — #agent-research
 
 - name: Load Discord webhook URLs from Vault
   ansible.builtin.uri:
@@ -23,7 +24,9 @@
 - name: Capture Discord webhook URLs
   ansible.builtin.set_fact:
     _dwh_grafana: "{{ ((_dwh_vault.content | from_json).data.data.grafana_alerts | default('')) if _dwh_vault.status == 200 else '' }}"
-    _dwh_feedcord: "{{ ((_dwh_vault.content | from_json).data.data.feedcord | default('')) if _dwh_vault.status == 200 else '' }}"
+    _dwh_fc_releases: "{{ ((_dwh_vault.content | from_json).data.data.feedcord_releases | default('')) if _dwh_vault.status == 200 else '' }}"
+    _dwh_fc_ideas: "{{ ((_dwh_vault.content | from_json).data.data.feedcord_agent_ideas | default('')) if _dwh_vault.status == 200 else '' }}"
+    _dwh_fc_research: "{{ ((_dwh_vault.content | from_json).data.data.feedcord_agent_research | default('')) if _dwh_vault.status == 200 else '' }}"
   no_log: true
 
 - name: Warn when Vault path is unseeded
@@ -31,7 +34,7 @@
     msg: >-
       secret/homelab/discord-webhooks not seeded in Vault — skipping webhook secret
       (re-)creation. Existing in-cluster secrets are left untouched.
-  when: _dwh_grafana == '' and _dwh_feedcord == ''
+  when: _dwh_grafana == '' and _dwh_fc_releases == ''
 
 - name: Merge DISCORD_ALERTS_WEBHOOK_URL into grafana-secrets
   ansible.builtin.shell: |
@@ -49,16 +52,20 @@
   register: _dwh_ns
   changed_when: _dwh_ns.rc == 0
   failed_when: _dwh_ns.rc != 0 and 'already exists' not in _dwh_ns.stderr
-  when: _dwh_feedcord != ''
+  when: _dwh_fc_releases != ''
 
-- name: Create feedcord-secrets
+# Key names MUST match charts/feedcord values.yaml instances[].webhookKey — the init
+# container substitutes __WEBHOOK_<key>__ per mounted secret key.
+- name: Create feedcord-secrets (per-instance webhook keys)
   ansible.builtin.shell: |
     kubectl create secret generic feedcord-secrets \
       --namespace feedcord \
-      --from-literal=discord_webhook_url='{{ _dwh_feedcord | replace("'", "'\"'\"'") }}' \
+      --from-literal=releases='{{ _dwh_fc_releases | replace("'", "'\"'\"'") }}' \
+      --from-literal=agent_ideas='{{ _dwh_fc_ideas | replace("'", "'\"'\"'") }}' \
+      --from-literal=agent_research='{{ _dwh_fc_research | replace("'", "'\"'\"'") }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
-  when: _dwh_feedcord != ''
+  when: _dwh_fc_releases != ''
   register: _dwh_fsecret
   changed_when: "'created' in _dwh_fsecret.stdout or 'configured' in _dwh_fsecret.stdout"
   no_log: true

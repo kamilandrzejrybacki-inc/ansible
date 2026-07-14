@@ -1,7 +1,7 @@
 ---
 # Secrets for charts/hermes in namespace hermes:
 #   - hermes-codex-auth  (key auth.json)         — ChatGPT-OAuth Codex creds
-#   - hermes-secrets     (key discord_bot_token) — Discord gateway bot token
+#   - hermes-secrets     (gateway/tool keys)      — Discord, Cellarette, Gmail
 #   - ghcr-pull          (dockerconfigjson)      — private image pull
 #
 # Codex auth resolution (headless after first run): use Hermes's DEDICATED
@@ -76,6 +76,19 @@
     _hz_crons_webhook_url: "{{ (_hz_vault.content | from_json).data.data.crons_webhook_url | default('') }}"
   no_log: true
 
+- name: Load Himalaya Gmail App Password from Vault
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/Hermes/himalaya"
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    return_content: true
+  register: _hz_himalaya_vault
+  no_log: true
+
+- name: Capture Himalaya Gmail App Password
+  ansible.builtin.set_fact:
+    _hz_himalaya_app_password: "{{ (_hz_himalaya_vault.content | from_json).data.data.APP_KEY }}"
+  no_log: true
+
 # GitHub token so Hermes can `git push` + open PRs from its OWN pod (see chart
 # deployment.yaml). Reuses the cellarette_gh_token (secret/homelab/github) — the
 # same token cellarette's server-side gh uses. Injected as GH_TOKEN via
@@ -99,10 +112,12 @@
     that:
       - _hz_codex_auth is defined and _hz_codex_auth | length > 0
       - _hz_discord_token is defined and _hz_discord_token | length > 0
+      - _hz_himalaya_app_password is defined and _hz_himalaya_app_password | regex_replace('\\s', '') | length == 16
     fail_msg: >-
       Missing Hermes secrets. Run 'CODEX_HOME=$HOME/.codex-hermes codex login'
       once (writes ~/.codex-hermes/auth.json) or seed Vault secret/homelab/hermes
-      key codex_auth_json, and seed discord_bot_token.
+      key codex_auth_json, seed discord_bot_token, and seed
+      secret/homelab/Hermes/himalaya key APP_KEY with a 16-character Gmail App Password.
 
 - name: Ensure hermes namespace
   ansible.builtin.command: kubectl create namespace hermes
@@ -131,6 +146,7 @@
       --from-literal=ntfy_bearer_token='{{ _hz_ntfy_bearer_token | replace("'", "'\"'\"'") }}' \
       --from-literal=crons_webhook_url='{{ _hz_crons_webhook_url | replace("'", "'\"'\"'") }}' \
       --from-literal=gh_token='{{ _hz_gh_token | replace("'", "'\"'\"'") }}' \
+      --from-literal=himalaya_app_password='{{ _hz_himalaya_app_password | replace("'", "'\"'\"'") }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
   register: _hz_discord_secret

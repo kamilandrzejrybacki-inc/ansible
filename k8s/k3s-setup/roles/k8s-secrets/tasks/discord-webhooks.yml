@@ -1,0 +1,64 @@
+---
+# Discord webhook URLs for alerting/feeds sinks (seeded 2026-07-14 via kubectl,
+# reproducible here from Vault):
+#   - grafana-secrets (ns grafana)  key DISCORD_ALERTS_WEBHOOK_URL — #alerts sink,
+#     interpolated into charts/grafana/files/alerting.yml at provisioning load
+#   - feedcord-secrets (ns feedcord) key discord_webhook_url — #releases sink,
+#     merged into appsettings.json by the chart's init container
+#
+# Seed Vault BEFORE running (URLs are secrets — anyone holding one can post):
+#   vault kv put secret/homelab/discord-webhooks \
+#     grafana_alerts=<#alerts webhook URL> \
+#     feedcord=<#releases webhook URL>
+
+- name: Load Discord webhook URLs from Vault
+  ansible.builtin.uri:
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/discord-webhooks"
+    headers: { X-Vault-Token: "{{ _vault_token }}" }
+    return_content: true
+    status_code: [200, 404]
+  register: _dwh_vault
+  no_log: true
+
+- name: Capture Discord webhook URLs
+  ansible.builtin.set_fact:
+    _dwh_grafana: "{{ ((_dwh_vault.content | from_json).data.data.grafana_alerts | default('')) if _dwh_vault.status == 200 else '' }}"
+    _dwh_feedcord: "{{ ((_dwh_vault.content | from_json).data.data.feedcord | default('')) if _dwh_vault.status == 200 else '' }}"
+  no_log: true
+
+- name: Warn when Vault path is unseeded
+  ansible.builtin.debug:
+    msg: >-
+      secret/homelab/discord-webhooks not seeded in Vault — skipping webhook secret
+      (re-)creation. Existing in-cluster secrets are left untouched.
+  when: _dwh_grafana == '' and _dwh_feedcord == ''
+
+- name: Merge DISCORD_ALERTS_WEBHOOK_URL into grafana-secrets
+  ansible.builtin.shell: |
+    kubectl -n grafana patch secret grafana-secrets --type merge \
+      -p '{"data":{"DISCORD_ALERTS_WEBHOOK_URL":"{{ _dwh_grafana | b64encode }}"}}'
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  when: _dwh_grafana != ''
+  register: _dwh_gpatch
+  changed_when: "'patched' in _dwh_gpatch.stdout"
+  no_log: true
+
+- name: Ensure feedcord namespace
+  ansible.builtin.command: kubectl create namespace feedcord
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  register: _dwh_ns
+  changed_when: _dwh_ns.rc == 0
+  failed_when: _dwh_ns.rc != 0 and 'already exists' not in _dwh_ns.stderr
+  when: _dwh_feedcord != ''
+
+- name: Create feedcord-secrets
+  ansible.builtin.shell: |
+    kubectl create secret generic feedcord-secrets \
+      --namespace feedcord \
+      --from-literal=discord_webhook_url='{{ _dwh_feedcord | replace("'", "'\"'\"'") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment: { KUBECONFIG: "{{ kubeconfig_local_path }}" }
+  when: _dwh_feedcord != ''
+  register: _dwh_fsecret
+  changed_when: "'created' in _dwh_fsecret.stdout or 'configured' in _dwh_fsecret.stdout"
+  no_log: true

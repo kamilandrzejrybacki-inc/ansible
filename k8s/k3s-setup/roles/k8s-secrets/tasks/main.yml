@@ -18,3 +18,7 @@
 - name: Create gnhf-bot secrets (discord/gh from Vault + Claude creds from control machine)
   ansible.builtin.include_tasks: gnhf-bot.yml
   tags: [gnhf-bot, secrets]
+
+- name: Seed Discord webhook URL secrets (grafana alerts + feedcord releases)
+  ansible.builtin.include_tasks: discord-webhooks.yml
+  tags: [discord-webhooks, secrets]

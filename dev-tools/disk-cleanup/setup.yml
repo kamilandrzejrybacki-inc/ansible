@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# Disk Cleanup — daily reclaimable-only host maintenance
+# =============================================================================
+# Installs a user-level cleanup script + a 09:00 daily cron entry that reclaims
+# ONLY scratch: Rust incremental caches, stale target/ dirs (>7d), Docker build
+# cache + dangling images, and (with passwordless sudo) journal/apt cache.
+# It NEVER removes images-in-use, containers, volumes, or user data.
+#
+# Runs against the workstation itself (local connection, no become — user cron
+# + ~/.local/bin). Idempotent: re-running only updates the script/cron in place.
+#
+# Usage:
+#   ansible-playbook dev-tools/disk-cleanup/setup.yml \
+#     -i dev-tools/disk-cleanup/inventory/hosts.ini
+# =============================================================================
+
+- name: Install daily disk-cleanup cron
+  hosts: disk_cleanup_hosts
+  gather_facts: true
+  become: false
+
+  vars:
+    cleanup_bin_dir: "{{ ansible_env.HOME }}/.local/bin"
+    cleanup_script: "{{ ansible_env.HOME }}/.local/bin/deblob-disk-cleanup.sh"
+    cleanup_log: "{{ ansible_env.HOME }}/.local/share/deblob-disk-cleanup.log"
+    cleanup_hour: "9"
+    cleanup_minute: "0"
+
+  tasks:
+    - name: Ensure ~/.local/bin and ~/.local/share exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ ansible_env.HOME }}/.local/bin"
+        - "{{ ansible_env.HOME }}/.local/share"
+
+    - name: Install the disk-cleanup script
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/disk-cleanup.sh"
+        dest: "{{ cleanup_script }}"
+        mode: "0755"
+
+    - name: Install the daily 09:00 cron entry
+      ansible.builtin.cron:
+        name: deblob-disk-cleanup
+        minute: "{{ cleanup_minute }}"
+        hour: "{{ cleanup_hour }}"
+        job: "{{ cleanup_script }} >> {{ cleanup_log }} 2>&1"
+        state: present
+
+    - name: Verify the script is present and executable
+      ansible.builtin.command: "test -x {{ cleanup_script }}"
+      changed_when: false
+
+    - name: Report install
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: disk-cleanup installed, cron {{ cleanup_minute }} {{ cleanup_hour }} * * *"

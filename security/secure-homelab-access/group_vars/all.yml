@@ -105,6 +105,10 @@ subdomain_notes_share: "notes-share"
 # stt-polish-svc (audio -> article for the Decap CMS widget; k8s NodePort).
 subdomain_stt: "stt"
 stt_nodeport: 30811
+# Deblob web console (schema-tagging service UI; k8s NodePort, ns deblob).
+# nginx SPA proxies same-origin /api/v1 to the in-cluster deblob-mgmt API.
+subdomain_deblob: "deblob"
+deblob_nodeport: 30890
 quartz_port: 8081
 
 # -- K8s Node (lw-c1) ---------------------------------------------------------

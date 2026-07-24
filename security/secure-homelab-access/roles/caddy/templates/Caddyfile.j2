@@ -138,6 +138,18 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# Deblob demo (drift-sentinel showcase — k8s NodePort dashboard, all worker
+# nodes for HA; ns deblob-demo svc demo-dashboard:30895)
+{{ _scheme }}{{ subdomain_deblob_demo | default('deblob-demo') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy 192.168.0.107:30895 192.168.0.240:30895 192.168.0.108:30895
+}
+
 # Quartz research notes (read-only static site — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_notes | default('notes') }}.{{ domain }} {
 	import rate_limit
@@ -285,8 +297,8 @@
 
 # Deblob web console (schema-tagging service UI; k8s NodePort, ns deblob).
 # The nginx SPA serves console.html and reverse-proxies same-origin /api/v1
-# to the in-cluster deblob-mgmt Service (:9615) with the bearer api_token,
-# so the browser never holds the management token. Authelia gates the UI.
+# to the in-cluster deblob-mgmt Service (:9615). Authelia gates the UI; the
+# console's bearer token is entered by the operator and kept in sessionStorage.
 {{ _scheme }}{{ subdomain_deblob }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers

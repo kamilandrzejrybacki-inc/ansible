@@ -4,3 +4,6 @@ journald_max_use: "500M"
 # Weekly docker prune schedule (systemd OnCalendar) + age filter for what to drop.
 docker_prune_oncalendar: "Sun 04:00"
 docker_prune_age: "168h"
+# SSH user the agentic disk-watchdog connects as (cellarette operator key). Gets
+# a narrow NOPASSWD sudoers so its cleanup allowlist runs non-interactively.
+disk_watchdog_ssh_user: "kamil"

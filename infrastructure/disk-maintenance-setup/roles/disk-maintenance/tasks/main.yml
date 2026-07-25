@@ -15,6 +15,26 @@
       SystemMaxUse={{ journald_max_use }}
   notify: Restart journald
 
+# --- disk-watchdog passwordless sudo (all hosts) -----------------------------
+# The agentic disk-space watchdog (Hermes, via the cellarette `ssh` tool) logs
+# in as `{{ disk_watchdog_ssh_user }}` and needs passwordless sudo for read-only
+# diagnostics + its cleanup allowlist. Without it, `sudo -n du/journalctl/apt-get
+# clean` prompt for a password non-interactively, so the cleanup pass is skipped
+# and the node only alerts (lw-main hit 90% and could not self-clean 2026-07-25).
+# Narrow by design — du is read-only; journalctl vacuum + apt-get clean are the
+# watchdog's cleanup allowlist. k3s image prune stays with cluster-maintenance.
+- name: Grant disk-watchdog ssh user narrow passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/disk-watchdog
+    mode: "0440"
+    validate: "visudo -cf %s"
+    content: |
+      # Hermes disk-space watchdog (cellarette ssh user `{{ disk_watchdog_ssh_user }}`) —
+      # passwordless sudo for read-only diagnostics (du) + the watchdog cleanup
+      # allowlist ONLY. Managed by ansible role disk-maintenance. Do NOT widen to ALL.
+      Cmnd_Alias DISKWATCH = /usr/bin/du, /usr/bin/journalctl, /usr/bin/apt-get clean
+      {{ disk_watchdog_ssh_user }} ALL=(root) NOPASSWD: DISKWATCH
+
 # --- weekly docker prune (docker hosts only) ---------------------------------
 # k3s nodes don't run dockerd; kubelet garbage-collects unused images at its
 # disk threshold, so this is scoped to the edge.

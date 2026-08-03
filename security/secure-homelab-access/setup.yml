@@ -511,6 +511,39 @@
       when: _termix_hash is not skipped
       tags: [always]
 
+    # LiteLLM (k8s admin UI SSO). Same pattern as Termix: the plaintext OIDC
+    # secret lives in Vault (homelab/litellm.oidc_secret) and is also rendered
+    # into the k8s SopsSecret litellm-secrets.GENERIC_CLIENT_SECRET. Source +
+    # hash here so Authelia registers a matching client secret.
+    - name: Load LiteLLM OIDC secret from Vault
+      ansible.builtin.uri:
+        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/litellm"
+        headers:
+          X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
+        return_content: true
+      register: _litellm_vault
+      no_log: true
+      when: hostvars['localhost']['_vault_available'] | default(false) | bool
+      tags: [always]
+
+    - name: Hash LiteLLM OIDC secret (pbkdf2-sha512)
+      ansible.builtin.shell: >
+        docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
+        --password '{{ (_litellm_vault.content | from_json).data.data.oidc_secret }}'
+        2>/dev/null | grep 'Digest:' | awk '{print $2}'
+      register: _litellm_hash
+      changed_when: false
+      no_log: true
+      when: _litellm_vault is not skipped
+      tags: [always]
+
+    - name: Set LiteLLM OIDC hash fact
+      ansible.builtin.set_fact:
+        authelia_oidc_client_secret_litellm_hash: "{{ _litellm_hash.stdout | trim }}"
+      no_log: true
+      when: _litellm_hash is not skipped
+      tags: [always]
+
     - name: Slurp OIDC JWK private key for inline embedding
       ansible.builtin.slurp:
         src: "{{ authelia_data_dir }}/config/jwk.rsa.pem"

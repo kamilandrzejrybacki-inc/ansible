@@ -284,14 +284,15 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
-# LiteLLM UI (LLM gateway admin UI; k8s NodePort, Authelia-gated).
+# LiteLLM UI (LLM gateway admin UI; k8s NodePort). NO forward_auth import —
+# LiteLLM does its own OIDC login against Authelia (single sign-on), same
+# pattern as Termix. The /v1 API is master-key-guarded.
 {{ _scheme }}{{ subdomain_litellm | default('litellm') }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	import authelia
 	reverse_proxy http://{{ k8s_node_ip }}:30400
 }
 

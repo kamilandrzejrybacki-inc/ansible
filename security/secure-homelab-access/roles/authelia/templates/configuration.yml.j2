@@ -236,4 +236,21 @@ identity_providers:
         grant_types: [authorization_code]
         userinfo_signed_response_alg: none
 
+      # LiteLLM — admin UI single sign-on (generic OIDC). Plaintext secret in
+      # Vault homelab/litellm.oidc_secret; also rendered into the k8s SopsSecret
+      # litellm-secrets.GENERIC_CLIENT_SECRET. consent_mode implicit = no consent
+      # prompt (true single login).
+      - client_id: litellm
+        client_name: LiteLLM
+        client_secret: "{{ authelia_oidc_client_secret_litellm_hash | default('') }}"
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        scopes: [openid, profile, email, groups]
+        redirect_uris:
+          - "https://{{ subdomain_litellm | default('litellm') }}.{{ domain }}/sso/callback"
+        response_types: [code]
+        grant_types: [authorization_code]
+        userinfo_signed_response_alg: none
+
 {% endif %}

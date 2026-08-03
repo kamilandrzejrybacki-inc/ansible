@@ -174,7 +174,7 @@
       - "80:80"
       - "443:443"
       - "443:443/udp"
-      - "0.0.0.0:2019:2019"
+      - "127.0.0.1:2019:2019"
     volumes:
       - "{{ caddy_data_dir }}/Caddyfile:/etc/caddy/Caddyfile"
       - "{{ caddy_data_dir }}/data:/data"

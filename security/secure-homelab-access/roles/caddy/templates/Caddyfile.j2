@@ -293,6 +293,9 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
+	# LiteLLM serves swagger at /, so send the bare root to the admin UI.
+	@root path /
+	redir @root /ui/ 302
 	reverse_proxy http://{{ k8s_node_ip }}:30400
 }
 

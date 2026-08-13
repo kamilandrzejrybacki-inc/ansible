@@ -5,9 +5,13 @@ so they can be recreated after a PVC loss / re-provision (Termix host data lives
 only in its encrypted DB on the PVC — it is not otherwise declarative).
 
 ## Files
-- **`hosts.json`** — the 6 homelab hosts. **No private key** (injected at runtime).
-  `terminalConfig.autoTmux: true` enables **Auto-Tmux** (persistent shell across
-  disconnects); `enableTmuxMonitor: true` enables the Tmux Monitor app.
+- **`hosts.json`** — the 6 homelab hosts. **No secrets** (SSH key + VNC password
+  injected at runtime). `terminalConfig.autoTmux: true` enables **Auto-Tmux**
+  (persistent shell across disconnects); `enableTmuxMonitor: true` enables the
+  Tmux Monitor app. A host may also enable remote desktop: `enableVnc: true` +
+  `vncPort` + `vncAuthType: "password"` + `_vncPasswordFile` (path read at import
+  time — never committed). lw-main uses this for its live i3 session over
+  x11vnc:5900.
 - **`import.sh`** — applies the manifest under the current Termix OIDC user.
 
 ## Run

@@ -37,13 +37,17 @@ echo "pod: $POD"
 PAYLOAD="$(mktemp)"; RUNNER="$(mktemp --suffix=.mjs)"
 trap 'rm -f "$PAYLOAD" "$RUNNER"' EXIT
 python3 - "$MANIFEST" "$KEY_FILE" "$PAYLOAD" <<'PY'
-import json, sys
+import json, sys, os
 manifest, keyfile, out = sys.argv[1:4]
 key = open(keyfile).read().strip()
 data = json.load(open(manifest))
 for h in data.get("hosts", []):
     if h.get("authType") == "key":
         h["key"] = key
+    # Inject VNC password at runtime (never committed) for remote-desktop hosts.
+    pf = h.pop("_vncPasswordFile", None)
+    if h.get("enableVnc") and pf:
+        h["vncPassword"] = open(os.path.expanduser(pf)).read().strip()
     h.pop("_comment", None)
 json.dump({"hosts": data["hosts"]}, open(out, "w"))
 PY

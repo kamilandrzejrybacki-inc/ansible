@@ -9,3 +9,16 @@ pihole_exporter_enabled: false
 pihole_exporter_container_name: pihole-exporter
 pihole_exporter_image: "ekofr/pihole-exporter:v0.4.0"
 pihole_exporter_port: "9617"
+
+# Media stack — internal-only split-horizon DNS (host -> internal IP).
+# These subdomains have NO public Caddy edge block, so external resolution
+# (Cloudflare) hits nothing; on LAN/WireGuard Pi-hole points them internally.
+# seerr -> Traefik VIP (k8s); jellyfin + *arr -> lw-pi internal media-proxy :80.
+media_lan_dns:
+  seerr: "192.168.0.50"
+  jellyfin: "192.168.0.109"
+  radarr: "192.168.0.109"
+  sonarr: "192.168.0.109"
+  prowlarr: "192.168.0.109"
+  bazarr: "192.168.0.109"
+  qbittorrent: "192.168.0.109"

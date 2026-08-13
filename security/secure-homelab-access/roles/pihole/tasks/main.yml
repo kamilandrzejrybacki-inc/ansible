@@ -79,6 +79,22 @@
     mode: "0644"
   notify: Restart Pi-hole DNS
 
+- name: Write internal-only split-horizon DNS for the media stack
+  ansible.builtin.copy:
+    dest: "{{ pihole_data_dir }}/etc-dnsmasq.d/02-media-lan.conf"
+    content: |
+      # Media stack — internal-only split-horizon DNS (LAN + WireGuard).
+      # Managed by the pihole role (media_lan_dns). Public Caddy edge blocks for
+      # these hosts were removed, so external resolution (Cloudflare) hits nothing.
+      # server=/host/ stops AAAA forwarding to Cloudflare so IPv6 clients don't
+      # escape to the dead edge; address= serves the internal A record.
+      {% for host, ip in media_lan_dns.items() %}
+      server=/{{ host }}.{{ domain }}/
+      address=/{{ host }}.{{ domain }}/{{ ip }}
+      {% endfor %}
+    mode: "0644"
+  notify: Restart Pi-hole DNS
+
 - name: Add adlists to Pi-hole gravity database
   community.docker.docker_container_exec:
     container: "{{ pihole_container_name }}"

@@ -16,6 +16,7 @@ pihole_exporter_port: "9617"
 # seerr -> Traefik VIP (k8s); jellyfin + *arr -> lw-pi internal media-proxy :80.
 media_lan_dns:
   seerr: "192.168.0.50"
+  hogtus: "192.168.0.50"
   jellyfin: "192.168.0.109"
   radarr: "192.168.0.109"
   sonarr: "192.168.0.109"

@@ -14,3 +14,6 @@ __pycache__/
 *.pyc
 *.pyo
 .tplink-admin
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/

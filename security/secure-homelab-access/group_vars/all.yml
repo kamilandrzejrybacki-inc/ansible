@@ -80,6 +80,7 @@ subdomain_cellarette: "cellarette"
 # Cellarette MCP SSE endpoint (Bearer-token gated, no Authelia — MCP clients
 # can't complete a browser SSO flow). Backend is the Traefik IngressRoute.
 subdomain_cellarette_mcp: "cellarette-mcp"
+subdomain_linkedin_approver: "linkedin-approver"
 subdomain_agentmemory: "agentmemory"
 subdomain_tauto: "tauto"
 subdomain_minio: "minio"
@@ -124,6 +125,7 @@ argocd_nodeport_http: 30080
 guacamole_nodeport: 30808
 pingvin_nodeport: 30815
 cellarette_nodeport: 30701
+linkedin_approver_nodeport: 30702
 homepage_nodeport: 30300
 kroki_nodeport: 30880
 tldraw_nodeport: 30881

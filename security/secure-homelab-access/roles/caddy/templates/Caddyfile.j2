@@ -321,6 +321,21 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
+# LinkedIn approver — WireGuard/LAN only (post preview + approve/reject over cellarette approval API)
+{{ _scheme }}{{ subdomain_linkedin_approver | default('linkedin-approver') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	@public {
+		not remote_ip private_ranges 10.8.0.0/24
+	}
+	respond @public "Forbidden" 403
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ linkedin_approver_nodeport | default(30702) }}
+}
+
 # AgentMemory (k8s, AI agent memory store — via Traefik IngressRoute)
 {{ _scheme }}{{ subdomain_agentmemory | default('agentmemory') }}.{{ domain }} {
 	import rate_limit

@@ -44,3 +44,43 @@
     k3s_node_token: "{{ hostvars[_k3s_server_host].k3s_node_token }}"
   roles:
     - k3s-agent
+
+# Node prep: disable the fusermount3 AppArmor profile. Ubuntu loads+enforces it
+# by default, which denies FUSE mounts even for privileged+SYS_ADMIN+Unconfined
+# containers (observed: cellarette's session-broker rclone/FUSE mount fails with
+# `fusermount: Permission denied` on a node that enforces it, works on one that
+# does not). Disabling it (symlink into apparmor.d/disable + unload) brings every
+# node to the same, FUSE-capable state. Run standalone: `--tags fuse-apparmor`.
+- name: Node prep — disable fusermount3 AppArmor (allow FUSE in privileged pods)
+  hosts: k3s_server:k3s_agents
+  become: true
+  gather_facts: false
+  tags: [fuse-apparmor]
+  tasks:
+    - name: Ensure apparmor.d/disable directory exists
+      ansible.builtin.file:
+        path: /etc/apparmor.d/disable
+        state: directory
+        mode: "0755"
+    - name: Stat the fusermount3 AppArmor profile
+      ansible.builtin.stat:
+        path: /etc/apparmor.d/fusermount3
+      register: _fm3_profile
+    - name: Symlink fusermount3 profile into disable/ (persists across reboot)
+      ansible.builtin.file:
+        src: /etc/apparmor.d/fusermount3
+        dest: /etc/apparmor.d/disable/fusermount3
+        state: link
+      when: _fm3_profile.stat.exists
+    - name: Read currently-loaded AppArmor profiles
+      ansible.builtin.slurp:
+        src: /sys/kernel/security/apparmor/profiles
+      register: _aa_profiles
+      failed_when: false
+    - name: Unload fusermount3 profile now if it is loaded
+      ansible.builtin.command: apparmor_parser -R /etc/apparmor.d/fusermount3
+      when:
+        - _fm3_profile.stat.exists
+        - _aa_profiles.content is defined
+        - "'fusermount3' in (_aa_profiles.content | b64decode)"
+      changed_when: true

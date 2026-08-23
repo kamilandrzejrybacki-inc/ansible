@@ -266,6 +266,30 @@
 	reverse_proxy http://{{ k8s_node_ip }}:{{ paperless_nodeport | default(30880) }}
 }
 
+# SilverBullet (markdown draft editor PWA; k8s NodePort ns silverbullet, pinned
+# to lw-c1). Authelia SSO gates it; SilverBullet also has its own SB_USER login.
+{{ _scheme }}{{ subdomain_silverbullet | default('silverbullet') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ silverbullet_nodeport | default(30710) }}
+}
+
+# Blog draft preview (Eleventy --serve rendering SilverBullet drafts 1:1 with the
+# blog; k8s NodePort ns silverbullet). Authelia-gated (drafts are private).
+{{ _scheme }}{{ subdomain_blog_preview | default('blog-preview') }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import authelia
+	reverse_proxy http://{{ k8s_node_ip }}:{{ blog_preview_nodeport | default(30711) }}
+}
+
 # LiteLLM UI (LLM gateway admin UI; k8s NodePort). NO forward_auth import —
 # LiteLLM does its own OIDC login against Authelia (single sign-on), same
 # pattern as Termix. The /v1 API is master-key-guarded.

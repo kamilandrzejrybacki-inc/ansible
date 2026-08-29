@@ -127,16 +127,6 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# Open Design (design engine — via Traefik IngressRoute)
-{{ _scheme }}design.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	import authelia
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
 
 # Deblob demo (drift-sentinel showcase — k8s NodePort dashboard, all worker
 # nodes for HA; ns deblob-demo svc demo-dashboard:30895)

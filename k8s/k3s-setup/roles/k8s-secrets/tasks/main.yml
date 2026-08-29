@@ -8,8 +8,6 @@
 - name: Create MCP server secrets
   ansible.builtin.include_tasks: mcp-servers.yml
 
-- name: Create Open Design codex-auth secret
-  ansible.builtin.include_tasks: open-design.yml
 
 - name: Create Hermes codex-auth + discord secrets
   ansible.builtin.include_tasks: hermes.yml

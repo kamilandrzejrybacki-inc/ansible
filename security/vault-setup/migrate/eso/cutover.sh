@@ -1,47 +1,79 @@
 #!/usr/bin/env bash
-# cutover.sh — flip ONE namespace from sops/ansible-delivered Secrets to ESO, with a gate.
+# cutover.sh — flip ONE namespace from sops-delivered Secrets to ESO, gated.
 #
-#   cutover.sh <namespace> [--commit]        (default: dry, prints the plan + gate result)
+#   cutover.sh <namespace>            full cutover (commits + pushes the sops removal)
+#   cutover.sh <namespace> --check    apply SecretStore/ExternalSecrets only, report, no git changes
 #
-# Per namespace, in order:
-#   1. apply secrets/eso/<ns>/secretstore.yaml + es-*.yaml (SecretStore must go Ready — needs
-#      the vault-eso-approle Secret from the taxonomy-policies run)
-#   2. wait for every ExternalSecret in <ns> to report SecretSynced
-#   3. GATE: for every target Secret, compare each key's sha256 against the pre-cutover baseline
-#      (~/homelab-backups/k8s-secrets-baseline-*.json). Keys the design intentionally drops
-#      (e.g. prefect_etl_api_key) are reported, not failed. Any VALUE mismatch fails the gate.
-#   4. only with --commit and a passing gate: git rm the superseded sops file(s) for <ns> in
-#      argocd-apps (the SopsSecret CR is pruned by ArgoCD; ESO already owns the Secret by then)
-#
-# Run the lowest-risk namespace first (tauto / silverbullet) to observe ESO's Owner-policy
-# behaviour against a sops-owned Secret before touching n8n / cellarette / hermes.
+# ESO (creationPolicy Owner) refuses to adopt a Secret owned by a SopsSecret, so the order is:
+#   1. apply SecretStore + ExternalSecrets (they sit in SecretSyncedError until sops lets go)
+#   2. git rm the namespace's sops files, commit, push; refresh the ArgoCD app so it prunes the
+#      SopsSecret CRs -> owned Secrets are garbage-collected
+#   3. force-sync the ExternalSecrets -> ESO recreates the Secrets from Vault
+#   4. gate: every key's sha256 vs the pre-cutover baseline (~/homelab-backups/k8s-secrets-baseline-*.json).
+#      Any value mismatch -> revert the commit, delete the ExternalSecrets, exit 1 (sops reclaims).
 set -euo pipefail
-NS="${1:?namespace}"; COMMIT="${2:-}"
-ESO_DIR="$HOME/Code/argocd-apps/secrets/eso/$NS"
+NS="${1:?namespace}"; MODE="${2:-}"
+ARGO="$HOME/Code/argocd-apps"
+ESO_DIR="$ARGO/secrets/eso/$NS"
 BASE=$(ls -t "$HOME"/homelab-backups/k8s-secrets-baseline-*.json | head -1)
 [ -d "$ESO_DIR" ] || { echo "no ESO manifests for $NS"; exit 2; }
 
+sops_files=$(grep -lE "^\s+namespace: $NS$" "$ARGO"/secrets/bootstrap/sops-*.enc.yaml 2>/dev/null || true)
+sops_secrets=$(for f in $sops_files; do awk '/secretTemplates:/{t=1;next} t && /- name:/{print $3}' "$f"; done | sort -u)
+eso_secrets=$(grep -h "^    name:" "$ESO_DIR"/es-*.yaml | awk '{print $2}' | sort -u)
+for s in $sops_secrets; do
+  grep -qx "$s" <<<"$eso_secrets" || { echo "sops delivers $NS/$s but no ExternalSecret covers it — aborting"; exit 2; }
+done
+
+wait_for() { # <seconds> <description> <command...>
+  local t=$1 d=$2; shift 2
+  for _ in $(seq 1 $((t / 3))); do "$@" && return 0; sleep 3; done
+  echo "timeout: $d"; return 1
+}
+es_reason() { kubectl -n "$NS" get externalsecret "$1" -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null; }
+
 echo "== 1. apply ESO manifests for $NS"
 kubectl apply -f "$ESO_DIR/secretstore.yaml"
-for i in $(seq 1 20); do
-  st=$(kubectl -n "$NS" get secretstore homelab-vault -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
-  [ "$st" = "True" ] && break; sleep 3
-done
-[ "$st" = "True" ] || { echo "SecretStore not Ready in $NS (vault-eso-approle missing? AppRole not created?)"; kubectl -n "$NS" get secretstore homelab-vault -o jsonpath='{.status.conditions}'; echo; exit 3; }
-echo "   SecretStore Ready"
+wait_for 60 "SecretStore Ready" sh -c "[ \"\$(kubectl -n $NS get secretstore homelab-vault -o jsonpath='{.status.conditions[?(@.type==\"Ready\")].status}')\" = True ]" \
+  || { kubectl -n "$NS" get secretstore homelab-vault -o jsonpath='{.status.conditions}'; echo; exit 3; }
 kubectl apply -f "$ESO_DIR"/es-*.yaml
+es_names=$(kubectl -n "$NS" get externalsecret -o jsonpath='{.items[*].metadata.name}')
 
-echo "== 2. wait for SecretSynced"
-for es in $(kubectl -n "$NS" get externalsecret -o jsonpath='{.items[*].metadata.name}'); do
-  for i in $(seq 1 30); do
-    r=$(kubectl -n "$NS" get externalsecret "$es" -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null || true)
-    [ "$r" = "SecretSynced" ] && break; sleep 3
+if [ "$MODE" = "--check" ]; then
+  sleep 5
+  for es in $es_names; do echo "   $es: $(es_reason "$es")"; done
+  echo "   sops files: ${sops_files:-none}"
+  exit 0
+fi
+
+echo "== 2. remove sops delivery for $NS"
+if [ -n "$sops_files" ]; then
+  cd "$ARGO"
+  git rm -q $sops_files
+  git commit -qm "chore(secrets): $NS delivered by ESO — remove sops files" && git push -q origin main
+  kubectl -n argocd annotate application bootstrap-secrets argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+  wait_for 300 "SopsSecret CRs pruned" sh -c "[ -z \"\$(kubectl -n $NS get sopssecret -o name 2>/dev/null)\" ]"
+  for s in $sops_secrets; do
+    wait_for 120 "$s released by sops" sh -c "! kubectl -n $NS get secret $s -o jsonpath='{.metadata.ownerReferences[0].kind}' 2>/dev/null | grep -q SopsSecret"
   done
-  echo "   $es: ${r:-<no status>}"
-  [ "$r" = "SecretSynced" ] || { kubectl -n "$NS" get externalsecret "$es" -o jsonpath='{.status.conditions[0].message}'; echo; }
+else
+  echo "   no sops files (ansible-delivered or new) — ESO takes over directly"
+  for s in $eso_secrets; do
+    if kubectl -n "$NS" get secret "$s" >/dev/null 2>&1 && ! kubectl -n "$NS" get secret "$s" -o jsonpath='{.metadata.ownerReferences[0].kind}' | grep -q ExternalSecret; then
+      kubectl -n "$NS" delete secret "$s"
+    fi
+  done
+fi
+
+echo "== 3. force-sync ExternalSecrets"
+for es in $es_names; do
+  kubectl -n "$NS" annotate externalsecret "$es" force-sync="$(date +%s)" --overwrite >/dev/null
+  wait_for 180 "$es SecretSynced" sh -c "[ \"\$(kubectl -n $NS get externalsecret $es -o jsonpath='{.status.conditions[?(@.type==\"Ready\")].reason}')\" = SecretSynced ]" \
+    || kubectl -n "$NS" get externalsecret "$es" -o jsonpath='{.status.conditions[0].message}{"\n"}'
 done
 
-echo "== 3. GATE: compare against baseline $BASE"
+echo "== 4. GATE vs $(basename "$BASE")"
+set +e
 python3 - "$NS" "$BASE" <<'PY'
 import sys, json, base64, hashlib, subprocess
 ns, basef = sys.argv[1], sys.argv[2]
@@ -52,28 +84,29 @@ for key, exp in base.items():
     name = key.split("/", 1)[1]
     out = subprocess.run(["kubectl","-n",ns,"get","secret",name,"-o","json"],capture_output=True,text=True)
     if out.returncode:
-        print(f"   {key}: MISSING after cutover"); fail += 1; continue
+        print(f"   {key}: MISSING"); fail += 1; continue
     data = json.loads(out.stdout).get("data") or {}
     now = {k: hashlib.sha256(base64.b64decode(v)).hexdigest()[:16] for k,v in data.items()}
     if exp.get("_missing"):
-        print(f"   {key}: created ({len(now)} keys) — no baseline to compare"); continue
+        print(f"   {key}: created ({len(now)} keys)"); continue
     same = [k for k in exp if k in now and now[k] == exp[k]]
     diff = [k for k in exp if k in now and now[k] != exp[k]]
     dropped = [k for k in exp if k not in now]
     added = [k for k in now if k not in exp]
     print(f"   {key}: match={len(same)} DIFF={diff or '-'} dropped={dropped or '-'} added={added or '-'}")
     if diff: fail += 1
-print("GATE:", "PASS" if fail == 0 else f"FAIL ({fail} secret(s) with value mismatches)")
+print("GATE:", "PASS" if fail == 0 else f"FAIL ({fail})")
 sys.exit(1 if fail else 0)
 PY
-
-if [ "$COMMIT" = "--commit" ]; then
-  echo "== 4. remove superseded sops files for $NS"
-  cd "$HOME/Code/argocd-apps"
-  files=$(grep -lE "namespace: $NS\b" secrets/bootstrap/sops-*.enc.yaml 2>/dev/null || true)
-  [ -n "$files" ] || { echo "   no sops files for $NS"; exit 0; }
-  git rm -q $files && git commit -qm "chore(secrets): $NS delivered by ESO — remove sops files" && git push -q origin main
-  echo "   removed: $files"
-else
-  echo "(dry: pass --commit to remove the sops files after a PASS)"
+rc=$?
+set -e
+if [ $rc -ne 0 ]; then
+  echo "== ROLLBACK: restoring sops delivery for $NS"
+  kubectl delete -f "$ESO_DIR" --ignore-not-found
+  if [ -n "$sops_files" ]; then
+    cd "$ARGO" && git revert --no-edit HEAD -q && git push -q origin main
+    kubectl -n argocd annotate application bootstrap-secrets argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+  fi
+  exit 1
 fi
+echo "== $NS cut over to ESO"

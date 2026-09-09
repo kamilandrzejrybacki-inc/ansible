@@ -85,3 +85,40 @@
   loop: "{{ _tax_roleids.results }}"
   loop_control: { label: "{{ item.item }}" }
   tags: [taxonomy-policies]
+
+# --- ESO bootstrap: each ESO namespace gets a `vault-eso-approle` Secret (role_id + secret_id)
+# that its SecretStore authenticates with. One secret_id shared across namespaces (same identity,
+# same k8s policy); rotate by re-running this tag. Runs here because minting a secret_id needs the
+# root session, and this host (lw-main) has kubectl.
+- name: Taxonomy — read eso AppRole role_id
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read -field=role_id auth/approle/role/eso/role-id
+  register: _eso_rid
+  changed_when: false
+  no_log: true
+  tags: [taxonomy-policies, eso-bootstrap]
+
+- name: Taxonomy — mint an eso AppRole secret_id
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write -f -field=secret_id auth/approle/role/eso/secret-id
+  register: _eso_sid
+  changed_when: true
+  no_log: true
+  tags: [taxonomy-policies, eso-bootstrap]
+
+- name: Taxonomy — create/refresh vault-eso-approle Secret in every ESO namespace
+  ansible.builtin.shell: >
+    kubectl create namespace {{ item }} --dry-run=client -o yaml | kubectl apply -f - >/dev/null &&
+    kubectl -n {{ item }} create secret generic vault-eso-approle
+    --from-literal=role_id={{ _eso_rid.stdout }} --from-literal=secret_id={{ _eso_sid.stdout }}
+    --dry-run=client -o yaml | kubectl apply -f -
+  loop: "{{ vault_eso_namespaces }}"
+  changed_when: true
+  no_log: true
+  tags: [taxonomy-policies, eso-bootstrap]

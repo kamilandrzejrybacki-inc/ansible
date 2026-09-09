@@ -1,0 +1,178 @@
+# ESO delivery manifest — every k8s Secret that is delivered from Vault via ExternalSecret.
+# Replaces argocd-apps/secrets/bootstrap/sops-*.enc.yaml AND the ansible k8s-secrets role's
+# in-cluster consumers (Q20: Vault -> ESO -> k8s; sops retired for k8s).
+#
+# Per secret:
+#   from_vault:  k8sKey: "<issuer>/<cred>#<field>"        secret material, read from Vault under `prefix`
+#   literals:    k8sKey: <source>                          NON-secret config, resolved at GENERATION time and
+#                                                          written verbatim into the ExternalSecret template:
+#                  "plain value" | {sops: file, key: K} | {vault_old: "old#field"} | {k8s: ns/name, key: K}
+#   templates:   k8sKey: "go template"                     built from {{ .<alias> }} where alias is defined in
+#                                                          from_vault as "alias=<path>#<field>" (secret) or a literal
+#   type:        k8s Secret type (default Opaque)
+#
+# NOT delivered by ESO: mcp-servers/vault-mcp-token (hashicorp-vault/mcp-bridge is RESTRICTED —
+# provisioned by ansible-infra), notesnook (not deployed), n8n/n8n-secrets + cellarette/cellarette-secrets
+# + e2e-runner/e2e-git-credential (orphans, deleted).
+prefix: homelab/v2          # flips to "homelab" at the final v2->home move
+store:
+  name: homelab-vault
+  server: https://hashi-vault.kamilandrzejrybacki.dpdns.org
+  path: secret
+  version: v2
+  approle_secret: vault-eso-approle     # bootstrap Secret per namespace: role_id + secret_id (created by migrate/eso/bootstrap.sh)
+refresh: 15m
+
+secrets:
+  - {ns: cellarette, name: cellarette-admin,     from_vault: {CELLARETTE_ADMIN_TOKEN: "cellarette/admin#token"}}
+  - {ns: cellarette, name: cellarette-linkedin,  from_vault: {access_token: "linkedin/cellarette#token"}}
+  - {ns: cellarette, name: cellarette-ssh,       from_vault: {private_key: "cellarette/ssh#private_key", public_key: "cellarette/ssh#public_key"}}
+  - {ns: cellarette, name: cellarette-tool-env,  from_vault: {GH_TOKEN: "github/cellarette#token", OPENAI_API_KEY: "openai/shared#api_key"}}
+  - {ns: cellarette, name: linkedin-approver-hermes, from_vault: {HERMES_WEBHOOK_URL: "hermes/linkedin-approver#webhook_url"}}
+
+  - ns: dbt
+    name: dbt-secret
+    from_vault: {DBT_PROD_PASSWORD: "postgres/dbt-prod#password", DBT_TEST_PASSWORD: "postgres/dbt-test#password", GIT_DEFAULT_TOKEN: "github/dbt#token"}
+    literals:
+      DBT_PROD_HOST: {sops: sops-dbt.enc.yaml, key: DBT_PROD_HOST}
+      DBT_PROD_USER: {sops: sops-dbt.enc.yaml, key: DBT_PROD_USER}
+      DBT_TEST_HOST: {sops: sops-dbt.enc.yaml, key: DBT_TEST_HOST}
+      DBT_TEST_USER: {sops: sops-dbt.enc.yaml, key: DBT_TEST_USER}
+      GIT_DEFAULT_USERNAME: {sops: sops-dbt.enc.yaml, key: GIT_DEFAULT_USERNAME}
+  - {ns: dbt, name: ghcr-pull, type: kubernetes.io/dockerconfigjson, from_vault: {".dockerconfigjson": "github/ghcr-pull#token"}}
+
+  - ns: github-runners
+    name: github-runner-secrets
+    from_vault: {GITHUB_TOKEN: "github/runner#token"}
+    literals:
+      data_dir:    {sops: sops-github-runner-secrets.enc.yaml, key: data_dir}
+      labels:      {sops: sops-github-runner-secrets.enc.yaml, key: labels}
+      network:     {sops: sops-github-runner-secrets.enc.yaml, key: network}
+      node:        {sops: sops-github-runner-secrets.enc.yaml, key: node}
+      note:        {sops: sops-github-runner-secrets.enc.yaml, key: note}
+      org:         {sops: sops-github-runner-secrets.enc.yaml, key: org}
+      runner_name: {sops: sops-github-runner-secrets.enc.yaml, key: runner_name}
+
+  - ns: glitchtip
+    name: glitchtip-secrets
+    from_vault: {SECRET_KEY: "glitchtip/app#encryption_key", pgpw: "postgres/glitchtip#password", redispw: "redis/glitchtip#password"}
+    literals:
+      pgdsn_head: {sops: sops-glitchtip.enc.yaml, key: DATABASE_URL, extract: "^(\\w+://[^:/]+):"}
+      pgdsn_tail: {sops: sops-glitchtip.enc.yaml, key: DATABASE_URL, extract: "@(.*)$"}
+      rdsn_head:  {sops: sops-glitchtip.enc.yaml, key: REDIS_URL,    extract: "^(\\w+://[^@]*?):[^:@]+@"}
+      rdsn_tail:  {sops: sops-glitchtip.enc.yaml, key: REDIS_URL,    extract: "@(.*)$"}
+    templates:
+      DATABASE_URL: "{{ .pgdsn_head }}:{{ .pgpw }}@{{ .pgdsn_tail }}"
+      REDIS_URL:    "{{ .rdsn_head }}:{{ .redispw }}@{{ .rdsn_tail }}"
+
+  - {ns: grafana, name: grafana-cloud-query, from_vault: {GRAFANA_CLOUD_QUERY_TOKEN: "grafana-cloud/query#token"}}
+  - ns: grafana
+    name: grafana-secrets
+    from_vault:
+      GF_SECURITY_ADMIN_PASSWORD: "grafana/admin#password"
+      admin_password: "grafana/admin#password"
+      service_account_token: "grafana/mcp-sa#token"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "authelia/grafana-oidc#client_secret"
+      DISCORD_ALERTS_WEBHOOK_URL: "discord/grafana-alerts#webhook_url"
+      NTFY_TOKEN: "ntfy/grafana#token"
+      DBT_PROD_PASSWORD: "postgres/dbt-prod#password"
+      DBT_TEST_PASSWORD: "postgres/dbt-test#password"
+    literals: {GF_SECURITY_ADMIN_USER: {sops: sops-grafana-grafana-secrets.enc.yaml, key: GF_SECURITY_ADMIN_USER}}
+
+  - ns: litellm
+    name: litellm-secrets
+    from_vault:
+      LITELLM_MASTER_KEY: "litellm/master#api_key"
+      UI_PASSWORD: "litellm/ui#password"
+      POSTGRES_PASSWORD: "postgres/litellm#password"
+      pgpw: "postgres/litellm#password"
+      DEEPSEEK_API_KEY: "deepseek/litellm#api_key"
+      GEMINI_API_KEY: "gemini/litellm#api_key"
+      GROQ_API_KEY: "groq/litellm#api_key"
+      NVIDIA_API_KEY: "nvidia/litellm#api_key"
+      OPENROUTER_API_KEY: "openrouter/litellm#api_key"
+      REQUESTY_API_KEY: "requesty/litellm#api_key"
+      GENERIC_CLIENT_SECRET: "authelia/litellm-oidc#client_secret"
+    literals:
+      UI_USERNAME: {sops: sops-litellm.enc.yaml, key: UI_USERNAME}
+      pgdsn_head:  {sops: sops-litellm.enc.yaml, key: DATABASE_URL, extract: "^(\\w+://[^:/]+):"}
+      pgdsn_tail:  {sops: sops-litellm.enc.yaml, key: DATABASE_URL, extract: "@(.*)$"}
+    templates: {DATABASE_URL: "{{ .pgdsn_head }}:{{ .pgpw }}@{{ .pgdsn_tail }}"}
+
+  - &n8n
+    ns: n8n
+    name: n8n-main-secrets
+    from_vault:
+      DB_POSTGRESDB_PASSWORD: "postgres/n8n#password"
+      N8N_ENCRYPTION_KEY: "n8n/encryption#encryption_key"
+      QUEUE_BULL_REDIS_PASSWORD: "redis/n8n#password"
+      deepseek_api_key: "deepseek/n8n#api_key"
+      discord_webhook_url: "discord/n8n#webhook_url"
+      grafana_admin_password: "grafana/admin#password"
+      groq_api_key: "groq/n8n#api_key"
+      librenms_token: "librenms/n8n#token"
+      litellm_api_key: "litellm/n8n#api_key"
+      lw_notifier_token: "lw-notifier/n8n#token"
+      nvidia_api_key: "nvidia/n8n#api_key"
+      obsidian_api_key: "obsidian/n8n#api_key"
+      paperless_api_token: "paperless/n8n#token"
+      telegram_bot_token: "telegram/n8n#token"
+    literals:
+      DB_POSTGRESDB_DATABASE: {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_DATABASE}
+      DB_POSTGRESDB_HOST:     {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_HOST}
+      DB_POSTGRESDB_PORT:     {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_PORT}
+      DB_POSTGRESDB_USER:     {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_USER}
+      QUEUE_BULL_REDIS_HOST:  {sops: sops-n8n-worker.enc.yaml, key: QUEUE_BULL_REDIS_HOST}
+      QUEUE_BULL_REDIS_PORT:  {sops: sops-n8n-worker.enc.yaml, key: QUEUE_BULL_REDIS_PORT}
+  - {<<: *n8n, name: n8n-worker-secrets}
+
+  - {ns: ntfy, name: ntfy-secrets, from_vault: {watchdog_password: "ntfy/watchdog#password"}}
+  - ns: openviking
+    name: openviking-secrets
+    from_vault:
+      OPENVIKING_ROOT_API_KEY: "openviking/root#api_key"
+      OPENVIKING_USER_API_KEY: "openviking/user#api_key"
+      OPENVIKING_EMBEDDING_API_KEY: "litellm/openviking-embed#api_key"
+      OPENVIKING_VLM_API_KEY: "litellm/openviking-vlm#api_key"
+  - ns: paperless
+    name: paperless-secrets
+    from_vault: {PAPERLESS_ADMIN_PASSWORD: "paperless/admin#password", PAPERLESS_DBPASS: "postgres/paperless#password", PAPERLESS_SECRET_KEY: "paperless/app#encryption_key"}
+  - ns: monitoring
+    name: postgres-exporter-secrets
+    from_vault: {pw: "postgres/k3s-exporter#password"}
+    literals:
+      dsn_head: {sops: sops-postgres-exporter-secrets.enc.yaml, key: DATA_SOURCE_NAME, extract: "^(\\w+://)"}
+      dsn_tail: {sops: sops-postgres-exporter-secrets.enc.yaml, key: DATA_SOURCE_NAME, extract: "@(.*)$"}
+    templates: {DATA_SOURCE_NAME: "{{ .dsn_head }}postgres_exporter:{{ .pw }}@{{ .dsn_tail }}"}
+  - {ns: monitoring, name: vault-metrics-token, from_vault: {VAULT_METRICS_TOKEN: "hashicorp-vault/metrics#token", LITELLM_METRICS_TOKEN: "litellm/metrics#token"}}
+  - {ns: shared-redis, name: shared-redis-secrets, from_vault: {REDIS_PASSWORD: "redis/shared#password", password: "redis/shared#password"}}
+  - {ns: silverbullet, name: silverbullet-secrets, from_vault: {SB_USER: "silverbullet/admin#password"}}
+  - {ns: tauto, name: tauto-secrets, from_vault: {deepseek_api_key: "deepseek/tauto#api_key"}}
+  - {ns: termix, name: termix-secrets, from_vault: {oidc_client_secret: "authelia/termix-oidc#client_secret"}}
+
+  # --- previously rendered by the ansible k8s-secrets role ---
+  - ns: hermes
+    name: hermes-secrets
+    from_vault:
+      discord_bot_token: "discord/hermes-bot#token"
+      cellarette_mcp_token: "cellarette/mcp#token"
+      ntfy_bearer_token: "ntfy/hermes#token"
+      crons_webhook_url: "discord/hermes-crons#webhook_url"
+      gh_token: "github/cellarette#token"     # TODO mint github/hermes (per-consumer), then repoint
+  - {ns: gnhf, name: gnhf-bot-secrets, from_vault: {discord_bot_token: "discord/gnhf-bot#token", gh_token: "github/gnhf-bot#token", crons_webhook_url: "discord/gnhf-crons#webhook_url"}}
+  - {ns: feedcord, name: feedcord-secrets, from_vault: {releases: "discord/feedcord-releases#webhook_url", agent_ideas: "discord/feedcord-agent-ideas#webhook_url", agent_research: "discord/feedcord-agent-research#webhook_url"}}
+  - {ns: mcp-servers, name: argocd-mcp-secret, from_vault: {token: "argocd/mcp#token"}, literals: {server: {vault_old: "argocd-mcp#base_url"}}}
+  - {ns: mcp-servers, name: grafana-mcp-secret, from_vault: {api_key: "grafana/mcp-sa#token"}}
+  - {ns: mcp-servers, name: netbox-mcp-secret, from_vault: {token: "netbox/mcp#token"}, literals: {url: {vault_old: "netbox#url"}}}
+  - {ns: mcp-servers, name: obsidian-mcp-secret, from_vault: {api_key: "obsidian/mcp#api_key"}}
+  - {ns: mcp-servers, name: exa-mcp-secret, from_vault: {api_key: "exa/mcp#api_key"}}
+  - {ns: mcp-servers, name: discord-mcp-secret, from_vault: {bot_token: "discord/mcp-bot#token"}}
+  # agent-workspaces/coder-telegram-auth: namespace does not exist (Coder stack not deployed; Vault
+  # path `coder` is a 404) — dead consumer, dropped. Re-add here if Coder returns.
+  - ns: yaikes-etl
+    name: yaikes-etl-secrets
+    from_vault: {LITELLM_KEY: "litellm/yaikes-etl#api_key", POSTGRES_PASSWORD: "postgres/yaikes-etl#password", WYKOP_KEY: "wykop/yaikes-etl#api_key", WYKOP_SECRET: "wykop/yaikes-etl#client_secret", pgpw: "postgres/yaikes-etl#password"}
+    literals:
+      dsn_head: {k8s: yaikes-etl/yaikes-etl-secrets, key: YAIKES_ETL_DSN, extract: "^(\\w+://[^:/]+):"}
+      dsn_tail: {k8s: yaikes-etl/yaikes-etl-secrets, key: YAIKES_ETL_DSN, extract: "@(.*)$"}
+    templates: {YAIKES_ETL_DSN: "{{ .dsn_head }}:{{ .pgpw }}@{{ .dsn_tail }}"}

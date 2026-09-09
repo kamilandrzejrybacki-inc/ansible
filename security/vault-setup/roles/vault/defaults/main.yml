@@ -31,6 +31,10 @@ vault_ansible_policy: "ansible-automation"
 vault_restricted_issuers: [wireguard, pihole, cloudflare, machines, k3s]
 vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-vault/root", "hashicorp-vault/unseal", "hashicorp-vault/mcp-bridge"]
 
+# Namespaces whose Secrets are delivered by ESO (source: migrate/eso/manifest.yaml). Each gets a
+# `vault-eso-approle` bootstrap Secret from the taxonomy-policies / eso-bootstrap tag.
+vault_eso_namespaces: [cellarette, dbt, feedcord, github-runners, glitchtip, gnhf, grafana, hermes, litellm, mcp-servers, monitoring, n8n, ntfy, openviking, paperless, shared-redis, silverbullet, tauto, termix, yaikes-etl]
+
 # Health-check settings
 vault_health_check_retries: 12
 vault_health_check_delay: 5

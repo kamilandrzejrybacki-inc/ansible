@@ -31,7 +31,9 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "obsidian-livesync"
+        vault_refs:
+          couchdb_admin_password: "couchdb/livesync-admin#password"
+          couchdb_sync_password: "couchdb/livesync-sync#password"
       when: _vault_available | bool
 
 - name: Gather host details
@@ -88,12 +90,10 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "obsidian-livesync"
-        vault_secrets_data:
-          couchdb_admin_user: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_admin_user'] | default('') }}"
-          couchdb_admin_password: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_admin_password'] | default('') }}"
-          couchdb_sync_user: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_sync_user'] | default('') }}"
-          couchdb_sync_password: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_sync_password'] | default('') }}"
+        # couchdb_*_user are config — playbook vars, not Vault.
+        vault_store_refs:
+          couchdb_admin_password: { ref: "couchdb/livesync-admin#password", value: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_admin_password'] | default('') }}" }
+          couchdb_sync_password:  { ref: "couchdb/livesync-sync#password",  value: "{{ hostvars[groups['couchdb_hosts'][0]]['couchdb_sync_password'] | default('') }}" }
       when: _vault_available | default(false) | bool
 
 - name: Install Docker and deploy CouchDB

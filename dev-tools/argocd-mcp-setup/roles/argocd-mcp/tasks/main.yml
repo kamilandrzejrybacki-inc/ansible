@@ -16,7 +16,7 @@
 
 - name: Set ArgoCD API token fact
   ansible.builtin.set_fact:
-    _argocd_api_token: "{{ _vault_argocd.json.data.data.api_token }}"
+    _argocd_api_token: "{{ _vault_argocd.json.data.data.token }}"
     _argocd_base_url: "{{ _vault_argocd.json.data.data.base_url | default(argocd_base_url) }}"
   no_log: true
 

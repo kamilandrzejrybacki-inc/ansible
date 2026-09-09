@@ -31,7 +31,9 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "paperless"
+        vault_refs:
+          admin_password: "paperless/admin#password"
+          api_token: "paperless/admin#token"
       when: _vault_available | bool
 
     - name: Detect shared database availability
@@ -107,10 +109,9 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "paperless"
-        vault_secrets_data:
-          admin_user: "{{ hostvars[groups['paperless_hosts'][0]]['paperless_admin_user'] | default('') }}"
-          admin_password: "{{ hostvars[groups['paperless_hosts'][0]]['paperless_admin_password'] | default('') }}"
+        # admin_user is config, not a credential — it stays a playbook var (paperless_admin_user).
+        vault_store_refs:
+          admin_password: { ref: "paperless/admin#password", value: "{{ hostvars[groups['paperless_hosts'][0]]['paperless_admin_password'] | default('') }}" }
       when: _vault_available | default(false) | bool
 
 - name: Install Docker and deploy Paperless-ngx

@@ -20,7 +20,7 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "shared-redis"
+        vault_refs: { password: "redis/shared#password" }
       when: _vault_available | bool
 
 - name: Gather host details
@@ -67,7 +67,6 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "shared-redis"
-        vault_secrets_data:
-          password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-redis/password') }}"
+        vault_store_refs:
+          password: { ref: "redis/shared#password", value: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-redis/password') }}" }
       when: _vault_available | default(false) | bool

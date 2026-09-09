@@ -1,28 +1,91 @@
 ---
 # common/vault-integration/load.yml
 #
-# Loads secrets from Vault for the current service.
-# Requires:
-#   _vault_available  – set by check.yml
-#   vault_service_name – e.g. "n8n", "infrastructure"
+# Loads secrets from Vault into the fact `_vault_secrets` (dict; empty if Vault unavailable).
+# Requires: _vault_available, _vault_addr, _vault_token, _vault_kv_mount (set by check.yml).
 #
-# Sets fact:
-#   _vault_secrets (dict) – key/value pairs from Vault, empty dict if unavailable
+# TWO MODES (VAULT-TAXONOMY.md):
 #
-# Usage:
-#   - name: Load secrets from Vault
-#     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+#   refs mode — the issuer-keyed tree `<mount>/data/<_vault_tree>/<issuer>/<credential>`:
 #     vars:
-#       vault_service_name: "n8n"
+#       vault_refs:                    # alias: "issuer/credential#field"
+#         api_token: "paperless/admin#token"
+#         db_password: "postgres/paperless#password"
+#       vault_config:                  # optional NON-secret config (evicted from Vault), merged in
+#         api_url: "http://paperless.lan:8000"
+#     Aliases are chosen to match the old field names, so `_vault_secrets.api_token` keeps working.
+#     Each distinct path is fetched once. A ref whose path/field is absent yields '' (like before).
 #
-# After loading, access secrets with: _vault_secrets.<key> | default('')
+#   legacy mode — one old-style service secret `<mount>/data/homelab/<vault_service_name>`:
+#     vars: { vault_service_name: "n8n" }
+#     Kept only so unmigrated playbooks still run until the old tree is deleted; new code uses refs.
+#
+# `_vault_tree` defaults to homelab/v2 (staging) — flips to homelab at the final move (check.yml).
 
 - name: Initialize empty secrets
   ansible.builtin.set_fact:
     _vault_secrets: {}
+    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab/v2')) }}"
 
-- name: Read secrets from Vault
-  when: _vault_available | bool
+# ---------------------------------------------------------------- refs mode
+- name: Read secrets from Vault (refs mode)
+  when:
+    - _vault_available | bool
+    - vault_refs is defined
+  block:
+    - name: Collect distinct referenced paths
+      ansible.builtin.set_fact:
+        _vault_ref_paths: >-
+          {{ vault_refs | dict2items | map(attribute='value')
+             | map('regex_replace', '#.*$', '') | unique | list }}
+
+    - name: Fetch each referenced path
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree }}/{{ item }}"
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200, 404]
+        timeout: 10
+      loop: "{{ _vault_ref_paths }}"
+      register: _vault_ref_reads
+      no_log: true
+
+    - name: Index fetched paths
+      ansible.builtin.set_fact:
+        _vault_path_data: >-
+          {{ _vault_path_data | default({})
+             | combine({ item.item: (item.json.data.data if item.status == 200 else {}) }) }}
+      loop: "{{ _vault_ref_reads.results }}"
+      loop_control: { label: "{{ item.item }}" }
+      no_log: true
+
+    - name: Assemble _vault_secrets from refs
+      ansible.builtin.set_fact:
+        _vault_secrets: >-
+          {{ _vault_secrets
+             | combine({ item.key: (_vault_path_data[item.value | regex_replace('#.*$', '')] | default({}))
+                                     [item.value | regex_replace('^.*#', '')] | default('') }) }}
+      loop: "{{ vault_refs | dict2items }}"
+      loop_control: { label: "{{ item.key }}" }
+      no_log: true
+
+    - name: Merge non-secret config
+      ansible.builtin.set_fact:
+        _vault_secrets: "{{ _vault_secrets | combine(vault_config | default({})) }}"
+      no_log: true
+
+    - name: Report loaded refs
+      ansible.builtin.debug:
+        msg: >-
+          Loaded {{ vault_refs | length }} ref(s) from {{ _vault_ref_paths | length }} Vault path(s) under
+          {{ _vault_tree }}/ ({{ _vault_secrets | dict2items | selectattr('value', 'eq', '') | list | length }} empty).
+
+# --------------------------------------------------------------- legacy mode
+- name: Read secrets from Vault (legacy single-secret mode)
+  when:
+    - _vault_available | bool
+    - vault_refs is not defined
+    - vault_service_name is defined
   block:
     - name: Fetch secrets from Vault KV
       ansible.builtin.uri:
@@ -43,6 +106,7 @@
     - name: Report loaded secrets
       ansible.builtin.debug:
         msg: >-
-          {{ 'Loaded ' + (_vault_secrets | length | string) + ' secret(s) from Vault path homelab/' + vault_service_name + '.'
+          {{ 'LEGACY: loaded ' + (_vault_secrets | length | string) + ' secret(s) from homelab/' + vault_service_name
+             + ' — migrate this playbook to vault_refs (VAULT-TAXONOMY.md).'
              if _vault_secrets | length > 0
-             else 'No secrets found in Vault path homelab/' + vault_service_name + ' — will use prompted values.' }}
+             else 'No secrets found in legacy path homelab/' + vault_service_name + ' — will use prompted values.' }}

@@ -21,7 +21,11 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "shared-postgres"
+        vault_refs:   # issuer-keyed tree (VAULT-TAXONOMY.md); aliases = former field names
+          superuser_password: "postgres/superuser#password"
+          exporter_password: "postgres/exporter#password"
+          mariadb_exporter_password: "mariadb/exporter#password"
+          redis_password: "redis/shared#password"
       when: _vault_available | bool
 
 - name: Gather host details
@@ -68,7 +72,6 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "shared-postgres"
-        vault_secrets_data:
-          superuser_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/superuser_password') }}"
+        vault_store_refs:
+          superuser_password: { ref: "postgres/superuser#password", value: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-postgres/superuser_password') }}" }
       when: _vault_available | default(false) | bool

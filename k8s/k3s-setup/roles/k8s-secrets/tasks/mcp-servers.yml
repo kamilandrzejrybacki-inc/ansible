@@ -8,7 +8,11 @@
 - name: Load mcp-bridges secrets bundle from Vault
   ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
   vars:
-    vault_service_name: "mcp-bridges"
+    # hashicorp-vault/mcp-bridge is RESTRICTED (a Vault token) — only this infra-role task may
+    # deliver it; everything else in this file is superseded by ESO (VAULT-TAXONOMY.md).
+    vault_refs:
+      vault_token: "hashicorp-vault/mcp-bridge#token"
+      grafana_sa_token: "grafana/mcp-sa#token"
 
 - name: Capture mcp-bridges bundle
   ansible.builtin.set_fact:

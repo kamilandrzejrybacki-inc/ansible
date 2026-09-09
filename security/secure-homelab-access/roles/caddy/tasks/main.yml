@@ -82,12 +82,12 @@
         sys.exit(0)
     try:
         req = urllib.request.Request(
-            f"{addr}/v1/{mount}/data/homelab/cellarette",
+            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab/v2')}/authelia/cellarette-bypass",
             headers={"X-Vault-Token": token}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-            print(data["data"]["data"].get("authelia_bypass_token", ""), end="")
+            print(data["data"]["data"].get("token", ""), end="")
     except Exception:
         print("", end="")
     PYEOF
@@ -121,12 +121,12 @@
         sys.exit(0)
     try:
         req = urllib.request.Request(
-            f"{addr}/v1/{mount}/data/homelab/cellarette",
+            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab/v2')}/cellarette/mcp",
             headers={"X-Vault-Token": token}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-            print(data["data"]["data"].get("mcp_token", ""), end="")
+            print(data["data"]["data"].get("token", ""), end="")
     except Exception:
         print("", end="")
     PYEOF

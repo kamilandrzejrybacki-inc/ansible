@@ -30,7 +30,7 @@
     - name: Load Anthropic secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "anthropic"
+        vault_refs: { api_key: "anthropic/jcodemunch#api_key" }
       when: _vault_available | bool
 
 - name: Register jCodeMunch MCP in Claude Code

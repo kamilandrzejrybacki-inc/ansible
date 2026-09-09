@@ -43,7 +43,11 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "infrastructure"
+        vault_refs:   # RESTRICTED tier — readable by the infra role only (VAULT-TAXONOMY.md)
+          wireguard_password: "wireguard/edge#password"
+          authelia_password: "authelia/admin#password"
+          pihole_password: "pihole/admin#password"
+          cloudflare_token: "cloudflare/edge#token"
       when: _vault_available | bool
       tags: [always]
 
@@ -618,14 +622,12 @@
     - name: Store infrastructure secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "infrastructure"
-        vault_secrets_data:
-          wireguard_password: "{{ wireguard_password }}"
-          authelia_user: "{{ authelia_default_user }}"
-          authelia_password: "{{ prompt_authelia_password }}"
-          authelia_email: "{{ authelia_default_email }}"
-          pihole_password: "{{ pihole_password }}"
-          cloudflare_token: "{{ cloudflare_api_token }}"
+        # authelia_user / authelia_email are config (authelia_default_*), not credentials — not stored.
+        vault_store_refs:
+          wireguard_password: { ref: "wireguard/edge#password",   value: "{{ wireguard_password }}" }
+          authelia_password:  { ref: "authelia/admin#password",   value: "{{ prompt_authelia_password }}" }
+          pihole_password:    { ref: "pihole/admin#password",     value: "{{ pihole_password }}" }
+          cloudflare_token:   { ref: "cloudflare/edge#token",     value: "{{ cloudflare_api_token }}" }
       when: hostvars['localhost']['_vault_available'] | default(false) | bool
       tags: [always]
 

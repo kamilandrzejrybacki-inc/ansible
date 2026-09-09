@@ -1,24 +1,71 @@
 ---
 # common/vault-integration/store.yml
 #
-# Stores secrets to Vault for the current service.
-# Requires:
-#   _vault_available   – set by check.yml
-#   vault_service_name – e.g. "n8n", "infrastructure"
-#   vault_secrets_data – dict of key/value pairs to store
+# Stores secrets to Vault. Requires _vault_available, _vault_addr, _vault_token, _vault_kv_mount.
 #
-# Usage:
-#   - name: Store secrets to Vault
-#     ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
+# TWO MODES (VAULT-TAXONOMY.md):
+#
+#   refs mode — writes into the issuer-keyed tree `<mount>/data/<_vault_tree>/<issuer>/<credential>`:
 #     vars:
-#       vault_service_name: "portkey"
-#       vault_secrets_data:
-#         groq_api_key: "{{ groq_api_key }}"
-#         nvidia_api_key: "{{ nvidia_api_key }}"
+#       vault_store_refs:              # alias: { ref: "issuer/credential#field", value: ... }
+#         api_token:   { ref: "paperless/admin#token",       value: "{{ generated_token }}" }
+#         db_password: { ref: "postgres/paperless#password", value: "{{ db_pw }}" }
+#     Refs are grouped by path and each path is merge-PATCHed once. Empty values are skipped.
+#     Only credentials go here — config (urls, users, ids) belongs in the playbook's vars.
+#
+#   legacy mode — merge-PATCH one old-style secret `<mount>/data/homelab/<vault_service_name>`:
+#     vars: { vault_service_name: "portkey", vault_secrets_data: { groq_api_key: "..." } }
+#     Kept only for unmigrated playbooks until the old tree is deleted.
 
-- name: Store secrets to Vault
+- name: Resolve tree root
+  ansible.builtin.set_fact:
+    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab/v2')) }}"
+
+# ---------------------------------------------------------------- refs mode
+- name: Store secrets to Vault (refs mode)
   when:
     - _vault_available | bool
+    - vault_store_refs is defined
+    - vault_store_refs | length > 0
+  block:
+    - name: Group non-empty refs by path
+      ansible.builtin.set_fact:
+        _vault_store_groups: >-
+          {{ _vault_store_groups | default({})
+             | combine({ (item.value.ref | regex_replace('#.*$', '')):
+                         ((_vault_store_groups | default({}))[item.value.ref | regex_replace('#.*$', '')] | default({})
+                          | combine({ (item.value.ref | regex_replace('^.*#', '')): item.value.value })) }) }}
+      loop: "{{ vault_store_refs | dict2items }}"
+      loop_control: { label: "{{ item.key }}" }
+      when: item.value.value is defined and item.value.value != '' and item.value.value is not none
+      no_log: true
+
+    - name: Write each path (merge-patch)
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree }}/{{ item.key }}"
+        method: PATCH
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+          Content-Type: "application/merge-patch+json"
+        body_format: json
+        body:
+          data: "{{ item.value }}"
+        status_code: [200, 204]
+        timeout: 10
+      loop: "{{ _vault_store_groups | default({}) | dict2items }}"
+      loop_control: { label: "{{ item.key }}" }
+      no_log: true
+
+    - name: Report stored refs
+      ansible.builtin.debug:
+        msg: "Stored {{ _vault_store_groups | default({}) | length }} path(s) under {{ _vault_tree }}/."
+
+# --------------------------------------------------------------- legacy mode
+- name: Store secrets to Vault (legacy single-secret mode)
+  when:
+    - _vault_available | bool
+    - vault_store_refs is not defined
+    - vault_service_name is defined
     - vault_secrets_data | default({}) | length > 0
   block:
     - name: Filter out empty values
@@ -47,5 +94,5 @@
 
     - name: Report stored secrets
       ansible.builtin.debug:
-        msg: "Stored {{ _vault_store_data | default({}) | length }} secret(s) to Vault path homelab/{{ vault_service_name }}."
+        msg: "LEGACY: stored {{ _vault_store_data | default({}) | length }} secret(s) to homelab/{{ vault_service_name }} — migrate to vault_store_refs."
       when: _vault_store_data | default({}) | length > 0

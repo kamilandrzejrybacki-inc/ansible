@@ -31,7 +31,7 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "knowledge-vault"
+        vault_refs: { syncthing_admin_password: "syncthing/knowledge-vault#password" }
       when: _vault_available | bool
 
 - name: Gather host details
@@ -80,9 +80,8 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "knowledge-vault"
-        vault_secrets_data:
-          syncthing_admin_password: "{{ hostvars[groups['vault_hosts'][0]]['syncthing_admin_password'] | default('') }}"
+        vault_store_refs:
+          syncthing_admin_password: { ref: "syncthing/knowledge-vault#password", value: "{{ hostvars[groups['vault_hosts'][0]]['syncthing_admin_password'] | default('') }}" }
       when: _vault_available | default(false) | bool
 
 - name: Install Docker, deploy Syncthing and Quartz

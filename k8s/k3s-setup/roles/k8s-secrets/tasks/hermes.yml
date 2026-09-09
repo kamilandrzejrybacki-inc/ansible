@@ -24,11 +24,11 @@
 
 - name: Cache Codex auth to Vault for headless re-provisioning
   ansible.builtin.uri:
-    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/hermes"
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/openai/hermes-codex-auth"
     method: POST
     headers: { X-Vault-Token: "{{ _vault_token }}" }
     body_format: json
-    body: { data: { codex_auth_json: "{{ _hz_codex_auth }}" } }
+    body: { data: { token: "{{ _hz_codex_auth }}" } }
     status_code: [200, 204]
   when: _hz_codex_stat.stat.exists
   no_log: true
@@ -38,14 +38,14 @@
   block:
     - name: Load Codex auth from Vault
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/hermes"
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/openai/hermes-codex-auth"
         headers: { X-Vault-Token: "{{ _vault_token }}" }
         return_content: true
       register: _hz_codex_vault
       no_log: true
     - name: Capture Codex auth from Vault
       ansible.builtin.set_fact:
-        _hz_codex_auth: "{{ (_hz_codex_vault.content | from_json).data.data.codex_auth_json }}"
+        _hz_codex_auth: "{{ (_hz_codex_vault.content | from_json).data.data.token }}"
       no_log: true
 
 - name: Load Discord bot token from Vault

@@ -20,7 +20,9 @@
     - name: Load secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "shared-mariadb"
+        vault_refs:
+          root_password: "mariadb/root#password"
+          exporter_password: "mariadb/exporter#password"
       when: _vault_available | bool
 
 - name: Gather host details
@@ -67,7 +69,6 @@
     - name: Store secrets to Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/store.yml"
       vars:
-        vault_service_name: "shared-mariadb"
-        vault_secrets_data:
-          root_password: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/root_password') }}"
+        vault_store_refs:
+          root_password: { ref: "mariadb/root#password", value: "{{ lookup('file', lookup('env', 'HOME') + '/.homelab-secrets/shared-mariadb/root_password') }}" }
       when: _vault_available | default(false) | bool

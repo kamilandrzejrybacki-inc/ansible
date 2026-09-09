@@ -28,7 +28,7 @@
     - name: Load Obsidian secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "obsidian"
+        vault_refs: { api_key: "obsidian/mcp#api_key" }
       when: _vault_available | bool
 
     - name: Use existing API key from Vault

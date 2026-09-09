@@ -50,6 +50,9 @@
     _vault_addr: "{{ _vault_conn.vault_addr | default('') }}"
     _vault_token: "{{ _vault_conn.vault_token | default('') }}"
     _vault_kv_mount: "{{ _vault_conn.vault_kv_mount | default('secret') }}"
+    # Root of the issuer-keyed tree (VAULT-TAXONOMY.md). homelab/v2 while staging; flip to
+    # `homelab` at the final move — one line, here, or `vault_tree` in ~/.vault-ansible.yml.
+    _vault_tree: "{{ _vault_conn.vault_tree | default(vault_tree_prefix | default('homelab/v2')) }}"
   no_log: true
   tags: always
 

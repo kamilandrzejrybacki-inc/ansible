@@ -7,4 +7,5 @@ argocd_mcp_package: "argocd-mcp"
 claude_mcp_scope: "user"
 
 # Vault
-vault_argocd_mcp_secret_path: "secret/data/homelab/argocd-mcp"
+# Issuer-keyed tree (VAULT-TAXONOMY.md): argocd/mcp#token. base_url is config (argocd_base_url above).
+vault_argocd_mcp_secret_path: "secret/data/homelab/v2/argocd/mcp"

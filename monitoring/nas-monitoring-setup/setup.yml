@@ -23,7 +23,10 @@
     - name: Load NAS DB secrets from Vault
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
       vars:
-        vault_service_name: "shared-postgres"
+        vault_refs:   # exporter creds by issuer (VAULT-TAXONOMY.md)
+          exporter_password: "postgres/exporter#password"
+          mariadb_exporter_password: "mariadb/exporter#password"
+          redis_password: "redis/shared#password"
       when: _vault_available | bool
 
 - name: Gather target details

@@ -78,7 +78,7 @@
   pre_tasks:
     - name: Load GitHub PAT for private repo access
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/github"
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/github/runner"
         headers:
           X-Vault-Token: "{{ _vault_token }}"
         return_content: true
@@ -88,7 +88,9 @@
 
     - name: Set repo token
       ansible.builtin.set_fact:
-        argocd_apps_repo_token: "{{ (_github_vault_resp.content | from_json).data.data.runner_pat | default('') }}"
+        # github/runner#token (VAULT-TAXONOMY.md). TODO: mint github/argocd — ArgoCD's repo token
+        # should not be the runner's PAT (per-consumer minting, rule 2).
+        argocd_apps_repo_token: "{{ (_github_vault_resp.content | from_json).data.data.token | default('') }}"
       no_log: true
       when: _github_vault_resp is not skipped
   roles:

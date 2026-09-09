@@ -14,7 +14,7 @@
 # NOT delivered by ESO: mcp-servers/vault-mcp-token (hashicorp-vault/mcp-bridge is RESTRICTED —
 # provisioned by ansible-infra), notesnook (not deployed), n8n/n8n-secrets + cellarette/cellarette-secrets
 # + e2e-runner/e2e-git-credential (orphans, deleted).
-prefix: homelab/v2          # flips to "homelab" at the final v2->home move
+prefix: homelab             # collapsed from homelab/v2 on 2026-09-09 (final move)
 store:
   name: homelab-vault
   server: https://hashi-vault.kamilandrzejrybacki.dpdns.org
@@ -161,9 +161,9 @@ secrets:
       gh_token: "github/cellarette#token"     # TODO mint github/hermes (per-consumer), then repoint
   - {ns: gnhf, name: gnhf-bot-secrets, from_vault: {discord_bot_token: "discord/gnhf-bot#token", gh_token: "github/gnhf-bot#token", crons_webhook_url: "discord/gnhf-crons#webhook_url"}}
   - {ns: feedcord, name: feedcord-secrets, from_vault: {releases: "discord/feedcord-releases#webhook_url", agent_ideas: "discord/feedcord-agent-ideas#webhook_url", agent_research: "discord/feedcord-agent-research#webhook_url"}}
-  - {ns: mcp-servers, name: argocd-mcp-secret, from_vault: {token: "argocd/mcp#token"}, literals: {server: {vault_old: "argocd-mcp#base_url"}}}
+  - {ns: mcp-servers, name: argocd-mcp-secret, from_vault: {token: "argocd/mcp#token"}, literals: {server: "http://argocd-server.argocd.svc.cluster.local:80"}}
   - {ns: mcp-servers, name: grafana-mcp-secret, from_vault: {api_key: "grafana/mcp-sa#token"}}
-  - {ns: mcp-servers, name: netbox-mcp-secret, from_vault: {token: "netbox/mcp#token"}, literals: {url: {vault_old: "netbox#url"}}}
+  - {ns: mcp-servers, name: netbox-mcp-secret, from_vault: {token: "netbox/mcp#token"}, literals: {url: "http://192.168.0.105:8081"}}
   - {ns: mcp-servers, name: obsidian-mcp-secret, from_vault: {api_key: "obsidian/mcp#api_key"}}
   - {ns: mcp-servers, name: exa-mcp-secret, from_vault: {api_key: "exa/mcp#api_key"}}
   - {ns: mcp-servers, name: discord-mcp-secret, from_vault: {bot_token: "discord/mcp-bot#token"}}

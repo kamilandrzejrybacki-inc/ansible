@@ -104,7 +104,7 @@ if [ $rc -ne 0 ]; then
   echo "== ROLLBACK: restoring sops delivery for $NS"
   kubectl delete -f "$ESO_DIR" --ignore-not-found
   if [ -n "$sops_files" ]; then
-    cd "$ARGO" && git revert --no-edit HEAD -q && git push -q origin main
+    cd "$ARGO" && git revert --no-edit HEAD >/dev/null && git push -q origin main
     kubectl -n argocd annotate application bootstrap-secrets argocd.argoproj.io/refresh=normal --overwrite >/dev/null
   fi
   exit 1

@@ -23,6 +23,11 @@ vault_kv_mount: "secret"
 # Ansible policy name
 vault_ansible_policy: "ansible-automation"
 
+# Taxonomy restricted tier (VAULT-TAXONOMY.md rule 11): issuers/paths that the `agents` and
+# `k8s` policies are explicitly DENIED — keys that own the network, the hosts, or Vault itself.
+vault_restricted_issuers: [wireguard, authelia, pihole, cloudflare, machines, k3s, hashicorp-vault]
+vault_restricted_paths: ["postgres/k3s-datastore"]
+
 # Health-check settings
 vault_health_check_retries: 12
 vault_health_check_delay: 5

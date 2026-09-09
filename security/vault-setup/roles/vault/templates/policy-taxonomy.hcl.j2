@@ -1,0 +1,32 @@
+# {{ policy_name }} — Vault taxonomy role policy (see security/vault-setup/VAULT-TAXONOMY.md)
+# Tree: {{ vault_kv_mount }}/homelab/<issuer>/<credential>. During migration the same shape
+# also lives under homelab/v2/, so every rule is written for both.
+{% set roots = ['homelab', 'homelab/v2'] %}
+{% if policy_role == 'infra' %}
+# infra: full read/write on the whole tree (ansible automation).
+{% for r in roots %}
+path "{{ vault_kv_mount }}/data/{{ r }}/*"     { capabilities = ["create", "read", "update", "delete", "list"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/*" { capabilities = ["list", "read", "delete"] }
+{% endfor %}
+{% elif policy_role in ['agents', 'k8s'] %}
+# {{ policy_role }}: read everything EXCEPT the restricted tier (network/host/vault-own keys).
+{% for r in roots %}
+path "{{ vault_kv_mount }}/data/{{ r }}/*"     { capabilities = ["read", "list"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/*" { capabilities = ["list", "read"] }
+{% for iss in vault_restricted_issuers %}
+path "{{ vault_kv_mount }}/data/{{ r }}/{{ iss }}/*"     { capabilities = ["deny"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/{{ iss }}/*" { capabilities = ["deny"] }
+{% endfor %}
+{% for p in vault_restricted_paths %}
+path "{{ vault_kv_mount }}/data/{{ r }}/{{ p }}"     { capabilities = ["deny"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/{{ p }}" { capabilities = ["deny"] }
+{% endfor %}
+{% endfor %}
+{% elif policy_role == 'humans' %}
+# humans: admin on the tree. Short TTL is enforced by the token/auth role, not here.
+{% for r in roots %}
+path "{{ vault_kv_mount }}/data/{{ r }}/*"     { capabilities = ["create", "read", "update", "delete", "list"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/*" { capabilities = ["list", "read", "delete"] }
+{% endfor %}
+path "sys/policies/acl/*" { capabilities = ["read", "list"] }
+{% endif %}

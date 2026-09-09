@@ -1,0 +1,224 @@
+# Vault taxonomy migration map — secret/homelab/<old>#<field>  ->  secret/homelab/v2/<issuer>/<credential>#<field>
+#
+# Source of truth for build.py, the gate, and the delete step. See ../VAULT-TAXONOMY.md for the rules.
+#
+# Entry forms:
+#   "<old>#<field>": "<issuer>/<cred>#<field>"          move (default seed = Vault's current value)
+#   "<old>#<field>": {dst: "...", seed: {sops: <file>, key: <k>}}   seed from the LIVE sops copy (drifted secrets)
+#   "<old>#<field>": evict                               non-secret config -> helm values / ansible vars (NOT written to Vault)
+#   "<old>#<field>": delete                              dead; never written; revoke upstream where noted
+#   "<old>": delete                                      whole secret is dead
+#
+# Several sources may map to one destination (merge). build.py refuses to apply if merged sources
+# carry DIFFERENT values for the same field — a conflict is a decision, not a silent overwrite.
+staging_prefix: homelab/v2
+restricted_issuers: [wireguard, authelia, pihole, cloudflare, machines, k3s, hashicorp-vault]
+restricted_paths: [postgres/k3s-datastore]
+
+map:
+  # ---------- external vendors ----------
+  "github#runner_pat":            {dst: "github/runner#token", seed: {sops: sops-github-runner-secrets.enc.yaml, key: GITHUB_TOKEN}}
+  "github#cellarette_gh_token":   "github/cellarette#token"
+  "blog#github_pat":              "github/blog#token"
+  "n8n-workers#blog_github_pat":  "github/blog#token"
+  "jupyterlab-git#token":         "github/jupyterlab#token"
+  "decap-cms#github_client_secret": "github/decap-cms-oauth#client_secret"
+  "decap-cms#github_client_id":   evict
+  "decap-cms#cms_auth_origin":    evict
+  "openai#api_key":               "openai/shared#api_key"
+  "openrouter#api_key":           "openrouter/shared#api_key"        # docs-only reader today; keep, review
+  "requesty#admin_api_key":       "requesty/admin#api_key"           # docs-only reader today; keep, review
+  "gemini#api_key":               "gemini/shared#api_key"            # docs-only reader today; keep, review
+  "exa#api_key":                  "exa/mcp#api_key"
+  # n8n-consumer creds: the RUNNING n8n mounts the sops copies (scout-verified), so every one of
+  # these seeds from sops-n8n-worker; the Vault n8n/n8n-workers copies are stale duplicates.
+  "n8n#deepseek_api_key":         "deepseek/n8n#api_key"
+  "n8n-workers#deepseek_api_key": {dst: "deepseek/n8n#api_key", seed: {sops: sops-n8n-worker.enc.yaml, key: deepseek_api_key}}
+  "n8n#groq_api_key":             "groq/n8n#api_key"
+  "n8n-workers#groq_api_key":     {dst: "groq/n8n#api_key", seed: {sops: sops-n8n-worker.enc.yaml, key: groq_api_key}}
+  "n8n#nvidia_api_key":           "nvidia/n8n#api_key"
+  "n8n-workers#nvidia_api_key":   {dst: "nvidia/n8n#api_key", seed: {sops: sops-n8n-worker.enc.yaml, key: nvidia_api_key}}
+  "n8n-workers#litellm_api_key":  {dst: "litellm/n8n#api_key", seed: {sops: sops-n8n-worker.enc.yaml, key: litellm_api_key}}   # sops-only today
+  "google/oauth#client_secret":   "google/oauth-homelab#client_secret"
+  "google/oauth#client_id":       evict
+  "google/oauth#project_id":      evict
+  "google-drive#claude_backup_folder_id": evict
+  "google-drive#paperless_folder_id":     evict
+  "Hermes/himalaya#APP_KEY":      "google/hermes-himalaya#password"
+  "telegram#bot_token":           "telegram/notifier#token"
+  "telegram#chat_id":             evict
+  "Hermes/telegram_confirmer_bot_token#value": "telegram/hermes-confirmer#token"
+  "blog#telegram_bot_token":      "telegram/blog#token"
+  "blog/telegram-bot#token":      "telegram/blog#token"
+  "blog/telegram-bot#chat_id":    evict
+  "pub-reservation/telegram_bot_token#value": "telegram/pub-reservation#token"
+  "n8n#telegram_bot_token":       delete   # stale: == telegram#bot_token (notifier), not what n8n runs
+  "n8n-workers#telegram_bot_token": {dst: "telegram/n8n#token", seed: {sops: sops-n8n-worker.enc.yaml, key: telegram_bot_token}}
+  "openclaw#telegram_bot_token":  "telegram/openclaw#token"
+  "openclaw#telegram_allowed_users": evict
+  "discord-webhooks#feedcord_agent_ideas":    "discord/feedcord-agent-ideas#webhook_url"
+  "discord-webhooks#feedcord_agent_research": "discord/feedcord-agent-research#webhook_url"
+  "discord-webhooks#feedcord_releases":       "discord/feedcord-releases#webhook_url"
+  "discord-webhooks#grafana_alerts":          "discord/grafana-alerts#webhook_url"
+  "n8n#discord_webhook_url":      {dst: "discord/n8n#webhook_url", seed: {sops: sops-n8n-worker.enc.yaml, key: discord_webhook_url}}
+  "hermes#crons_webhook_url":     "discord/hermes-crons#webhook_url"
+  "hermes#discord_bot_token":     "discord/hermes-bot#token"
+  "grafana-cloud#sa_token":       "grafana-cloud/sa#token"
+  "grafana-cloud#stack_url":      evict
+  "infrastructure#cloudflare_api_token": "cloudflare/edge#token"
+  "linkedin#client_secret":       "linkedin/hermes-oauth#client_secret"
+  "linkedin#client_id":           evict
+  "linkedin#redirect_uri":        evict
+  "watchdog#healthchecks_api_key":  "healthchecks/watchdog#api_key"
+  "watchdog#healthchecks_ping_key": "healthchecks/watchdog#token"
+  "watchdog#hc_ping_url":         evict
+  "hermes#ntfy_bearer_token":     "ntfy/hermes#token"
+  "watchdog#ntfy_token":          "ntfy/watchdog#token"
+  "watchdog#ntfy_password":       "ntfy/watchdog#password"
+  "watchdog#ntfy_topic":          evict
+
+  # ---------- internal services as issuers ----------
+  "shared-postgres#exporter_password":         "postgres/exporter#password"
+  "shared-postgres#mariadb_exporter_password": "mariadb/exporter#password"
+  "shared-mariadb#exporter_password":          "mariadb/exporter#password"
+  "shared-mariadb#root_password":              "mariadb/root#password"
+  "shared-postgres#redis_password":            "redis/shared#password"
+  "shared-redis#password":                     "redis/shared#password"
+  "n8n-postgres#db_password":     {dst: "postgres/n8n#password", seed: {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_PASSWORD}}
+  "n8n-workers#db_password":      {dst: "postgres/n8n#password", seed: {sops: sops-n8n-worker.enc.yaml, key: DB_POSTGRESDB_PASSWORD}}
+  "n8n-postgres#redis_password":  "redis/n8n#password"
+  "n8n-workers#redis_password":   "redis/n8n#password"
+  "n8n-postgres#encryption_key":  "n8n/encryption#encryption_key"
+  "n8n-workers#encryption_key":   "n8n/encryption#encryption_key"
+  "n8n#owner_password":           "n8n/owner#password"
+  "n8n#owner_email":              evict
+  "claude-n8n-mcp#token":         "n8n/claude-mcp#token"
+  "claude-n8n-mcp#_initialized":  delete
+  "openclaw#n8n_mcp_token":       "n8n/openclaw-mcp#token"
+  "guacamole#postgres_password":  "postgres/guacamole#password"
+  "glitchtip#pg_password":        "postgres/glitchtip#password"
+  "glitchtip#admin_password":     "glitchtip/admin#password"
+  "glitchtip#oidc_secret":        "glitchtip/oidc#client_secret"
+  "glitchtip#secret_key":         "glitchtip/app#encryption_key"
+  "glitchtip#meepmap_dsn":        delete
+  "grafana#admin_password":       delete   # STALE — the live Grafana admin pw is the n8n/sops copy (scout-verified)
+  "n8n#grafana_admin_password":   "grafana/admin#password"
+  "n8n-workers#grafana_admin_password": {dst: "grafana/admin#password", seed: {sops: sops-n8n-worker.enc.yaml, key: grafana_admin_password}}
+  "grafana#service_account_token": "grafana/mcp-sa#token"
+  "mcp-bridges#grafana_sa_token":  "grafana/mcp-sa#token"
+  "grafana-stack#grizzly_token":  "grafana/grizzly#token"
+  "jupyterlab#grafana_token":     "grafana/jupyterlab#token"
+  "jupyterlab#grafana_url":       evict
+  "jupyterlab#loki_url":          evict
+  "jupyterlab#prometheus_url":    evict
+  "paperless#api_token":          "paperless/admin#token"
+  "n8n#paperless_api_token":      "paperless/n8n#token"
+  "n8n-workers#paperless_api_token": {dst: "paperless/n8n#token", seed: {sops: sops-n8n-worker.enc.yaml, key: paperless_api_token}}
+  "paperless#admin_user":         evict
+  "paperless#api_url":            evict
+  "netbox#admin_password":        "netbox/admin#password"
+  "netbox#token":                 "netbox/mcp#token"
+  "n8n#netbox_token":             "netbox/n8n#token"
+  "n8n-workers#netbox_token":     "netbox/n8n#token"   # not in sops; Vault copies agree
+  "netbox#admin_email":           evict
+  "netbox#admin_user":            evict
+  "netbox#url":                   evict
+  "librenms#token":               delete   # STALE — live token is the n8n/sops copy (scout-verified)
+  "n8n#librenms_token":           "librenms/n8n#token"
+  "n8n-workers#librenms_token":   {dst: "librenms/n8n#token", seed: {sops: sops-n8n-worker.enc.yaml, key: librenms_token}}
+  "librenms#_initialized":        delete
+  "obsidian#api_key":             "obsidian/mcp#api_key"
+  "n8n#obsidian_api_key":         "obsidian/n8n#api_key"
+  "n8n-workers#obsidian_api_key": {dst: "obsidian/n8n#api_key", seed: {sops: sops-n8n-worker.enc.yaml, key: obsidian_api_key}}
+  "obsidian#api_url":             evict
+  "obsidian-livesync#couchdb_admin_password": "couchdb/livesync-admin#password"
+  "obsidian-livesync#couchdb_sync_password":  "couchdb/livesync-sync#password"
+  "obsidian-livesync#couchdb_admin_user":     evict
+  "obsidian-livesync#couchdb_sync_user":      evict
+  "knowledge-vault#syncthing_admin_password": "syncthing/knowledge-vault#password"
+  "argocd#admin_password":        "argocd/admin#password"
+  "argocd-mcp#api_token":         "argocd/mcp#token"
+  "argocd-mcp#base_url":          evict
+  "litellm#key_automation":       "litellm/automation#api_key"
+  "litellm#key_cellarette":       "litellm/cellarette#api_key"
+  "litellm#key_hermes_bg":        "litellm/hermes-bg#api_key"
+  "litellm#oidc_secret":          "litellm/oidc#client_secret"
+  "litellm#base_url":             evict
+  "cellarette#admin_token":       {dst: "cellarette/admin#token", seed: {sops: sops-cellarette-admin.enc.yaml, key: CELLARETTE_ADMIN_TOKEN}}
+  "cellarette#authelia_bypass_token": "cellarette/authelia-bypass#token"
+  "cellarette#mcp_token":         "cellarette/mcp#token"
+  "n8n#lw_notifier_token":        delete   # stale vs the live sops copy (n8n-workers entry seeds it)
+  "n8n-workers#lw_notifier_token": {dst: "lw-notifier/n8n#token", seed: {sops: sops-n8n-worker.enc.yaml, key: lw_notifier_token}}
+  "openclaw#gateway_token":       "openclaw/gateway#token"
+  "openclaw#internal_url":        evict
+  "openclaw#portkey_gateway_key": delete
+  "termix#api_key":               "termix/api#api_key"
+  "termix#oidc_secret":           "termix/oidc#client_secret"
+  "media_stack#jellyfin_password":       "jellyfin/admin#password"
+  "media_stack#prowlarr_kamil_password": "prowlarr/kamil#password"
+  "media_stack#qbittorrent_password":    "qbittorrent/admin#password"
+  "media_stack#jellyfin_url":     evict
+  "media_stack#jellyfin_user":    evict
+  "media_stack#qbittorrent_url":  evict
+  "media_stack#qbittorrent_user": evict
+  "media_stack#managed_by":       evict
+  "kosync#md5_auth_key":          "kosync/auth#encryption_key"
+  "kosync#password_salt":         "kosync/auth#salt"
+  "kosync#koreader_password_plaintext": "kosync/auth#password"
+  "kosync#backup":   evict
+  "kosync#db_path":  evict
+  "kosync#host":     evict
+  "kosync#impl":     evict
+  "kosync#koreader_username": evict
+  "kosync#note":     evict
+  "kosync#service":  evict
+  "kosync#url":      evict
+  "rclone-webdav#webdav_pass":    "rclone-webdav/auth#password"
+  "rclone-webdav#webdav_user":    evict
+  "rclone-webdav#books_folder":   evict
+  "rclone-webdav#books_folder_id": evict
+  "rclone-webdav#drive_client_id": evict
+  "rclone-webdav#host":    evict
+  "rclone-webdav#note":    evict
+  "rclone-webdav#service": evict
+  "rclone-webdav#url":     evict
+  "watchdog#cluster_heartbeat_token": "watchdog/heartbeat#encryption_key"
+  "claude-config#claude_json_b64": "anthropic/claude-config-backup#token"
+  "claude-config#backed_up_at":   evict
+  "claude-config#mcp_servers":    evict
+  "claude-code#config":           "anthropic/claude-code-config#token"
+  "github-runner#data_dir":    evict
+  "github-runner#labels":      evict
+  "github-runner#network":     evict
+  "github-runner#node":        evict
+  "github-runner#note":        evict
+  "github-runner#org":         evict
+  "github-runner#runner_name": evict
+
+  # ---------- restricted tier ----------
+  "infrastructure#wireguard_password": "wireguard/edge#password"
+  "infrastructure#authelia_password":  "authelia/admin#password"
+  "infrastructure#authelia_user":      evict
+  "infrastructure#authelia_email":     evict
+  "infrastructure#pihole_password":    "pihole/admin#password"
+  "machines/credentials#password":     "machines/lw-hosts#password"
+  "machines/credentials#username_default": evict
+  "machines/credentials#username_lw_main": evict
+  "mcp-bridges#vault_token":           "hashicorp-vault/mcp-bridge#token"
+
+  # ---------- dead: delete (revoke upstream where live vendor keys) ----------
+  "omniroute": delete
+  "distillery": delete
+  "portkey": delete            # dead gateway + 4th copy of deepseek/groq/nvidia keys
+  "prefect_etl": delete        # api_key + synthesis_webhook_secret
+  "meepmap": delete            # REVOKE: supabase access/service-role tokens, resend key, google oauth client
+  "open-design": delete
+  "n8n#prefect_etl_api_key": delete
+  "n8n-workers#prefect_etl_api_key": delete
+  "seafile": delete            # admin_email only (config)
+  "dify": delete
+  "weylus": delete
+  "vaultwarden": delete
+  "proxmox": delete
+  "bambulab": delete
+  "swe-af": delete

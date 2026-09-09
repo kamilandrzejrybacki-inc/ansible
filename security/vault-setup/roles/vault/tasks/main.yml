@@ -277,6 +277,14 @@
   ansible.builtin.include_tasks: configure-oidc.yml
   when: vault_root_token is defined
 
+# Taxonomy role policies + AppRoles (VAULT-TAXONOMY.md). Standalone: --tags taxonomy-policies
+- name: Configure taxonomy policies + AppRoles
+  ansible.builtin.include_tasks:
+    file: taxonomy-policies.yml
+    apply: { tags: [taxonomy-policies] }
+  when: vault_root_token is defined
+  tags: [taxonomy-policies]
+
 - name: Display Vault access information
   ansible.builtin.debug:
     msg: |

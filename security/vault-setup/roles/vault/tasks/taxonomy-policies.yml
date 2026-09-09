@@ -1,0 +1,87 @@
+---
+# Taxonomy role policies + AppRoles (VAULT-TAXONOMY.md rule 11/12).
+# Same mechanism as ansible-policy: render HCL -> docker cp -> `vault policy write` inside the
+# container (runs with the container's root session). Run: --tags taxonomy-policies
+# Four policies: infra (rw all), agents (read minus restricted), k8s (= agents, for ESO),
+# humans (admin, short TTL). AppRoles: ansible-infra -> infra, cellarette-local -> agents,
+# eso -> k8s. Existing legacy policies/tokens are NOT removed here (that is the auth follow-on).
+
+- name: Taxonomy — render policy HCL files
+  ansible.builtin.template:
+    src: policy-taxonomy.hcl.j2
+    dest: "{{ vault_install_dir }}/policy-{{ item }}.hcl"
+    mode: "0640"
+  vars:
+    policy_name: "homelab-{{ item }}"
+    policy_role: "{{ item }}"
+  loop: [infra, agents, k8s, humans]
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — copy policy files into the Vault container
+  ansible.builtin.shell: >
+    docker cp {{ vault_install_dir }}/policy-{{ item }}.hcl vault:/tmp/policy-{{ item }}.hcl
+  loop: [infra, agents, k8s, humans]
+  changed_when: true
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — write policies
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault policy write homelab-{{ item }} /tmp/policy-{{ item }}.hcl
+  loop: [infra, agents, k8s, humans]
+  register: _tax_pol
+  changed_when: _tax_pol.rc == 0
+  no_log: true
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — ensure AppRole auth is enabled
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault auth enable approle
+  register: _approle
+  failed_when: _approle.rc != 0 and 'already in use' not in (_approle.stderr | default(''))
+  changed_when: _approle.rc == 0
+  no_log: true
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — create AppRoles bound to the taxonomy policies
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault write auth/approle/role/{{ item.name }}
+      token_policies="{{ item.policy }}"
+      token_ttl={{ item.ttl }} token_max_ttl={{ item.max_ttl }}
+      secret_id_ttl={{ item.secret_id_ttl }} secret_id_num_uses=0
+  loop:
+    - { name: ansible-infra,    policy: homelab-infra,  ttl: 1h,  max_ttl: 4h,  secret_id_ttl: 720h }
+    - { name: cellarette-local, policy: homelab-agents, ttl: 1h,  max_ttl: 24h, secret_id_ttl: 720h }
+    - { name: eso,              policy: homelab-k8s,    ttl: 1h,  max_ttl: 24h, secret_id_ttl: 720h }
+  loop_control: { label: "{{ item.name }}" }
+  register: _tax_roles
+  changed_when: _tax_roles.rc == 0
+  no_log: true
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — read role IDs (secret_ids are minted per consumer at deploy time, never stored in git)
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault read -field=role_id auth/approle/role/{{ item }}/role-id
+  loop: [ansible-infra, cellarette-local, eso]
+  register: _tax_roleids
+  changed_when: false
+  no_log: true
+  tags: [taxonomy-policies]
+
+- name: Taxonomy — summary
+  ansible.builtin.debug:
+    msg: "{{ item.item }}: role_id={{ item.stdout }}"
+  loop: "{{ _tax_roleids.results }}"
+  loop_control: { label: "{{ item.item }}" }
+  tags: [taxonomy-policies]

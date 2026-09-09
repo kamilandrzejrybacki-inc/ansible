@@ -58,8 +58,10 @@ if [ -n "$sops_files" ]; then
   done
 else
   echo "   no sops files (ansible-delivered or new) — ESO takes over directly"
+  SNAP=$(mktemp -d); chmod 700 "$SNAP"
   for s in $eso_secrets; do
     if kubectl -n "$NS" get secret "$s" >/dev/null 2>&1 && ! kubectl -n "$NS" get secret "$s" -o jsonpath='{.metadata.ownerReferences[0].kind}' | grep -q ExternalSecret; then
+      kubectl -n "$NS" get secret "$s" -o json | python3 -c 'import sys,json;d=json.load(sys.stdin);d["metadata"]={k:d["metadata"][k] for k in ("name","namespace","labels","annotations") if k in d["metadata"]};print(json.dumps(d))' > "$SNAP/$s.json"
       kubectl -n "$NS" delete secret "$s"
     fi
   done
@@ -103,11 +105,13 @@ PY
 rc=$?
 set -e
 if [ $rc -ne 0 ]; then
-  echo "== ROLLBACK: restoring sops delivery for $NS"
+  echo "== ROLLBACK: restoring previous delivery for $NS"
   kubectl delete -f "$ESO_DIR" --ignore-not-found
   if [ -n "$sops_files" ]; then
     cd "$ARGO" && git revert --no-edit HEAD >/dev/null && git push -q origin main
     kubectl -n argocd annotate application bootstrap-secrets argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+  else
+    for f in "${SNAP:-/nonexistent}"/*.json; do [ -f "$f" ] && kubectl apply -f "$f"; done
   fi
   exit 1
 fi

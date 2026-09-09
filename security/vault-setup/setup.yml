@@ -13,6 +13,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # `always`: a --tags run (e.g. taxonomy-policies) still needs the inventory built.
+  tags: [always]
   tasks:
     - name: Check for homelab setup vars
       ansible.builtin.stat:
@@ -29,6 +31,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: [always]
   vars:
     vault_hostname: "hashi-vault"
   vars_prompt:

@@ -282,7 +282,6 @@
   ansible.builtin.include_tasks:
     file: taxonomy-policies.yml
     apply: { tags: [taxonomy-policies] }
-  when: vault_root_token is defined
   tags: [taxonomy-policies]
 
 - name: Display Vault access information

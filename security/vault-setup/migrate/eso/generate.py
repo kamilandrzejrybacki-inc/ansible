@@ -44,11 +44,17 @@ def sops_doc(file):
     return _sops_cache[file]
 
 
-def resolve_literal(spec):
+def resolve_literal(spec, target):
     """Return the literal string for a `literals` entry. Secret-bearing sources are only used with
-    an `extract` that strips the secret part (DSN head/tail) — the raw value never lands in output."""
+    an `extract` that strips the secret part (DSN head/tail) — the raw value never lands in output.
+    `target` is the ns/name of the Secret being generated: once its sops file is gone (namespace
+    already cut over) the same key is read from the live, ESO-owned Secret instead."""
     if isinstance(spec, str):
         return spec
+    if "sops" in spec:
+        if not os.path.exists(SOPS_DIR + spec["sops"]):
+            spec = {**spec, "k8s": target}
+            del spec["sops"]
     if "sops" in spec:
         val = sops_doc(spec["sops"])[spec["key"]]
     elif "vault_old" in spec:
@@ -89,7 +95,7 @@ def external_secret(s, prefix, st, refresh):
     for k8s_key, ref in (s.get("from_vault") or {}).items():
         path, field = ref.split("#", 1)
         data.append({"secretKey": k8s_key, "remoteRef": {"key": f"{prefix}/{path}", "property": field}})
-    literals = {k: resolve_literal(v) for k, v in (s.get("literals") or {}).items()}
+    literals = {k: resolve_literal(v, f"{s['ns']}/{s['name']}") for k, v in (s.get("literals") or {}).items()}
     templates = dict(s.get("templates") or {})
     # Literal aliases are known at generation time: inline them into the template strings so they
     # never become keys of the rendered Secret. Only secret aliases stay as {{ .alias }}.
@@ -134,15 +140,17 @@ def main():
     namespaces = {}
     for s in m["secrets"]:
         namespaces.setdefault(s["ns"], []).append(s)
-    n = 0
+    # Render everything before writing anything, so a failed lookup never leaves a truncated file.
+    files = {}
     for ns, secrets in sorted(namespaces.items()):
-        d = os.path.join(a.out, ns); os.makedirs(d, exist_ok=True)
-        with open(os.path.join(d, "secretstore.yaml"), "w") as f:
-            yaml.safe_dump(secretstore(ns, st), f, sort_keys=False)
+        files[os.path.join(a.out, ns, "secretstore.yaml")] = secretstore(ns, st)
         for s in secrets:
-            with open(os.path.join(d, f"es-{s['name']}.yaml"), "w") as f:
-                yaml.safe_dump(external_secret(s, prefix, st, refresh), f, sort_keys=False)
-            n += 1
+            files[os.path.join(a.out, ns, f"es-{s['name']}.yaml")] = external_secret(s, prefix, st, refresh)
+    for path, doc in files.items():
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            yaml.safe_dump(doc, f, sort_keys=False)
+    n = len(files) - len(namespaces)
     print(f"generated {n} ExternalSecrets across {len(namespaces)} namespaces -> {a.out} (prefix {prefix})")
 
 

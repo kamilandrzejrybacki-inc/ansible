@@ -19,6 +19,16 @@
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     INSTALL_K3S_EXEC: "{{ k3s_server_exec }}"
     K3S_KUBECONFIG_MODE: "{{ k3s_kubeconfig_mode }}"
+    # Secrets are passed as env (not on the command line): the installer writes
+    # K3S_* env into /etc/systemd/system/k3s.service.env (mode 0600), keeping the
+    # datastore password and cluster token out of the unit's ExecStart / `ps`.
+    #
+    # K3S_DATASTORE_ENDPOINT — external Postgres (kine) connection string.
+    # K3S_TOKEN — shared cluster token. REQUIRED and identical on every server
+    #   in an external-datastore HA cluster; when omitted (single-server legacy)
+    #   k3s auto-generates one. See group_vars: source both from Vault at apply.
+    K3S_DATASTORE_ENDPOINT: "{{ k3s_datastore_endpoint | default(omit) }}"
+    K3S_TOKEN: "{{ k3s_token | default(omit) }}"
   register: _k3s_server_install
   changed_when: "'No change detected' not in _k3s_server_install.stdout
                   and 'No change detected' not in _k3s_server_install.stderr"

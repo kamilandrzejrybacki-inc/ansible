@@ -1,16 +1,37 @@
 ---
 k3s_version: "v1.32.3+k3s1"
 
-# Server-side flags. Empty by default to match the existing single-node
-# setup on lw-c1 (no `--disable` flags — traefik stays). Add only after
-# confirming the cluster doesn't depend on whatever you'd disable.
-k3s_server_extra_args: ""
+# --- External datastore + cluster token (SECRETS — never hardcode) -----------
+# This cluster uses an EXTERNAL Postgres datastore (kine), not embedded SQLite/etcd.
+# Both values below contain secrets and MUST be provided at apply time from Vault,
+# e.g.:
+#   ansible-playbook infrastructure/k3s-cluster-setup/setup.yml -i .../hosts.ini \
+#     -e "k3s_datastore_endpoint=$(vault kv get -field=endpoint secret/k3s/datastore)" \
+#     -e "k3s_token=$(vault kv get -field=token secret/k3s/token)"
+#
+# k3s_datastore_endpoint form:
+#   postgres://k3s:PASSWORD@192.168.0.115:5432/k3s_state?sslmode=disable
+# k3s_token: the shared cluster token (currently the auto-generated K10... value
+#   on lw-c3 at /var/lib/rancher/k3s/server/token). ALL servers must use the SAME
+#   token; it is REQUIRED whenever [k3s_servers] has more than one host.
+#
+# Left undefined here on purpose (default(omit) in the role) so a stray run without
+# them fails loudly instead of silently building a wrong (SQLite / new-cluster) node.
 
-# Extra SANs on the API-server cert so other nodes / kubeconfigs can
-# reach it through any of these addresses without re-issuing certs.
+# --- Server flags shared by every control-plane node -------------------------
+# --disable servicelb: MetalLB provides LoadBalancer services instead.
+k3s_server_extra_args: "--disable servicelb"
+
+# API-server cert SANs: every control-plane node IP + the kube-vip VIP, so a
+# kubeconfig pointed at the VIP (https://192.168.0.60:6443) stays valid no matter
+# which node currently answers. Every server is issued a cert covering all of them.
 k3s_server_tls_sans:
-  - "192.168.0.107"
+  - "192.168.0.60"    # kube-vip control-plane VIP (what kubeconfigs target)
+  - "192.168.0.108"   # lw-c3
+  - "192.168.0.107"   # lw-c1
+  - "192.168.0.240"   # lw-c2
+  - "lw-c3"
   - "lw-c1"
-  - "lw-c1.local"
+  - "lw-c2"
 
 k3s_agent_extra_args: ""

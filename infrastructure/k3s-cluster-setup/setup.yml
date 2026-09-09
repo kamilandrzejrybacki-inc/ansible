@@ -1,47 +1,65 @@
 # infrastructure/k3s-cluster-setup/setup.yml
 #
-# Install a k3s cluster: one server (control-plane) plus N agents.
+# Install a k3s cluster on an EXTERNAL Postgres datastore: one OR MORE servers
+# (control-plane, HA) plus N agents. All servers share the same datastore endpoint
+# and the same cluster token; a kube-vip DaemonSet floats the API VIP (192.168.0.60)
+# across them, so any single control-plane node can die without downing the API.
 #
 # Inventory groups:
-#   [k3s_server]   exactly one host
-#   [k3s_agents]   zero or more hosts
+#   [k3s_servers]  one or more control-plane hosts (HA when >1)
+#   [k3s_agents]   zero or more worker hosts
+#
+# Secrets (provide from Vault at apply — see group_vars/all.yml):
+#   -e k3s_datastore_endpoint=...  -e k3s_token=...   (k3s_token REQUIRED when >1 server)
 #
 # Run:
 #   ansible-playbook infrastructure/k3s-cluster-setup/setup.yml \
-#     -i infrastructure/k3s-cluster-setup/inventory/hosts.ini
+#     -i infrastructure/k3s-cluster-setup/inventory/hosts.ini \
+#     -e "k3s_datastore_endpoint=..." -e "k3s_token=..."
 #
-# Idempotent: re-running upgrades each node to k3s_version in-place.
-# Adding a new machine: append it to [k3s_agents] and re-run.
+# Idempotent: re-running upgrades each node to k3s_version in-place. Servers are
+# applied serial:1 (one at a time) so the control plane never loses quorum mid-run.
+# PROMOTING an agent to a server is a MAINTENANCE-WINDOW action — see README-HA.md.
 ---
-- name: Pre-flight — exactly one k3s server is required
+- name: Pre-flight — one or more k3s servers; HA requires a shared token
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Assert k3s_server group has exactly one host
+    - name: Assert at least one k3s server
       ansible.builtin.assert:
         that:
-          - groups['k3s_server'] | default([]) | length == 1
+          - groups['k3s_servers'] | default([]) | length >= 1
+        fail_msg: "[k3s_servers] must contain at least one host."
+    - name: Assert a shared token is supplied for multi-server HA
+      ansible.builtin.assert:
+        that:
+          - (k3s_token | default('')) | length > 0
         fail_msg: >-
-          [k3s_server] must contain exactly one host. Multi-server HA
-          requires --cluster-init / external datastore — out of scope
-          for this playbook.
+          Multi-server HA ([k3s_servers] has >1 host) requires an explicit shared
+          cluster token. Pass -e "k3s_token=$(vault kv get -field=token secret/k3s/token)".
+      when: groups['k3s_servers'] | default([]) | length > 1
 
-- name: Install k3s server (control-plane)
-  hosts: k3s_server
+- name: Install k3s servers (control-plane, rolling one at a time)
+  hosts: k3s_servers
   become: true
   gather_facts: true
+  serial: 1
   roles:
     - k3s-server
 
-- name: Install k3s agents and join the control-plane
+- name: Install k3s agents and join the control-plane via the VIP
   hosts: k3s_agents
   become: true
   gather_facts: true
   vars:
-    _k3s_server_host: "{{ groups['k3s_server'][0] }}"
-    k3s_server_url: "https://{{ hostvars[_k3s_server_host].ansible_host
-                                 | default(_k3s_server_host) }}:6443"
-    k3s_node_token: "{{ hostvars[_k3s_server_host].k3s_node_token }}"
+    _k3s_first_server: "{{ groups['k3s_servers'][0] }}"
+    # Agents target the kube-vip VIP so they survive any single server dying.
+    k3s_server_url: "https://192.168.0.60:6443"
+    # Prefer the shared token (HA); fall back to the first server's node-token
+    # fact for the legacy single-server case.
+    k3s_node_token: "{{ ((k3s_token | default('')) | length > 0)
+                        | ternary(k3s_token | default(''),
+                                  hostvars[_k3s_first_server].k3s_node_token | default('')) }}"
   roles:
     - k3s-agent
 
@@ -52,7 +70,7 @@
 # does not). Disabling it (symlink into apparmor.d/disable + unload) brings every
 # node to the same, FUSE-capable state. Run standalone: `--tags fuse-apparmor`.
 - name: Node prep — disable fusermount3 AppArmor (allow FUSE in privileged pods)
-  hosts: k3s_server:k3s_agents
+  hosts: k3s_servers:k3s_agents
   become: true
   gather_facts: false
   tags: [fuse-apparmor]

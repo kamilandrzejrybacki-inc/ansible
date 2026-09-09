@@ -21,8 +21,10 @@ BASE=$(ls -t "$HOME"/homelab-backups/k8s-secrets-baseline-*.json | head -1)
 sops_files=$(grep -lE "^\s+namespace: $NS$" "$ARGO"/secrets/bootstrap/sops-*.enc.yaml 2>/dev/null || true)
 sops_secrets=$(for f in $sops_files; do awk '/secretTemplates:/{t=1;next} t && /- name:/{print $3}' "$f"; done | sort -u)
 eso_secrets=$(grep -h "^    name:" "$ESO_DIR"/es-*.yaml | awk '{print $2}' | sort -u)
+# ORPHAN_SECRETS="name,..." — sops-delivered Secrets nothing consumes; dropped with the sops file.
 for s in $sops_secrets; do
-  grep -qx "$s" <<<"$eso_secrets" || { echo "sops delivers $NS/$s but no ExternalSecret covers it — aborting"; exit 2; }
+  grep -qx "$s" <<<"$eso_secrets" || grep -qx "$s" <<<"${ORPHAN_SECRETS//,/$'\n'}" \
+    || { echo "sops delivers $NS/$s but no ExternalSecret covers it — aborting"; exit 2; }
 done
 
 wait_for() { # <seconds> <description> <command...>

@@ -20,7 +20,10 @@
 16. **Delete + revoke:** `omniroute`, `distillery`, `meepmap`, `open-design` paths; `prefect_etl_api_key` field (Vault + both sops n8n files); dead docs-only refs.
 
 ## Restricted tier (agents + k8s CANNOT read)
-`wireguard/*`, `authelia/*`, `pihole/*`, `cloudflare/*`, `machines/*`, `k3s/*`, `postgres/k3s-datastore`, `hashicorp-vault/*` (root/unseal/mcp-bridge token).
+Whole issuers: `wireguard/*`, `pihole/*`, `cloudflare/*`, `machines/*`, `k3s/*`.
+Paths: `postgres/k3s-datastore`, `authelia/admin`, `hashicorp-vault/root`, `hashicorp-vault/unseal`, `hashicorp-vault/mcp-bridge`.
+
+*Refinement (2026-09-09, during build):* `authelia` and `hashicorp-vault` are NOT restricted wholesale — Authelia issues per-app OIDC client secrets (`authelia/<app>-oidc`) and Vault issues the metrics token (`hashicorp-vault/metrics`), both of which ESO must deliver to pods. Only their power keys are denied, by path. (OIDC client secrets were also re-homed from the apps to `authelia/<app>-oidc` — the issuer axis, applied consistently.)
 
 ## Target tree — old → new (every live path)
 
@@ -109,8 +112,10 @@ Paths: `omniroute`, `distillery`, `meepmap`, `open-design`, **`portkey`**, **`co
 - `humans.hcl`: admin, short TTL, via `vault login` not a stored token.
 
 ## Cutover runbook (gated big-bang)
-0. **Snapshot** Vault (raft snapshot or full KV export to an encrypted file off-box). Fresh off-NAS k3s backup.
-1. Build `secret/homelab-v2/` from the mapping; seed drifted secrets from the *live* copy (rule 15); mint new per-consumer creds where issuers allow (github fine-grained PATs, litellm keys, discord webhooks, DB users) — old shared creds stay valid until step 6.
+Staging prefix is `secret/homelab/v2/` (inside the infra token's writable scope — no policy needed to build), not a separate mount.
+
+0. **Snapshot** — DONE 2026-09-09: full KV export of all 67 secrets, age-encrypted via the argocd-apps sops config, decrypt-verified, at `~/homelab-backups/vault-snapshot-*.json.enc` + mirrored to lw-pi.
+1. **Build `homelab/v2/`** — DONE 2026-09-09 via `migrate/build.py --apply`: 91 paths / 95 fields, `--verify` 0 problems, old tree untouched. Drifted secrets seeded from the live sops copies. Per-consumer *minting* (new distinct creds at github/litellm/discord/DB users) is a rotation activity **after** cutover — the structure doesn't wait on vendor UIs; until minted, per-consumer paths carry the same value.
 2. Write the 4 policies; create AppRoles (`eso`, `cellarette-local`, `ansible`); wire `n8n-vault-render` to an explicit allowlist on `homelab-v2/` using the `infra` role.
 3. Repoint consumers → `homelab-v2/`: 4 ansible templates (`common/vault-integration/load.yml` + `store.yml`, `k8s-secrets` group_vars, `n8n-vault-render`), 2 cellarette refs, new `ExternalSecret`s (replacing the 25 sops files) + `SecretStore` per namespace.
 4. **Gate:** every consumer re-rendered; every k8s Secret diffed against expected; every service smoke-tested; ansible `k8s-secrets` + ESO reconcile clean; `agents` token proven *denied* on restricted.

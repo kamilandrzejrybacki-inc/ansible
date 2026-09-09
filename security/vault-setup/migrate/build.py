@@ -116,6 +116,12 @@ def plan(m, vault):
         dpath, dfield = dst.split("#", 1)
         if seed and "sops" in seed:
             val = sops_value(seed["sops"], seed["key"])
+            if seed.get("extract"):                     # pull a password out of a DSN-style string
+                import re
+                mm = re.search(seed["extract"], val)
+                if not mm:
+                    missing.append(f"{src} (extract regex matched nothing)"); continue
+                val = mm.group(1)
         else:
             s = src_secret(old)
             if s is None or field not in s:
@@ -174,6 +180,15 @@ def main():
         for dpath, fields in dests.items():
             vault.write(f"{prefix}/{dpath}", fields)
         print(f"applied: wrote {len(dests)} paths under {MOUNT}/homelab/{prefix}/")
+        for p in m.get("prune_v2", []):              # v2 paths an earlier apply wrote that are now wrong
+            if p in dests:
+                continue
+            try:
+                vault._req(f"{MOUNT}/metadata/homelab/{prefix}/{p}", "DELETE")
+                print(f"pruned stale v2 path: {prefix}/{p}")
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise
 
 
 if __name__ == "__main__":

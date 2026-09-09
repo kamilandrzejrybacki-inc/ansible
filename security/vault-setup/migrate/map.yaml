@@ -12,8 +12,13 @@
 # Several sources may map to one destination (merge). build.py refuses to apply if merged sources
 # carry DIFFERENT values for the same field — a conflict is a decision, not a silent overwrite.
 staging_prefix: homelab/v2
-restricted_issuers: [wireguard, authelia, pihole, cloudflare, machines, k3s, hashicorp-vault]
-restricted_paths: [postgres/k3s-datastore]
+# Restricted = the keys that own the network / hosts / Vault itself. NOT whole issuers where the
+# issuer also mints per-app credentials that ESO must deliver (Authelia OIDC client secrets,
+# the Vault metrics token) — those stay readable; only the power keys are denied.
+restricted_issuers: [wireguard, pihole, cloudflare, machines, k3s]
+restricted_paths: [postgres/k3s-datastore, authelia/admin, hashicorp-vault/root, hashicorp-vault/unseal, hashicorp-vault/mcp-bridge]
+# v2 paths written by an earlier apply that later mapping corrections made wrong; --apply prunes them.
+prune_v2: [litellm/oidc, termix/oidc, glitchtip/oidc, cellarette/authelia-bypass]
 
 map:
   # ---------- external vendors ----------
@@ -98,7 +103,7 @@ map:
   "guacamole#postgres_password":  "postgres/guacamole#password"
   "glitchtip#pg_password":        "postgres/glitchtip#password"
   "glitchtip#admin_password":     "glitchtip/admin#password"
-  "glitchtip#oidc_secret":        "glitchtip/oidc#client_secret"
+  "glitchtip#oidc_secret":        "authelia/glitchtip-oidc#client_secret"   # OIDC client secrets are ISSUED by Authelia
   "glitchtip#secret_key":         "glitchtip/app#encryption_key"
   "glitchtip#meepmap_dsn":        delete
   "grafana#admin_password":       delete   # STALE — the live Grafana admin pw is the n8n/sops copy (scout-verified)
@@ -142,10 +147,10 @@ map:
   "litellm#key_automation":       "litellm/automation#api_key"
   "litellm#key_cellarette":       "litellm/cellarette#api_key"
   "litellm#key_hermes_bg":        "litellm/hermes-bg#api_key"
-  "litellm#oidc_secret":          "litellm/oidc#client_secret"
+  "litellm#oidc_secret":          "authelia/litellm-oidc#client_secret"
   "litellm#base_url":             evict
   "cellarette#admin_token":       {dst: "cellarette/admin#token", seed: {sops: sops-cellarette-admin.enc.yaml, key: CELLARETTE_ADMIN_TOKEN}}
-  "cellarette#authelia_bypass_token": "cellarette/authelia-bypass#token"
+  "cellarette#authelia_bypass_token": "authelia/cellarette-bypass#token"   # minted by Authelia for cellarette
   "cellarette#mcp_token":         "cellarette/mcp#token"
   "n8n#lw_notifier_token":        delete   # stale vs the live sops copy (n8n-workers entry seeds it)
   "n8n-workers#lw_notifier_token": {dst: "lw-notifier/n8n#token", seed: {sops: sops-n8n-worker.enc.yaml, key: lw_notifier_token}}
@@ -153,7 +158,7 @@ map:
   "openclaw#internal_url":        evict
   "openclaw#portkey_gateway_key": delete
   "termix#api_key":               "termix/api#api_key"
-  "termix#oidc_secret":           "termix/oidc#client_secret"
+  "termix#oidc_secret":           "authelia/termix-oidc#client_secret"
   "media_stack#jellyfin_password":       "jellyfin/admin#password"
   "media_stack#prowlarr_kamil_password": "prowlarr/kamil#password"
   "media_stack#qbittorrent_password":    "qbittorrent/admin#password"
@@ -205,6 +210,50 @@ map:
   "machines/credentials#username_default": evict
   "machines/credentials#username_lw_main": evict
   "mcp-bridges#vault_token":           "hashicorp-vault/mcp-bridge#token"
+
+  # ---------- sops-only secrets: never in Vault, ingested from argocd-apps/secrets/bootstrap ----------
+  # (Q16: Vault is the single source of truth.) `extract` pulls a password out of a DSN string.
+  "sops:dbt#DBT_PROD_PASSWORD":   {dst: "postgres/dbt-prod#password", seed: {sops: sops-dbt.enc.yaml, key: DBT_PROD_PASSWORD}}
+  "sops:dbt#DBT_TEST_PASSWORD":   {dst: "postgres/dbt-test#password", seed: {sops: sops-dbt.enc.yaml, key: DBT_TEST_PASSWORD}}
+  "sops:dbt#GIT_DEFAULT_TOKEN":   {dst: "github/dbt#token", seed: {sops: sops-dbt.enc.yaml, key: GIT_DEFAULT_TOKEN}}
+  "sops:ghcr-pull#.dockerconfigjson": {dst: "github/ghcr-pull#token", seed: {sops: sops-ghcr-pull.enc.yaml, key: .dockerconfigjson}}   # whole dockerconfigjson blob; ESO passes through
+  "sops:grafana-cloud-query#GRAFANA_CLOUD_QUERY_TOKEN": {dst: "grafana-cloud/query#token", seed: {sops: sops-grafana-grafana-cloud-query.enc.yaml, key: GRAFANA_CLOUD_QUERY_TOKEN}}
+  "sops:grafana#GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET": {dst: "authelia/grafana-oidc#client_secret", seed: {sops: sops-grafana-grafana-secrets.enc.yaml, key: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}}
+  "sops:grafana#NTFY_TOKEN":      {dst: "ntfy/grafana#token", seed: {sops: sops-grafana-grafana-secrets.enc.yaml, key: NTFY_TOKEN}}
+  "sops:linkedin-approver#HERMES_WEBHOOK_URL": {dst: "hermes/linkedin-approver#webhook_url", seed: {sops: sops-linkedin-approver-hermes.enc.yaml, key: HERMES_WEBHOOK_URL}}
+  "sops:cellarette-linkedin#access_token": {dst: "linkedin/cellarette#token", seed: {sops: sops-cellarette-linkedin.enc.yaml, key: access_token}}
+  "sops:cellarette-ssh#public_key": {dst: "cellarette/ssh#public_key", seed: {sops: sops-cellarette-ssh-recovered.enc.yaml, key: public_key}}
+  "sops:litellm#LITELLM_MASTER_KEY": {dst: "litellm/master#api_key", seed: {sops: sops-litellm.enc.yaml, key: LITELLM_MASTER_KEY}}
+  "sops:litellm#UI_PASSWORD":     {dst: "litellm/ui#password", seed: {sops: sops-litellm.enc.yaml, key: UI_PASSWORD}}
+  "sops:litellm#POSTGRES_PASSWORD": {dst: "postgres/litellm#password", seed: {sops: sops-litellm.enc.yaml, key: POSTGRES_PASSWORD}}
+  "sops:litellm#DEEPSEEK_API_KEY":  {dst: "deepseek/litellm#api_key",  seed: {sops: sops-litellm.enc.yaml, key: DEEPSEEK_API_KEY}}
+  "sops:litellm#GEMINI_API_KEY":    {dst: "gemini/litellm#api_key",    seed: {sops: sops-litellm.enc.yaml, key: GEMINI_API_KEY}}
+  "sops:litellm#GROQ_API_KEY":      {dst: "groq/litellm#api_key",      seed: {sops: sops-litellm.enc.yaml, key: GROQ_API_KEY}}
+  "sops:litellm#NVIDIA_API_KEY":    {dst: "nvidia/litellm#api_key",    seed: {sops: sops-litellm.enc.yaml, key: NVIDIA_API_KEY}}
+  "sops:litellm#OPENROUTER_API_KEY": {dst: "openrouter/litellm#api_key", seed: {sops: sops-litellm.enc.yaml, key: OPENROUTER_API_KEY}}
+  "sops:litellm#REQUESTY_API_KEY":  {dst: "requesty/litellm#api_key",  seed: {sops: sops-litellm.enc.yaml, key: REQUESTY_API_KEY}}
+  "sops:litellm#GENERIC_CLIENT_SECRET": {dst: "authelia/litellm-oidc#client_secret", seed: {sops: sops-litellm.enc.yaml, key: GENERIC_CLIENT_SECRET}}
+  "sops:glitchtip#DATABASE_URL":  {dst: "postgres/glitchtip#password", seed: {sops: sops-glitchtip.enc.yaml, key: DATABASE_URL, extract: "://[^:/]+:([^@]+)@"}}
+  "sops:glitchtip#REDIS_URL":     {dst: "redis/glitchtip#password",    seed: {sops: sops-glitchtip.enc.yaml, key: REDIS_URL,    extract: "://(?:[^:/]*:)?([^@]+)@"}}
+  # NOTE: sops postgres-exporter DATA_SOURCE_NAME is the k3s DATASTORE superuser DSN (user k3s), not
+  # the shared-postgres exporter cred — and it holds the pre-rotation password (exporter is failing
+  # auth since the 2026-09-09 rotation). Not migrated: the exporter gets a dedicated read-only role
+  # at postgres/k3s-exporter (minted by migrate/ingest-k3s.sh); the superuser pw lives at the
+  # RESTRICTED postgres/k3s-datastore, ingested from c3's env, never from sops.
+  "sops:ntfy#watchdog_password":  {dst: "ntfy/watchdog#password", seed: {sops: sops-ntfy.enc.yaml, key: watchdog_password}}
+  "sops:shared-redis#REDIS_PASSWORD": {dst: "redis/shared#password", seed: {sops: sops-shared-redis-recovered.enc.yaml, key: REDIS_PASSWORD}}
+  "sops:openviking#OPENVIKING_ROOT_API_KEY": {dst: "openviking/root#api_key", seed: {sops: sops-openviking.enc.yaml, key: OPENVIKING_ROOT_API_KEY}}
+  "sops:openviking#OPENVIKING_USER_API_KEY": {dst: "openviking/user#api_key", seed: {sops: sops-openviking.enc.yaml, key: OPENVIKING_USER_API_KEY}}
+  "sops:openviking#OPENVIKING_EMBEDDING_API_KEY": {dst: "litellm/openviking-embed#api_key", seed: {sops: sops-openviking.enc.yaml, key: OPENVIKING_EMBEDDING_API_KEY}}
+  "sops:openviking#OPENVIKING_VLM_API_KEY": {dst: "litellm/openviking-vlm#api_key", seed: {sops: sops-openviking.enc.yaml, key: OPENVIKING_VLM_API_KEY}}
+  "sops:paperless#PAPERLESS_ADMIN_PASSWORD": {dst: "paperless/admin#password", seed: {sops: sops-paperless-paperless-secrets.enc.yaml, key: PAPERLESS_ADMIN_PASSWORD}}
+  "sops:paperless#PAPERLESS_DBPASS":   {dst: "postgres/paperless#password", seed: {sops: sops-paperless-paperless-secrets.enc.yaml, key: PAPERLESS_DBPASS}}
+  "sops:paperless#PAPERLESS_SECRET_KEY": {dst: "paperless/app#encryption_key", seed: {sops: sops-paperless-paperless-secrets.enc.yaml, key: PAPERLESS_SECRET_KEY}}
+  "sops:silverbullet#SB_USER":    {dst: "silverbullet/admin#password", seed: {sops: sops-silverbullet.enc.yaml, key: SB_USER}}   # "user:pass" auth string
+  "sops:tauto#deepseek_api_key":  {dst: "deepseek/tauto#api_key", seed: {sops: sops-tauto.enc.yaml, key: deepseek_api_key}}
+  "sops:termix#oidc_client_secret": {dst: "authelia/termix-oidc#client_secret", seed: {sops: sops-termix.enc.yaml, key: oidc_client_secret}}
+  "sops:vault-metrics#VAULT_METRICS_TOKEN":   {dst: "hashicorp-vault/metrics#token", seed: {sops: sops-vault-metrics-token.enc.yaml, key: VAULT_METRICS_TOKEN}}
+  "sops:vault-metrics#LITELLM_METRICS_TOKEN": {dst: "litellm/metrics#token", seed: {sops: sops-vault-metrics-token.enc.yaml, key: LITELLM_METRICS_TOKEN}}
 
   # ---------- dead: delete (revoke upstream where live vendor keys) ----------
   "omniroute": delete

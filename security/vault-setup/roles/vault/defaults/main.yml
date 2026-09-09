@@ -25,8 +25,11 @@ vault_ansible_policy: "ansible-automation"
 
 # Taxonomy restricted tier (VAULT-TAXONOMY.md rule 11): issuers/paths that the `agents` and
 # `k8s` policies are explicitly DENIED — keys that own the network, the hosts, or Vault itself.
-vault_restricted_issuers: [wireguard, authelia, pihole, cloudflare, machines, k3s, hashicorp-vault]
-vault_restricted_paths: ["postgres/k3s-datastore"]
+# Whole issuers only where nothing under them is a per-app credential; Authelia (OIDC client
+# secrets) and Vault (metrics token) mint things ESO must deliver, so only their power keys
+# are restricted, by path.
+vault_restricted_issuers: [wireguard, pihole, cloudflare, machines, k3s]
+vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-vault/root", "hashicorp-vault/unseal", "hashicorp-vault/mcp-bridge"]
 
 # Health-check settings
 vault_health_check_retries: 12

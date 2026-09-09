@@ -104,6 +104,10 @@ def external_secret(s, prefix, st, refresh):
             tmpl[k8s_key] = val
     tmpl.update(templates)
     alias_refs = {a for a in used_as_alias if a not in literals}      # secret aliases (from_vault keys used only in templates)
+    def tmpl_ref(key: str) -> str:
+        # Keys like `.dockerconfigjson` are not Go identifiers; `{{ .x }}` only works for \w+.
+        return "{{ .%s }}" % key if re.fullmatch(r"\w+", key) else '{{ index . "%s" }}' % key
+
     spec = {
         "refreshInterval": s.get("refresh", refresh),
         "secretStoreRef": {"name": st["name"], "kind": "SecretStore"},
@@ -112,7 +116,7 @@ def external_secret(s, prefix, st, refresh):
     }
     if tmpl or s.get("type") or alias_refs:
         # Explicit template: pass through every non-alias data key, add literals + rendered templates.
-        merged = {d["secretKey"]: "{{ .%s }}" % d["secretKey"] for d in data if d["secretKey"] not in alias_refs}
+        merged = {d["secretKey"]: tmpl_ref(d["secretKey"]) for d in data if d["secretKey"] not in alias_refs}
         merged.update(tmpl)
         spec["target"]["template"] = {"type": s.get("type", "Opaque"), "engineVersion": "v2", "data": merged}
     return {"apiVersion": "external-secrets.io/v1beta1", "kind": "ExternalSecret",

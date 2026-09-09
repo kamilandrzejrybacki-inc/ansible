@@ -33,7 +33,7 @@ vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-
 
 # Namespaces whose Secrets are delivered by ESO (source: migrate/eso/manifest.yaml). Each gets a
 # `vault-eso-approle` bootstrap Secret from the taxonomy-policies / eso-bootstrap tag.
-vault_eso_namespaces: [cellarette, dbt, feedcord, github-runners, glitchtip, gnhf, grafana, hermes, litellm, mcp-servers, monitoring, n8n, ntfy, openviking, paperless, shared-redis, silverbullet, tauto, termix, yaikes-etl]
+vault_eso_namespaces: [cellarette, dbt, feedcord, github-runners, glitchtip, gnhf, grafana, hermes, litellm, mcp-servers, monitoring, n8n, ntfy, openviking, paperless, shared-redis, silverbullet, tauto, teammates, termix, yaikes-etl]
 
 # Health-check settings
 vault_health_check_retries: 12

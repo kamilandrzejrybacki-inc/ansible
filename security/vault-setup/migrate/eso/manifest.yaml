@@ -30,6 +30,9 @@ secrets:
   - {ns: cellarette, name: cellarette-tool-env,  from_vault: {GH_TOKEN: "github/cellarette#token", OPENAI_API_KEY: "openai/shared#api_key"}}
   - {ns: cellarette, name: linkedin-approver-hermes, from_vault: {HERMES_WEBHOOK_URL: "hermes/linkedin-approver#webhook_url"}}
 
+  - {ns: teammates, name: teammates-conductor-token,  from_vault: {token: "discord/gnhf-bot#token"}}
+  - {ns: teammates, name: teammates-cellarette-admin, from_vault: {token: "cellarette/admin#token"}}
+
   - ns: dbt
     name: dbt-secret
     from_vault: {DBT_PROD_PASSWORD: "postgres/dbt-prod#password", DBT_TEST_PASSWORD: "postgres/dbt-test#password", GIT_DEFAULT_TOKEN: "github/dbt#token"}

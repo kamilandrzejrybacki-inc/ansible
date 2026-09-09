@@ -1,7 +1,6 @@
 # {{ policy_name }} — Vault taxonomy role policy (see security/vault-setup/VAULT-TAXONOMY.md)
-# Tree: {{ vault_kv_mount }}/homelab/<issuer>/<credential>. During migration the same shape
-# also lives under homelab/v2/, so every rule is written for both.
-{% set roots = ['homelab', 'homelab/v2'] %}
+# Tree: {{ vault_kv_mount }}/homelab/<issuer>/<credential>.
+{% set roots = ['homelab'] %}
 {% if policy_role == 'infra' %}
 # infra: full read/write on the whole tree (ansible automation).
 {% for r in roots %}

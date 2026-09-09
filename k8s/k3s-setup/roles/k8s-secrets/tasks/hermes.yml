@@ -19,7 +19,7 @@
 
 - name: Cache Codex auth to Vault for headless re-provisioning
   ansible.builtin.uri:
-    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/openai/hermes-codex-auth"
+    url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab') }}/openai/hermes-codex-auth"
     method: POST
     headers: { X-Vault-Token: "{{ _vault_token }}" }
     body_format: json
@@ -33,7 +33,7 @@
   block:
     - name: Load Codex auth from Vault
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/openai/hermes-codex-auth"
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab') }}/openai/hermes-codex-auth"
         headers: { X-Vault-Token: "{{ _vault_token }}" }
         return_content: true
       register: _hz_codex_vault

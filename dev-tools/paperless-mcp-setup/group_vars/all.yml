@@ -8,4 +8,4 @@ claude_config_path: "{{ lookup('env', 'HOME') }}/.claude.json"
 
 # Vault
 vault_addr: "http://127.0.0.1:8200"
-vault_paperless_secret_path: "secret/data/homelab/v2/paperless/admin"
+vault_paperless_secret_path: "secret/data/homelab/paperless/admin"

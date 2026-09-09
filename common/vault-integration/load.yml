@@ -20,12 +20,12 @@
 #     vars: { vault_service_name: "n8n" }
 #     Kept only so unmigrated playbooks still run until the old tree is deleted; new code uses refs.
 #
-# `_vault_tree` defaults to homelab/v2 (staging) — flips to homelab at the final move (check.yml).
+# `_vault_tree` defaults to the issuer-keyed root `homelab` (set in check.yml).
 
 - name: Initialize empty secrets
   ansible.builtin.set_fact:
     _vault_secrets: {}
-    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab/v2')) }}"
+    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab')) }}"
 
 # ---------------------------------------------------------------- refs mode
 - name: Read secrets from Vault (refs mode)

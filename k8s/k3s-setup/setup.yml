@@ -78,7 +78,7 @@
   pre_tasks:
     - name: Load GitHub PAT for private repo access
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab/v2') }}/github/runner"
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/{{ _vault_tree | default('homelab') }}/github/runner"
         headers:
           X-Vault-Token: "{{ _vault_token }}"
         return_content: true

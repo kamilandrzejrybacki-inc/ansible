@@ -19,7 +19,7 @@
 
 - name: Resolve tree root
   ansible.builtin.set_fact:
-    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab/v2')) }}"
+    _vault_tree: "{{ _vault_tree | default(vault_tree_prefix | default('homelab')) }}"
 
 # ---------------------------------------------------------------- refs mode
 - name: Store secrets to Vault (refs mode)

@@ -82,7 +82,7 @@
         sys.exit(0)
     try:
         req = urllib.request.Request(
-            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab/v2')}/authelia/cellarette-bypass",
+            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab')}/authelia/cellarette-bypass",
             headers={"X-Vault-Token": token}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -121,7 +121,7 @@
         sys.exit(0)
     try:
         req = urllib.request.Request(
-            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab/v2')}/cellarette/mcp",
+            f"{addr}/v1/{mount}/data/{d.get('vault_tree', 'homelab')}/cellarette/mcp",
             headers={"X-Vault-Token": token}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:

@@ -1,22 +1,14 @@
 ---
-- name: Process each secret definition
-  ansible.builtin.include_tasks: apply-secret.yml
-  loop: "{{ k8s_secrets }}"
-  loop_control:
-    label: "{{ item.namespace }}/{{ item.name }}"
-
-- name: Create MCP server secrets
+# Only Secrets that ESO cannot deliver: restricted Vault material and files that live on the
+# control machine. Everything else: argocd-apps/secrets/eso (see VAULT-TAXONOMY.md).
+- name: Create vault-mcp-token (restricted)
   ansible.builtin.include_tasks: mcp-servers.yml
+  tags: [mcp-servers, secrets]
 
-
-- name: Create Hermes codex-auth + discord secrets
+- name: Create Hermes codex-auth
   ansible.builtin.include_tasks: hermes.yml
   tags: [hermes, secrets]
 
-- name: Create gnhf-bot secrets (discord/gh from Vault + Claude creds from control machine)
+- name: Create gnhf-claude-auth
   ansible.builtin.include_tasks: gnhf-bot.yml
   tags: [gnhf-bot, secrets]
-
-- name: Seed Discord webhook URL secrets (grafana alerts + feedcord releases)
-  ansible.builtin.include_tasks: discord-webhooks.yml
-  tags: [discord-webhooks, secrets]

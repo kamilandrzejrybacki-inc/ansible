@@ -1,101 +1,23 @@
 ---
-# MCP server secrets — matches k8s Secret names referenced in Helm values.yaml
-#
-# Loads each upstream's credentials from Vault under secret/homelab/<service>
-# and materializes them as Opaque k8s Secrets in the mcp-servers namespace.
-# Falls back to extra-var overrides for bootstrap when Vault is unavailable.
+# vault-mcp-token in namespace mcp-servers. hashicorp-vault/mcp-bridge is RESTRICTED (a Vault
+# token), so only this infra-role task delivers it. Every other mcp-servers Secret comes from
+# ESO (argocd-apps/secrets/eso/mcp-servers).
 
 - name: Load mcp-bridges secrets bundle from Vault
   ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
   vars:
-    # hashicorp-vault/mcp-bridge is RESTRICTED (a Vault token) — only this infra-role task may
-    # deliver it; everything else in this file is superseded by ESO (VAULT-TAXONOMY.md).
     vault_refs:
       vault_token: "hashicorp-vault/mcp-bridge#token"
-      grafana_sa_token: "grafana/mcp-sa#token"
 
-- name: Capture mcp-bridges bundle
+- name: Resolve vault-mcp token
   ansible.builtin.set_fact:
-    _mcp_bridges: "{{ _vault_secrets | default({}) }}"
+    _vault_mcp_token: "{{ vault_mcp_token | default(_vault_secrets.vault_token) | default('') }}"
   no_log: true
 
-- name: Load argocd-mcp secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "argocd-mcp"
-
-- name: Capture argocd-mcp bundle
-  ansible.builtin.set_fact:
-    _argocd_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-- name: Load grafana secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "grafana"
-
-- name: Capture grafana bundle
-  ansible.builtin.set_fact:
-    _grafana_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-- name: Load netbox secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "netbox"
-
-- name: Capture netbox bundle
-  ansible.builtin.set_fact:
-    _netbox_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-- name: Load obsidian secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "obsidian"
-
-- name: Capture obsidian bundle
-  ansible.builtin.set_fact:
-    _obsidian_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-- name: Load exa secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "exa"
-
-- name: Capture exa bundle
-  ansible.builtin.set_fact:
-    _exa_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-# Resolve final values — prefer extra-var overrides, fall back to Vault bundles.
-- name: Resolve effective MCP credentials
-  ansible.builtin.set_fact:
-    _vault_mcp_token: "{{ vault_mcp_token | default(_mcp_bridges.vault_token) | default('') }}"
-    _grafana_api_key: "{{ grafana_api_key | default(_grafana_mcp.service_account_token) | default(_mcp_bridges.grafana_sa_token) | default('') }}"
-    _argocd_server: "{{ argocd_server | default(_argocd_mcp.base_url) | default('') }}"
-    _argocd_token: "{{ argocd_token | default(_argocd_mcp.api_token) | default('') }}"
-    _netbox_url: "{{ netbox_url | default(_netbox_mcp.url) | default('') }}"
-    _netbox_token: "{{ netbox_token | default(_netbox_mcp.token) | default(_mcp_bridges.netbox_token) | default('') }}"
-    _obsidian_api_key: "{{ obsidian_api_key | default(_obsidian_mcp.api_key) | default(_mcp_bridges.obsidian_api_key) | default('') }}"
-    _exa_api_key: "{{ exa_api_key | default(_exa_mcp.api_key) | default('') }}"
-  no_log: true
-
-- name: Assert MCP credentials are present
+- name: Assert vault-mcp token is present
   ansible.builtin.assert:
-    that:
-      - _vault_mcp_token | length > 0
-      - _grafana_api_key | length > 0
-      - _argocd_server | length > 0
-      - _argocd_token | length > 0
-      - _netbox_url | length > 0
-      - _netbox_token | length > 0
-      - _obsidian_api_key | length > 0
-      - _exa_api_key | length > 0
-    fail_msg: >-
-      Missing MCP credentials. Populate Vault under secret/homelab/{mcp-bridges,argocd-mcp,grafana,netbox,obsidian,exa}
-      or pass via --extra-vars vault_mcp_token=..., argocd_token=..., etc.
+    that: _vault_mcp_token | length > 0
+    fail_msg: "hashicorp-vault/mcp-bridge#token missing in Vault (or pass --extra-vars vault_mcp_token=...)"
 
 - name: Create vault-mcp-token secret
   kubernetes.core.k8s:
@@ -106,126 +28,8 @@
       kind: Secret
       metadata:
         name: vault-mcp-token
-        namespace: "{{ k8s_namespace }}"
+        namespace: mcp-servers
       type: Opaque
       stringData:
         token: "{{ _vault_mcp_token }}"
-  no_log: true
-
-- name: Create grafana-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: grafana-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        api_key: "{{ _grafana_api_key }}"
-  no_log: true
-
-- name: Create argocd-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: argocd-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        server: "{{ _argocd_server }}"
-        token: "{{ _argocd_token }}"
-  no_log: true
-
-- name: Create netbox-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: netbox-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        url: "{{ _netbox_url }}"
-        token: "{{ _netbox_token }}"
-  no_log: true
-
-- name: Create obsidian-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: obsidian-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        api_key: "{{ _obsidian_api_key }}"
-  no_log: true
-
-- name: Create exa-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: exa-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        api_key: "{{ _exa_api_key }}"
-  no_log: true
-
-# Discord MCP — dedicated read/write bot (NOT the Hermes gateway bot). Token in
-# Vault secret/homelab/discord-mcp key bot_token. Independent block so a discord
-# run isn't gated by the other MCP creds' combined assert (and vice versa).
-- name: Load discord-mcp secrets bundle from Vault
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
-  vars:
-    vault_service_name: "discord-mcp"
-
-- name: Capture discord-mcp bundle
-  ansible.builtin.set_fact:
-    _discord_mcp: "{{ _vault_secrets | default({}) }}"
-  no_log: true
-
-- name: Resolve discord bot token
-  ansible.builtin.set_fact:
-    _discord_bot_token: "{{ discord_mcp_bot_token | default(_discord_mcp.bot_token) | default('') }}"
-  no_log: true
-
-- name: Assert discord bot token is present
-  ansible.builtin.assert:
-    that:
-      - _discord_bot_token | length > 0
-    fail_msg: >-
-      Missing Discord MCP bot token. Populate Vault secret/homelab/discord-mcp
-      key bot_token, or pass --extra-vars discord_mcp_bot_token=...
-
-- name: Create discord-mcp-secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_local_path }}"
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: discord-mcp-secret
-        namespace: "{{ k8s_namespace }}"
-      type: Opaque
-      stringData:
-        bot_token: "{{ _discord_bot_token }}"
   no_log: true

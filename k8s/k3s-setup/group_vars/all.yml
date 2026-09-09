@@ -19,41 +19,6 @@ argocd_nodeport_http: 30080
 argocd_health_check_retries: 20
 argocd_health_check_delay: 10
 
-# -- K8s Secrets (from Vault) ------------------------------------------------
-# Ansible creates these before ArgoCD deploys the charts.
-# Charts reference them via existingSecret.
-k8s_secrets:
-  - namespace: n8n
-    name: n8n-worker-secrets
-    vault_path: n8n-workers
-    data:
-      DB_POSTGRESDB_PASSWORD: db_password
-      N8N_ENCRYPTION_KEY: encryption_key
-      QUEUE_BULL_REDIS_PASSWORD: redis_password
-      grafana_admin_password: grafana_admin_password
-      groq_api_key: groq_api_key
-      nvidia_api_key: nvidia_api_key
-      deepseek_api_key: deepseek_api_key
-      obsidian_api_key: obsidian_api_key
-      telegram_bot_token: telegram_bot_token
-      lw_notifier_token: lw_notifier_token
-      paperless_api_token: paperless_api_token
-      netbox_token: netbox_token
-      librenms_token: librenms_token
-      prefect_etl_api_key: prefect_etl_api_key
-      blog_github_pat: blog_github_pat
-
-  - namespace: github-runners
-    name: github-runner-secrets
-    vault_path: github
-    data:
-      GITHUB_TOKEN: runner_pat
-
-  # distillery-secrets is managed by k8s/distillery-setup/setup.yml
-  # (Vault stores all env vars; the playbook assembles the full secret including
-  # Redis URL with password and in-cluster service URLs.)
-  # Not listed here because the data shape is complex — handled by the setup playbook.
-
 # -- OIDC secrets (created from Authelia secrets on control node) -------------
 # These are NOT from Vault; they're injected at runtime from setup.yml facts.
 argocd_oidc_client_secret: ""    # Set at runtime via extra-vars

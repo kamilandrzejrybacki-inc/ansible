@@ -36,7 +36,7 @@ echo "== 1. apply ESO manifests for $NS"
 kubectl apply -f "$ESO_DIR/secretstore.yaml"
 wait_for 60 "SecretStore Ready" sh -c "[ \"\$(kubectl -n $NS get secretstore homelab-vault -o jsonpath='{.status.conditions[?(@.type==\"Ready\")].status}')\" = True ]" \
   || { kubectl -n "$NS" get secretstore homelab-vault -o jsonpath='{.status.conditions}'; echo; exit 3; }
-kubectl apply -f "$ESO_DIR"/es-*.yaml
+for f in "$ESO_DIR"/es-*.yaml; do kubectl apply -f "$f"; done
 es_names=$(kubectl -n "$NS" get externalsecret -o jsonpath='{.items[*].metadata.name}')
 
 if [ "$MODE" = "--check" ]; then

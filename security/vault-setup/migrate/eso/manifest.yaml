@@ -32,6 +32,7 @@ secrets:
 
   - {ns: teammates, name: teammates-conductor-token,  from_vault: {token: "discord/gnhf-bot#token"}}
   - {ns: teammates, name: teammates-cellarette-admin, from_vault: {token: "cellarette/admin#token"}}
+  - {ns: teammates, name: ghcr-pull, type: kubernetes.io/dockerconfigjson, from_vault: {".dockerconfigjson": "github/ghcr-pull#token"}}
 
   - ns: dbt
     name: dbt-secret

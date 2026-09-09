@@ -13,7 +13,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  # `always`: a --tags run (e.g. taxonomy-policies) still needs the inventory built.
   tags: [always]
   tasks:
     - name: Check for homelab setup vars

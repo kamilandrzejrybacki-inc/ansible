@@ -6,8 +6,7 @@
 # humans (admin, short TTL). AppRoles: ansible-infra -> infra, cellarette-local -> agents,
 # eso -> k8s. Existing legacy policies/tokens are NOT removed here (that is the auth follow-on).
 
-# Standalone (--tags) run: the init/unseal tasks that normally set vault_root_token are skipped,
-# so resolve it from the on-disk init keys (auto-unseal mode keeps them at vault_keys_file).
+# A --tags run skips the init/unseal tasks that set vault_root_token; read it from the init keys.
 - name: Taxonomy — load root token from init keys (standalone run)
   when: vault_root_token is not defined
   tags: [taxonomy-policies, eso-bootstrap]
@@ -134,7 +133,6 @@
     --from-literal=role_id={{ _eso_rid.stdout }} --from-literal=secret_id={{ _eso_sid.stdout }}
     --dry-run=client -o yaml | kubectl apply -f -
   loop: "{{ vault_eso_namespaces }}"
-  # kubeconfig lives with the operator user, not root
   become: false
   changed_when: true
   no_log: true

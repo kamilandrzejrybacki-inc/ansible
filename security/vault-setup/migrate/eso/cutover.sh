@@ -74,9 +74,10 @@ done
 
 echo "== 4. GATE vs $(basename "$BASE")"
 set +e
-python3 - "$NS" "$BASE" <<'PY'
+# ACCEPT_DIFF="name#key,..." — keys whose baseline value is known-stale (Vault holds the verified-working one).
+python3 - "$NS" "$BASE" "${ACCEPT_DIFF:-}" <<'PY'
 import sys, json, base64, hashlib, subprocess
-ns, basef = sys.argv[1], sys.argv[2]
+ns, basef, accept = sys.argv[1], sys.argv[2], set(filter(None, sys.argv[3].split(",")))
 base = json.load(open(basef))
 fail = 0
 for key, exp in base.items():
@@ -90,10 +91,11 @@ for key, exp in base.items():
     if exp.get("_missing"):
         print(f"   {key}: created ({len(now)} keys)"); continue
     same = [k for k in exp if k in now and now[k] == exp[k]]
-    diff = [k for k in exp if k in now and now[k] != exp[k]]
+    diff = [k for k in exp if k in now and now[k] != exp[k] and f"{name}#{k}" not in accept]
+    accepted = [k for k in exp if k in now and now[k] != exp[k] and f"{name}#{k}" in accept]
     dropped = [k for k in exp if k not in now]
     added = [k for k in now if k not in exp]
-    print(f"   {key}: match={len(same)} DIFF={diff or '-'} dropped={dropped or '-'} added={added or '-'}")
+    print(f"   {key}: match={len(same)} DIFF={diff or '-'} accepted={accepted or '-'} dropped={dropped or '-'} added={added or '-'}")
     if diff: fail += 1
 print("GATE:", "PASS" if fail == 0 else f"FAIL ({fail})")
 sys.exit(1 if fail else 0)

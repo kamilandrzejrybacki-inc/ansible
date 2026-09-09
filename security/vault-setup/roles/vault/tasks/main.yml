@@ -244,32 +244,6 @@
     mode: "0600"
   no_log: true
 
-# --- Seed the homelab secret paths (empty structure) ---
-- name: Seed empty secret paths for all playbooks
-  ansible.builtin.command:
-    cmd: >
-      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
-      -e VAULT_TOKEN={{ vault_root_token }}
-      vault vault kv put -mount={{ vault_kv_mount }}
-      homelab/{{ item }} _initialized=true
-  loop:
-    - infrastructure
-    - openclaw
-    - omniroute
-    - n8n
-    - paperless
-    - seafile
-    - netbox
-    - swe-af
-    - claude-n8n-mcp
-    - proxmox
-    - weylus
-    - bambulab
-  register: seed_result
-  changed_when: seed_result.rc == 0
-  failed_when: false
-  no_log: true
-
 - name: Configure workspace PKI (tunnel)
   ansible.builtin.include_tasks: workspace-pki.yml
 
@@ -299,27 +273,7 @@
         Connection file  : ~/.vault-ansible.yml
         Policy           : {{ vault_ansible_policy }}
         KV mount         : {{ vault_kv_mount }}
-        Secret paths     : {{ vault_kv_mount }}/homelab/<service>
-
-      Playbook secret paths:
-        homelab/infrastructure  – domain, Cloudflare, WireGuard, Authelia, Pi-hole
-        homelab/openclaw        – OpenClaw service secrets
-        homelab/omniroute       – LLM provider API keys (Groq, NVIDIA, DeepSeek, ...)
-        homelab/n8n             – owner credentials
-        homelab/paperless       – admin credentials
-        homelab/seafile         – admin + DB credentials
-        homelab/netbox          – admin credentials
-        homelab/swe-af          – AI provider API key, GitHub token
-        homelab/claude-n8n-mcp  – n8n MCP token
-        homelab/proxmox         – API password, SSH public key
-        homelab/weylus          – access code
-        homelab/bambulab        – webhook URL
+        Secret layout    : {{ vault_kv_mount }}/homelab/<issuer>/<credential> (VAULT-TAXONOMY.md)
 
       IMPORTANT: Back up {{ vault_keys_file }} securely!
       Without the unseal keys, Vault data is irrecoverable.
-
-      Useful commands:
-        export VAULT_ADDR=http://{{ vault_bind_address }}:{{ vault_port }}
-        export VAULT_TOKEN=<root-token>
-        vault kv list secret/homelab/
-        vault kv get secret/homelab/openclaw

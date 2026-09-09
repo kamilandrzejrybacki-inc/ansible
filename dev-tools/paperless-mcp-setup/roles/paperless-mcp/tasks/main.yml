@@ -17,8 +17,8 @@
 
 - name: Set Paperless API token fact
   ansible.builtin.set_fact:
-    _paperless_api_token: "{{ _vault_paperless.json.data.data.api_token }}"
-    _paperless_api_url: "{{ _vault_paperless.json.data.data.api_url | default(paperless_api_url) }}"
+    _paperless_api_token: "{{ _vault_paperless.json.data.data.token }}"
+    _paperless_api_url: "{{ paperless_api_url }}"
   no_log: true
 
 - name: Verify Paperless API is reachable

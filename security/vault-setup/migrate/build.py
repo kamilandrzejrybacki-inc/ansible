@@ -114,7 +114,15 @@ def plan(m, vault):
         else:
             dst, seed = spec, None
         dpath, dfield = dst.split("#", 1)
-        if seed and "sops" in seed:
+        if seed and "k8s" in seed:                      # live-only: value exists in no Vault path and no sops file
+            ns, name = seed["k8s"].split("/", 1)
+            out = subprocess.run(["kubectl", "-n", ns, "get", "secret", name, "-o", f"jsonpath={{.data.{seed['key']}}}"],
+                                 capture_output=True, text=True)
+            if out.returncode or not out.stdout:
+                missing.append(f"{src} (k8s secret {seed['k8s']} key {seed['key']} not found)"); continue
+            import base64
+            val = base64.b64decode(out.stdout).decode()
+        elif seed and "sops" in seed:
             val = sops_value(seed["sops"], seed["key"])
             if seed.get("extract"):                     # pull a password out of a DSN-style string
                 import re

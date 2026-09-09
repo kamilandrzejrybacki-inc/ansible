@@ -255,6 +255,17 @@ map:
   "sops:vault-metrics#VAULT_METRICS_TOKEN":   {dst: "hashicorp-vault/metrics#token", seed: {sops: sops-vault-metrics-token.enc.yaml, key: VAULT_METRICS_TOKEN}}
   "sops:vault-metrics#LITELLM_METRICS_TOKEN": {dst: "litellm/metrics#token", seed: {sops: sops-vault-metrics-token.enc.yaml, key: LITELLM_METRICS_TOKEN}}
 
+  # ---------- live-only secrets: in neither Vault nor sops, ingested from the running k8s Secret ----------
+  "k8s:gnhf-bot#discord_bot_token": {dst: "discord/gnhf-bot#token",  seed: {k8s: gnhf/gnhf-bot-secrets, key: discord_bot_token}}
+  "k8s:gnhf-bot#gh_token":          {dst: "github/gnhf-bot#token",   seed: {k8s: gnhf/gnhf-bot-secrets, key: gh_token}}
+  "k8s:gnhf-bot#crons_webhook_url": {dst: "discord/gnhf-crons#webhook_url", seed: {k8s: gnhf/gnhf-bot-secrets, key: crons_webhook_url}}
+  "k8s:discord-mcp#bot_token":      {dst: "discord/mcp-bot#token",   seed: {k8s: mcp-servers/discord-mcp-secret, key: bot_token}}
+  "k8s:yaikes-etl#LITELLM_KEY":     {dst: "litellm/yaikes-etl#api_key",   seed: {k8s: yaikes-etl/yaikes-etl-secrets, key: LITELLM_KEY}}
+  "k8s:yaikes-etl#POSTGRES_PASSWORD": {dst: "postgres/yaikes-etl#password", seed: {k8s: yaikes-etl/yaikes-etl-secrets, key: POSTGRES_PASSWORD}}
+  "k8s:yaikes-etl#WYKOP_KEY":       {dst: "wykop/yaikes-etl#api_key",      seed: {k8s: yaikes-etl/yaikes-etl-secrets, key: WYKOP_KEY}}
+  "k8s:yaikes-etl#WYKOP_SECRET":    {dst: "wykop/yaikes-etl#client_secret", seed: {k8s: yaikes-etl/yaikes-etl-secrets, key: WYKOP_SECRET}}
+  # yaikes-etl YAIKES_ETL_DSN: config+password DSN -> templated by its ExternalSecret from postgres/yaikes-etl (not stored)
+
   # ---------- dead: delete (revoke upstream where live vendor keys) ----------
   "omniroute": delete
   "distillery": delete

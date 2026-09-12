@@ -139,10 +139,10 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# Baltic event-reliability node — the public app (apex domain), via Traefik IngressRoute.
+# Baltic event-reliability node — the public app, via Traefik IngressRoute.
 # NO `import authelia`: gated by the app's own JWT bearer (no SSO in front, so SDK/curl work).
 # DeepFellow stays internal (no route); baltic reaches it in-cluster.
-{{ _scheme }}{{ domain }} {
+{{ _scheme }}{{ subdomain_baltic | default('morsik') }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}

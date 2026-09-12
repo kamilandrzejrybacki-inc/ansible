@@ -127,18 +127,6 @@
 	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
 }
 
-# DeepFellow model API (dual-use-2026 / FALOCHRON — via Traefik IngressRoute).
-# NO `import authelia`: this is a machine API gated by the DeepFellow Bearer project
-# key, so browser SSO would break curl/SDK clients. Only /v1 is published in-cluster.
-{{ _scheme }}{{ subdomain_deepfellow | default('deepfellow') }}.{{ domain }} {
-	import rate_limit
-	import proxy_headers
-{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
-	import cf_tls
-{% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }}
-}
-
 # Baltic event-reliability node — the public app, via Traefik IngressRoute.
 # NO `import authelia`: gated by the app's own JWT bearer (no SSO in front, so SDK/curl work).
 # DeepFellow stays internal (no route); baltic reaches it in-cluster.

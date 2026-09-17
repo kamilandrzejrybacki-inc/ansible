@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Renew the operator's Vault token in place. Managed by ansible
+# (dev-tools/vault-token-renew) — edit there, not here.
+set -euo pipefail
+
+VAULT_ADDR="{{ vault_addr }}"
+TOKEN_FILE="{{ vault_token_file }}"
+NTFY_URL="{{ vault_renew_ntfy_url }}"
+
+notify() {   # never let a failed notification mask the real failure
+  [ -n "$NTFY_URL" ] || return 0
+  curl -sf -m 10 -H "Title: Vault token" -H "Priority: high" -d "$1" "$NTFY_URL" >/dev/null || true
+}
+
+if [ ! -s "$TOKEN_FILE" ]; then
+  echo "no token at $TOKEN_FILE — run: vault login -method=oidc"
+  notify "No token file on lw-main. Run: vault login -method=oidc"
+  exit 1
+fi
+
+# renew-self extends the TTL of this same token; the file is never rewritten.
+resp="$(curl -sf -m 15 -X POST -H "X-Vault-Token: $(cat "$TOKEN_FILE")" \
+        "$VAULT_ADDR/v1/auth/token/renew-self" 2>&1)" || {
+  # Expected at the max-TTL ceiling (Vault default 768h from issue) and on revocation.
+  # Either way the only fix is a human re-login, so say exactly that.
+  echo "renewal REFUSED — token is past its max TTL or was revoked"
+  echo "fix: vault login -method=oidc   (on lw-main)"
+  notify "Vault token renewal refused on lw-main — re-login needed: vault login -method=oidc"
+  exit 1
+}
+
+ttl="$(printf '%s' "$resp" | python3 -c 'import sys,json;print(json.load(sys.stdin)["auth"]["lease_duration"])' 2>/dev/null || echo '?')"
+echo "renewed, ttl now ${ttl}s"

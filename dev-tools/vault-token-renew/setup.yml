@@ -1,0 +1,26 @@
+# =============================================================================
+# Vault token auto-renewal (lw-main workstation)
+# =============================================================================
+# Keeps ~/.vault-token alive without a re-login.
+#
+# WHY THIS IS POSSIBLE AT ALL: `auth/token/renew-self` extends the TTL of the SAME
+# token string. The file on disk never changes, so nothing has to rewrite a secret —
+# the timer only has to call the endpoint. That is what makes a plain systemd timer
+# sufficient here.
+#
+# WHAT IT CANNOT DO: renewal is capped by the token's max TTL (Vault default: 768h /
+# 32 days from ISSUE, not from the last renewal). When that ceiling is reached the
+# renewal starts failing and a fresh `vault login -method=oidc` is required. The unit
+# notifies on failure rather than dying quietly.
+#
+# Usage:
+#   ansible-playbook dev-tools/vault-token-renew/setup.yml \
+#     -i dev-tools/vault-token-renew/inventory/hosts.ini
+# =============================================================================
+
+- name: Install Vault token auto-renewal timer
+  hosts: local
+  become: false
+  gather_facts: true
+  roles:
+    - vault-token-renew

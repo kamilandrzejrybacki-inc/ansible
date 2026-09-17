@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew the Vault token every {{ vault_renew_interval }}
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ vault_renew_interval }}
+# Catch up after the machine was asleep or off — a workstation is not a server, and a
+# missed window is exactly when the token would otherwise expire unnoticed.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

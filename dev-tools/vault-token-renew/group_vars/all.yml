@@ -1,0 +1,22 @@
+---
+vault_addr: "http://127.0.0.1:8200"
+vault_token_file: "{{ ansible_env.HOME }}/.vault-token"
+
+# Renew well inside the 8h token TTL so a single missed run (laptop asleep, reboot)
+# is not fatal. Three chances per lifetime.
+vault_renew_interval: "3h"
+
+# Failure notification — OPTIONAL and currently OFF.
+#
+# A renewal that stops working is invisible otherwise: the token just dies and the next
+# Vault call fails with a confusing 403. So this hook exists. It is NOT wired, on purpose:
+# the homelab ntfy topic is not stored in Vault (only per-service tokens are, under
+# homelab/ntfy/*), the watchdog reads it from NTFY_TOPIC in its own env on lw-pi, and
+# ntfy answers 404 — not 401 — for an unauthorised topic, so a guessed value FAILS SILENTLY
+# and looks like it works. An untested notification is worse than none: it promises cover
+# it does not provide.
+#
+# To enable: set the full publish URL here (and a token header in the script if the topic
+# needs auth), then TEST it by running the script with a deliberately broken token file.
+vault_renew_ntfy_url: ""
+vault_renew_script: "{{ ansible_env.HOME }}/.local/bin/vault-token-renew.sh"

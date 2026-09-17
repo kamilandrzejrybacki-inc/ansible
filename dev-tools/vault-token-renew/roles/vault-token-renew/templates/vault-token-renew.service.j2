@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew the operator's Vault token in place
+Documentation=https://github.com/kamilandrzejrybacki-inc/ansible dev-tools/vault-token-renew
+# No network dependency on purpose: Vault is local (127.0.0.1 via the edge container)
+# and the timer retries anyway.
+
+[Service]
+Type=oneshot
+ExecStart={{ vault_renew_script }}

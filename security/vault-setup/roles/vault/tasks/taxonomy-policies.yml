@@ -6,19 +6,12 @@
 # humans (admin, short TTL). AppRoles: ansible-infra -> infra, cellarette-local -> agents,
 # eso -> k8s. Existing legacy policies/tokens are NOT removed here (that is the auth follow-on).
 
-# A --tags run skips the init/unseal tasks that set vault_root_token; read it from the init keys.
-- name: Taxonomy — load root token from init keys (standalone run)
-  when: vault_root_token is not defined
+# A --tags run skips the init/unseal tasks that set vault_root_token. Resolving it
+# is shared with every other tagged entrypoint — see resolve-token.yml for why the
+# old "read root_token from the init-keys file" approach stopped working.
+- name: Taxonomy — resolve a Vault token for this run
+  ansible.builtin.include_tasks: resolve-token.yml
   tags: [taxonomy-policies, eso-bootstrap]
-  no_log: true
-  block:
-    - name: Taxonomy — slurp init keys
-      ansible.builtin.slurp:
-        src: "{{ vault_keys_file }}"
-      register: _tax_keys
-    - name: Taxonomy — set root token fact
-      ansible.builtin.set_fact:
-        vault_root_token: "{{ (_tax_keys.content | b64decode | from_json).root_token }}"
 
 - name: Taxonomy — render policy HCL files
   ansible.builtin.template:

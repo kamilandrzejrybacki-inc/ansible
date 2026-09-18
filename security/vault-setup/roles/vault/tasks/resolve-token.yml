@@ -1,0 +1,76 @@
+---
+# Establish `vault_root_token` for a --tags run, which skips the init/unseal
+# tasks in main.yml that normally set it.
+#
+# WHY THIS EXISTS: this used to read `root_token` straight out of
+# {{ vault_keys_file }}. That file was deliberately trimmed to unseal keys only
+# on 2026-09-16 (the root token now lives off-box), so every standalone
+# `--tags taxonomy-policies` run failed on an undefined attribute — and failed
+# late, after rendering, with an unhelpful message. Policies had to be written
+# by hand instead.
+#
+# The name `vault_root_token` is kept because 36 call sites use it, but it no
+# longer has to BE root: anything that can write sys/policies/acl is enough, and
+# the operator's own admin token is the normal answer.
+#
+# Resolution order, first hit wins:
+#   1. already set          — a full run of main.yml
+#   2. -e vault_admin_token — explicit, wins over anything discovered
+#   3. $VAULT_TOKEN         — the CONTROLLER's environment (lookup runs locally)
+#   4. ~/.vault-token       — the operator's OIDC token (systemd-renewed 3-hourly)
+#   5. root_token in the init-keys file — legacy, only a freshly-initialised Vault
+# Anything else is a hard fail with the four options spelled out, BEFORE any
+# work is done.
+
+- name: Vault token — resolve for a standalone tagged run
+  when: vault_root_token is not defined
+  no_log: true
+  block:
+    - name: Vault token — read the operator token file if present
+      ansible.builtin.slurp:
+        src: "{{ vault_operator_token_file }}"
+      register: _vault_op_token
+      failed_when: false
+
+    - name: Vault token — read the init-keys file if present
+      ansible.builtin.slurp:
+        src: "{{ vault_keys_file }}"
+      register: _vault_init_keys
+      failed_when: false
+
+    - name: Vault token — pick the first usable source
+      ansible.builtin.set_fact:
+        vault_root_token: >-
+          {{ vault_admin_token
+             | default(lookup('ansible.builtin.env', 'VAULT_TOKEN'), true)
+             | default((_vault_op_token.content | b64decode | trim)
+                       if (_vault_op_token.content is defined) else '', true)
+             | default(((_vault_init_keys.content | b64decode | from_json).root_token | default(''))
+                       if (_vault_init_keys.content is defined) else '', true) }}
+
+    - name: Vault token — fail early and legibly when nothing was found
+      ansible.builtin.fail:
+        msg: >-
+          No Vault token available for a standalone tagged run. The init-keys
+          file no longer carries root_token (trimmed 2026-09-16). Supply one of:
+          -e vault_admin_token=<token>, VAULT_TOKEN in the environment, a valid
+          {{ vault_operator_token_file }} on {{ inventory_hostname }}, or run the
+          full playbook. `vault login -method=oidc` refreshes the operator token.
+      when: vault_root_token | default('', true) | length == 0
+
+# Proven, not assumed: a token that cannot write policies must fail HERE, not
+# three tasks later with a bare 403.
+- name: Vault token — verify it can write taxonomy policies
+  ansible.builtin.command:
+    cmd: >
+      docker exec -e VAULT_ADDR=http://127.0.0.1:8200
+      -e VAULT_TOKEN={{ vault_root_token }}
+      vault vault token capabilities sys/policies/acl/homelab-k8s
+  register: _vault_token_caps
+  changed_when: false
+  failed_when: >-
+    _vault_token_caps.rc != 0 or
+    not ('create' in _vault_token_caps.stdout or
+         'update' in _vault_token_caps.stdout or
+         'root' in _vault_token_caps.stdout)
+  no_log: true

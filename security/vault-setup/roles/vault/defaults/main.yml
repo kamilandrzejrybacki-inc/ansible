@@ -16,6 +16,17 @@ vault_storage_backend: "file"
 # Set to false for manual unseal (more secure, but requires operator)
 vault_auto_unseal: true
 vault_keys_file: "/opt/vault/init-keys.json"
+# Operator token used by standalone --tags runs (see tasks/resolve-token.yml).
+# Written by `vault login -method=oidc` and renewed 3-hourly by a systemd user
+# timer. The init-keys file above no longer carries root_token — it was trimmed
+# to unseal keys on 2026-09-16 — so this is the normal source now.
+# NOTE this path is slurped from the MANAGED host while the default is computed
+# from the CONTROLLER's $HOME — fine for the localhost/lw-main case this role is
+# actually run in (Play 3 adds localhost with connection: local). For a genuinely
+# remote Vault host, pass -e vault_admin_token=<token> instead of relying on it.
+# ansible_env is deliberately NOT used: Play 3 runs with become: true, so it
+# would resolve to root's home rather than the operator's.
+vault_operator_token_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.vault-token"
 
 # KV v2 secrets engine mount path
 vault_kv_mount: "secret"

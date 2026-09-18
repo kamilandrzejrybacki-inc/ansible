@@ -3,6 +3,11 @@
 # bridge role, backed by an internal root CA and bound to SPIFFE URI SANs.
 # See docs/adrs/0008-remote-cellarette-tunnel-workspace.md for context.
 
+# A --tags workspace-pki run skips the init/unseal tasks that set
+# vault_root_token, so resolve one the same way taxonomy-policies does.
+- name: Workspace PKI — resolve a Vault token for this run
+  ansible.builtin.include_tasks: resolve-token.yml
+
 - name: Assert saved_domain is set for workspace PKI URLs
   ansible.builtin.assert:
     that:

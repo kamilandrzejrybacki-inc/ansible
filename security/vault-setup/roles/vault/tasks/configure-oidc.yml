@@ -12,6 +12,13 @@
 #   saved_vault_subdomain    | default("hashi-vault")
 #   saved_domain                              (from ~/.homelab-setup-vars.yml)
 
+# A --tags configure-oidc run skips the init/unseal tasks that set
+# vault_root_token. This replaces the old `when: vault_root_token is defined`
+# guard on the include in main.yml, which SKIPPED the whole file standalone —
+# including this resolver — and silently left OIDC unconfigured.
+- name: Vault OIDC — resolve a Vault token for this run
+  ansible.builtin.include_tasks: resolve-token.yml
+
 - name: Vault OIDC — skip if no Authelia client secret available
   ansible.builtin.set_fact:
     _vault_oidc_secret: "{{ authelia_oidc_client_secret_vault | default(saved_authelia_oidc_client_secret_vault | default('')) }}"

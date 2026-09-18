@@ -244,12 +244,23 @@
     mode: "0600"
   no_log: true
 
+# Standalone: --tags workspace-pki
 - name: Configure workspace PKI (tunnel)
-  ansible.builtin.include_tasks: workspace-pki.yml
+  ansible.builtin.include_tasks:
+    file: workspace-pki.yml
+    apply: { tags: [workspace-pki] }
+  tags: [workspace-pki]
 
+# Standalone: --tags configure-oidc
+# The `when: vault_root_token is defined` guard is gone on purpose: it skipped the
+# whole file whenever the token was not already set, which is exactly the
+# standalone case, and it turned a missing token into a SILENT no-op. The file now
+# resolves its own token and fails loudly if it cannot.
 - name: Configure OIDC sign-in (Authelia)
-  ansible.builtin.include_tasks: configure-oidc.yml
-  when: vault_root_token is defined
+  ansible.builtin.include_tasks:
+    file: configure-oidc.yml
+    apply: { tags: [configure-oidc] }
+  tags: [configure-oidc]
 
 # Taxonomy role policies + AppRoles (VAULT-TAXONOMY.md). Standalone: --tags taxonomy-policies
 - name: Configure taxonomy policies + AppRoles

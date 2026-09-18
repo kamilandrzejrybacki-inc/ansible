@@ -20,6 +20,12 @@ path "{{ vault_kv_mount }}/metadata/{{ r }}/{{ iss }}/*" { capabilities = ["deny
 path "{{ vault_kv_mount }}/data/{{ r }}/{{ p }}"     { capabilities = ["deny"] }
 path "{{ vault_kv_mount }}/metadata/{{ r }}/{{ p }}" { capabilities = ["deny"] }
 {% endfor %}
+{# Carve-outs last: an exact path outranks the deny glob above, so only these
+   single credentials become readable inside an otherwise restricted issuer. #}
+{% for p in vault_restricted_exceptions | default([]) %}
+path "{{ vault_kv_mount }}/data/{{ r }}/{{ p }}"     { capabilities = ["read"] }
+path "{{ vault_kv_mount }}/metadata/{{ r }}/{{ p }}" { capabilities = ["read"] }
+{% endfor %}
 {% endfor %}
 {% elif policy_role == 'humans' %}
 # humans: admin on the tree. Short TTL is enforced by the token/auth role, not here.

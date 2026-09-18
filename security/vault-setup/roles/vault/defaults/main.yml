@@ -31,6 +31,15 @@ vault_ansible_policy: "ansible-automation"
 vault_restricted_issuers: [wireguard, pihole, cloudflare, machines, k3s]
 vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-vault/root", "hashicorp-vault/unseal", "hashicorp-vault/mcp-bridge"]
 
+# Narrow carve-outs INSIDE a restricted issuer, for single credentials that are
+# demonstrably low-privilege. Rendered AFTER the deny rules; in a Vault ACL an
+# exact path beats a glob, so the rest of the issuer stays denied.
+# - cloudflare/workers-ai (2026-09-18): a Workers-AI-scoped token consumed by the
+#   LiteLLM gateway. It cannot read billing or touch DNS/tunnels/zones — verified,
+#   /user/tokens/verify returns 401 for it. The `cloudflare` issuer stays restricted
+#   because the EDGE token under it does control DNS, tunnels and zones.
+vault_restricted_exceptions: ["cloudflare/workers-ai"]
+
 # Namespaces whose Secrets are delivered by ESO (source: migrate/eso/manifest.yaml). Each gets a
 # `vault-eso-approle` bootstrap Secret from the taxonomy-policies / eso-bootstrap tag.
 vault_eso_namespaces: [cellarette, dbt, feedcord, github-runners, glitchtip, gnhf, grafana, hermes, litellm, mcp-servers, monitoring, n8n, ntfy, openviking, paperless, shared-redis, silverbullet, tauto, teammates, termix, yaikes-etl]

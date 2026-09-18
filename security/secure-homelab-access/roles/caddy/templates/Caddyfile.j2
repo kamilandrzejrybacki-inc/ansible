@@ -216,17 +216,24 @@
 	}
 }
 
-# ntfy (self-hosted push notifications). k8s IngressRoute backend via the Traefik
-# VIP. The subscribe stream (GET /<topic>/json) is long-lived SSE — disable
-# buffering + drop timeouts so subscriptions aren't cut, same as nexterm. ntfy
-# does its own user/token auth, so NO authelia import here.
+# ntfy (self-hosted push notifications). The subscribe stream (GET /<topic>/json)
+# is long-lived SSE — disable buffering + drop timeouts so subscriptions aren't
+# cut, same as nexterm. ntfy does its own user/token auth, so NO authelia import.
+#
+# UPSTREAM FIXED 2026-09-18. This pointed at the Traefik VIP for a k8s
+# IngressRoute that no longer exists — ntfy runs as a docker container on the
+# edge host, on the same homelab-net Caddy is on. Every request to the public
+# hostname had been answering `404 page not found` from Traefik, silently: the
+# watchdog token's last recorded use was 2026-06-08, so push notifications had
+# been dead for months with nothing reporting it. Verified after the change:
+# Caddy resolves `ntfy` -> 172.20.0.5 and GET /v1/health returns healthy.
 {{ _scheme }}{{ subdomain_ntfy }}.{{ domain }} {
 	import rate_limit
 	import proxy_headers
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+	reverse_proxy http://{{ ntfy_upstream | default('ntfy:80') }} {
 		flush_interval -1
 		transport http {
 			read_timeout 0

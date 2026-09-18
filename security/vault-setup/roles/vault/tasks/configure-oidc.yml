@@ -91,8 +91,19 @@
           oidc_scopes: [openid, profile, email]
           role_type: oidc
           token_policies: [default, admins]
-          token_ttl: 1h
-          token_max_ttl: 8h
+          # RAISED 2026-09-18. Was 1h/8h, which meant the operator's token hit its
+          # ceiling roughly twice a working day and died SILENTLY — the renew timer
+          # logged "renewal REFUSED" to a journal nobody reads. 24h/168h means one
+          # `vault login -method=oidc` a week, and the 3h renew timer tolerates
+          # several missed firings instead of none.
+          # This is a knowing trade against VAULT-TAXONOMY's "humans: short TTL"
+          # intent: the token carries `admins` (path "*" with sudo), so a week is a
+          # real exposure window. It is accepted because the failure mode it
+          # replaces — a root-equivalent credential expiring unnoticed — was worse,
+          # and because the lapse is now alerted (dev-tools/vault-token-renew).
+          # Ceiling is the oidc mount's max_lease_ttl (2764800s / 32d); stay under it.
+          token_ttl: 24h
+          token_max_ttl: 168h
         status_code: [200, 204]
 
     - name: Vault OIDC — ensure 'admins' policy exists (sudo-on-everything)

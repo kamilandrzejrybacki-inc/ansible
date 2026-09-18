@@ -6,10 +6,21 @@ set -euo pipefail
 VAULT_ADDR="{{ vault_addr }}"
 TOKEN_FILE="{{ vault_token_file }}"
 NTFY_URL="{{ vault_renew_ntfy_url }}"
+NTFY_TOKEN="{{ vault_renew_ntfy_token }}"
 
 notify() {   # never let a failed notification mask the real failure
   [ -n "$NTFY_URL" ] || return 0
-  curl -sf -m 10 -H "Title: Vault token" -H "Priority: high" -d "$1" "$NTFY_URL" >/dev/null || true
+  # -f so an unauthorised topic (ntfy answers 404, not 401) fails the curl instead of
+  # looking like success; the `|| true` keeps a failed notification from masking the
+  # real failure, and the journal still carries the reason either way.
+  if [ -n "$NTFY_TOKEN" ]; then
+    curl -sf -m 10 -H "Authorization: Bearer $NTFY_TOKEN" \
+         -H "Title: Vault token" -H "Priority: high" -H "Tags: warning,key" \
+         -d "$1" "$NTFY_URL" >/dev/null || echo "note: ntfy notification failed" >&2
+  else
+    curl -sf -m 10 -H "Title: Vault token" -H "Priority: high" \
+         -d "$1" "$NTFY_URL" >/dev/null || echo "note: ntfy notification failed" >&2
+  fi
 }
 
 if [ ! -s "$TOKEN_FILE" ]; then

@@ -6,17 +6,24 @@ vault_token_file: "{{ ansible_env.HOME }}/.vault-token"
 # is not fatal. Three chances per lifetime.
 vault_renew_interval: "3h"
 
-# Failure notification — OPTIONAL and currently OFF.
+# Failure notification — WIRED 2026-09-18 and TESTED.
 #
 # A renewal that stops working is invisible otherwise: the token just dies and the next
-# Vault call fails with a confusing 403. So this hook exists. It is NOT wired, on purpose:
-# the homelab ntfy topic is not stored in Vault (only per-service tokens are, under
-# homelab/ntfy/*), the watchdog reads it from NTFY_TOPIC in its own env on lw-pi, and
-# ntfy answers 404 — not 401 — for an unauthorised topic, so a guessed value FAILS SILENTLY
-# and looks like it works. An untested notification is worse than none: it promises cover
-# it does not provide.
+# Vault call fails with a confusing 403. That is not hypothetical — on 2026-09-18 the
+# renewal had been refused ("past its max TTL") and NOTHING said so; it was found by
+# accident while editing an unrelated health check, with ~1h40m left on the token.
 #
-# To enable: set the full publish URL here (and a token header in the script if the topic
-# needs auth), then TEST it by running the script with a deliberately broken token file.
-vault_renew_ntfy_url: ""
+# The old note here said the topic was unknowable and that a guess FAILS SILENTLY,
+# because ntfy answers 404 — not 401 — for an unauthorised topic. Both halves were
+# right, so the topic was not guessed: it was read from the server's own ACL
+# (`docker exec ntfy ntfy access`), which shows user `watchdog` with read-write on this
+# exact topic. The topic id alone grants nothing — anonymous access is off server-side,
+# so publishing needs the token below.
+#
+# The TOKEN is deliberately NOT in git. Pass it at apply time:
+#   -e vault_renew_ntfy_token="$(vault kv get -field=token secret/homelab/ntfy/watchdog)"
+# Left empty, the script degrades to exactly the old behaviour: no notification, and the
+# failure still goes to the journal and a non-zero exit.
+vault_renew_ntfy_url: "https://ntfy.kamilandrzejrybacki.dpdns.org/fd46cfddd2bd8c4f9437213a"
+vault_renew_ntfy_token: ""
 vault_renew_script: "{{ ansible_env.HOME }}/.local/bin/vault-token-renew.sh"

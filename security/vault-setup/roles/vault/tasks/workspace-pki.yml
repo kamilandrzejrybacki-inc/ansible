@@ -112,7 +112,15 @@
       allow_wildcard_certificates: false
       allow_ip_sans: false
       allow_localhost: false
-      allowed_domains: ["cellarette.lw.vlan"]
+      # broker.cellarette.lw.vlan is listed EXPLICITLY rather than turning on
+      # allow_subdomains, which would permit every name under the domain. The
+      # cellarette chart's vault-agent asks for exactly this CN
+      # (charts/cellarette/templates/deployment.yaml), and omitting it is what
+      # broke the sidecar on 2026-09-18: a `--tags workspace-pki` run rewrote the
+      # live role to this declaration, the next hourly cert renewal failed with
+      # "common name broker.cellarette.lw.vlan not allowed by this role", and
+      # vault-agent went CrashLoopBackOff while the rest of the pod stayed up.
+      allowed_domains: ["cellarette.lw.vlan", "broker.cellarette.lw.vlan"]
       allowed_uri_sans: ["spiffe://homelab/agent/*"]
       client_flag: true
       server_flag: false
@@ -136,7 +144,7 @@
       docker exec -e VAULT_ADDR=http://127.0.0.1:8200
       -e VAULT_TOKEN={{ vault_root_token }}
       vault vault write pki_workspace/roles/bridge
-      allowed_domains=cellarette.lw.vlan
+      allowed_domains=cellarette.lw.vlan,broker.cellarette.lw.vlan
       allow_subdomains=false
       allow_bare_domains=true
       allowed_uri_sans=spiffe://homelab/agent/*

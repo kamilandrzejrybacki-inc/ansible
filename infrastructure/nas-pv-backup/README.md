@@ -89,3 +89,16 @@ sudo rsync -aHAX --numeric-ids --delete \
 
 Because snapshots are hardlinked, deleting an old one never damages a newer
 one, and `du` over the whole tree overstates real usage.
+
+### Restore verified 2026-09-20
+
+Restoring the Grafana PV from `latest` into a scratch directory reproduced the
+snapshot **byte for byte** (identical md5 over all 38 files) and preserved
+ownership and mode (`65534:65534`, `0777` — the squashed NFS identity).
+
+The same test also demonstrates the crash-consistency caveat concretely: the
+only file that differed between the *live* tree and the snapshot was
+`grafana.db`, Grafana's SQLite database, which had grown by 32 KB in the ten
+minutes since the snapshot. Plain files matched exactly. That is the expected
+behaviour, not corruption — and the reason database-backed services want their
+own dump on top of this.

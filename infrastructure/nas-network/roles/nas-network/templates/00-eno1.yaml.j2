@@ -1,0 +1,22 @@
+# Managed by ansible (infrastructure/nas-network). Manual edits are overwritten.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ nas_iface }}:
+      match:
+        macaddress: "{{ nas_iface_mac }}"
+      set-name: {{ nas_iface }}
+{% if nas_wol_enabled %}
+      wakeonlan: true
+{% endif %}
+      addresses:
+        - "{{ nas_address }}"
+      routes:
+        - to: default
+          via: {{ nas_gateway }}
+      nameservers:
+        addresses:
+{% for ns in nas_nameservers %}
+          - {{ ns }}
+{% endfor %}

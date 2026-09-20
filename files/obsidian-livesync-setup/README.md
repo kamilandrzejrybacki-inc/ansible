@@ -21,7 +21,7 @@ The wizard prompts for:
 
 | Prompt | Default | Description |
 |--------|---------|-------------|
-| Database host IP | 10.0.1.2 | Shared database host |
+| Database host IP | 192.168.0.115 | Shared database host |
 | SSH user | — | SSH user on the database host |
 | Admin password | (from Vault) | CouchDB admin account password |
 | Sync password | (from Vault) | Dedicated sync user password |

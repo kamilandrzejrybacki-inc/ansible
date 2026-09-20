@@ -22,7 +22,7 @@ The wizard prompts for:
 
 | Prompt | Default | Description |
 |--------|---------|-------------|
-| Target host IP | 10.0.1.2 | Shared database host |
+| Target host IP | 192.168.0.115 | Shared database host |
 | SSH user | — | SSH user on the target host |
 | Syncthing admin password | (from Vault) | Web UI admin password |
 

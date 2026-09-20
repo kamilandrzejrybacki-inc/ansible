@@ -1,0 +1,3 @@
+# Managed by ansible (infrastructure/nas-network).
+# Re-arms Wake-on-LAN on every appearance of the NIC; netplan only arms it at boot.
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="{{ nas_iface }}", RUN+="/usr/sbin/ethtool -s {{ nas_iface }} wol g"

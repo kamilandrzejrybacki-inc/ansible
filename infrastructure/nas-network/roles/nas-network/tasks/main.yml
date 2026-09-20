@@ -1,0 +1,90 @@
+---
+- name: Ensure ethtool is present (needed to arm Wake-on-LAN)
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+    update_cache: true
+  become: true
+
+- name: Deploy lw-nas primary netplan
+  ansible.builtin.template:
+    src: 00-eno1.yaml.j2
+    dest: "/etc/netplan/00-{{ nas_iface }}.yaml"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+  become: true
+  register: _nas_netplan
+
+- name: Validate netplan before applying it
+  ansible.builtin.command: netplan generate
+  become: true
+  changed_when: false
+
+- name: Deploy Wake-on-LAN udev rule
+  ansible.builtin.template:
+    src: 70-wol-eno1.rules.j2
+    dest: "/etc/udev/rules.d/70-wol-{{ nas_iface }}.rules"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: nas_wol_enabled | bool
+  register: _nas_wol_rule
+
+# `netplan apply` tears the link down briefly and would kill this SSH session
+# mid-task, so fire it detached and reconnect afterwards.
+- name: Apply netplan detached
+  ansible.builtin.shell: "nohup sh -c 'sleep 1; netplan apply' >/dev/null 2>&1 &"
+  become: true
+  when: _nas_netplan is changed
+  changed_when: true
+
+- name: Wait for lw-nas to come back on its LAN address
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 120
+  when: _nas_netplan is changed
+
+- name: Arm Wake-on-LAN now (udev only fires on NIC appearance)
+  ansible.builtin.command: "ethtool -s {{ nas_iface }} wol g"
+  become: true
+  when: nas_wol_enabled | bool
+  changed_when: false
+
+- name: Read back the interface state
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    ip -br -4 addr show {{ nas_iface }};
+    ethtool {{ nas_iface }} | grep 'Wake-on:'
+  args:
+    executable: /bin/bash
+  become: true
+  register: _nas_state
+  changed_when: false
+  # Read-only: run it in --check too, so a dry run asserts the CURRENT live
+  # state instead of failing on an empty register.
+  check_mode: false
+
+- name: Assert the NAS holds its LAN address with WoL armed
+  ansible.builtin.assert:
+    that:
+      # Quoted: the WoL expression contains ": ", which bare YAML would parse
+      # as a mapping instead of a conditional string.
+      - "nas_address.split('/')[0] in _nas_state.stdout"
+      - "(not (nas_wol_enabled | bool)) or ('Wake-on: g' in _nas_state.stdout)"
+    fail_msg: "lw-nas network is not in the expected state: {{ _nas_state.stdout }}"
+    success_msg: "lw-nas: {{ _nas_state.stdout_lines | join(' | ') }}"
+
+- name: Verify the k3s datastore and NFS are still listening
+  ansible.builtin.wait_for:
+    host: "{{ nas_address.split('/')[0] }}"
+    port: "{{ item }}"
+    timeout: 30
+  loop:
+    - 5432   # k3s datastore Postgres — the whole cluster depends on this
+    - 2049   # NFS — every RWX PV
+  delegate_to: localhost
+  become: false
+  check_mode: false

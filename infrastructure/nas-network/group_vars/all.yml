@@ -1,0 +1,34 @@
+---
+# IaC for lw-nas's LAN networking. Captures what was hand-fixed on 2026-09-20,
+# when the homelab was re-cabled onto a single switch.
+#
+# WHY THIS EXISTS (do not delete): before 2026-09-20 the NAS held 192.168.0.115
+# on a USB WiFi dongle, and its wired eno1 carried a static 10.0.1.2/24 for the
+# retired lw-main↔lw-nas direct cable. When everything moved onto one switch the
+# dongle went away, .115 vanished from the LAN, and because the NAS serves BOTH
+# the k3s datastore Postgres (5432) and NFS (2049), the entire cluster went down:
+# k3s stuck `activating` on all three control-plane nodes, API VIP .60 dead.
+# lw-nas is a hard SPOF — this file is what makes its address reproducible.
+#
+# ⚠️  APPLYING THIS REWRITES THE NAS'S PRIMARY NETPLAN. A mistake here costs the
+#     whole cluster and locks you out of SSH. ALWAYS dry-run first:
+#         ansible-playbook setup.yml --check --diff
+#     The role applies netplan detached (`netplan try` is interactive and
+#     `netplan apply` drops the SSH session mid-task), then re-verifies.
+
+nas_host: "192.168.0.115"
+nas_ssh_user: kamil
+
+# eno1 is matched by MAC so a NIC rename can't silently move the address.
+nas_iface: eno1
+nas_iface_mac: "18:03:73:1f:85:ae"
+nas_address: "192.168.0.115/24"
+nas_gateway: "192.168.0.1"
+nas_nameservers:
+  - "192.168.0.111"   # pihole on lw-main
+  - "1.1.1.1"
+
+# Wake-on-LAN. The lw-pi watchdog and lw-main's `homelab-recover` both wake the
+# NAS by MAC after an outage, so WoL must survive a reboot: netplan arms it at
+# boot, the udev rule re-arms it on every NIC hotplug/rename.
+nas_wol_enabled: true

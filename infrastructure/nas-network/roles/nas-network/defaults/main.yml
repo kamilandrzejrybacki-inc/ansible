@@ -1,0 +1,3 @@
+---
+nas_iface: eno1
+nas_wol_enabled: true

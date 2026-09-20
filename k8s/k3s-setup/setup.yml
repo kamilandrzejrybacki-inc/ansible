@@ -30,22 +30,27 @@
   roles:
     - kubeconfig
 
-# -- Play 3: Install CLI tools on lw-c1 --------------------------------------
-- name: Install CLI tools on lw-c1
+# -- Play 3: Install CLI tools + NFS client ----------------------------------
+# NFS client packages used to come from the retired `nfs-route` role, which also
+# pushed a netplan route to the NAS over lw-main (10.0.1.0/24). Since the
+# 2026-09-20 single-switch re-cable the NAS is a plain LAN host (192.168.0.115),
+# so no route is needed — but the nfs-common package still is, or the NFS PVs
+# won't mount on a rebuilt node.
+- name: Install CLI tools and NFS client on cluster nodes
   hosts: compute
   become: true
   roles:
     - helm
     - k9s
+  tasks:
+    - name: Install NFS client packages
+      ansible.builtin.apt:
+        name:
+          - nfs-common
+        state: present
+        update_cache: true
 
-# -- Play 4: Configure NFS route on lw-c1 ------------------------------------
-- name: Configure NFS route to lw-nas
-  hosts: compute
-  become: true
-  roles:
-    - nfs-route
-
-# -- Play 5: Deploy ArgoCD ---------------------------------------------------
+# -- Play 4: Deploy ArgoCD ---------------------------------------------------
 - name: Deploy ArgoCD GitOps controller
   hosts: compute
   environment:
@@ -53,7 +58,7 @@
   roles:
     - argocd
 
-# -- Play 6: Load Vault connection -------------------------------------------
+# -- Play 5: Load Vault connection -------------------------------------------
 - name: Load Vault connection
   hosts: localhost
   connection: local
@@ -62,14 +67,14 @@
     - name: Check Vault availability
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
 
-# -- Play 7: Create K8s Secrets from Vault -----------------------------------
+# -- Play 6: Create K8s Secrets from Vault -----------------------------------
 - name: Create K8s Secrets from Vault
   hosts: localhost
   connection: local
   roles:
     - k8s-secrets
 
-# -- Play 8: Register ArgoCD Applications ------------------------------------
+# -- Play 7: Register ArgoCD Applications ------------------------------------
 - name: Register ArgoCD Applications
   hosts: localhost
   connection: local

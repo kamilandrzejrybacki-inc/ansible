@@ -34,7 +34,7 @@ This caused a full outage of 8 services: Grafana, Netbox, n8n, Vault, Nexterm, P
 Key upstream patterns:
 - **Docker containers on lw-main**: use `container_name:port` or `{{ docker_gateway_ip }}:port`
 - **Services on lw-s1** (192.168.0.108): use LAN IP + port
-- **Services on lw-nas** (10.0.1.2): use NAS IP + port
+- **Services on lw-nas** (192.168.0.115): use NAS IP + port
 - **K8s services on lw-c1** (192.168.0.107): use LAN IP + NodePort
 - **Services with own OIDC** (Vault, Nexterm, n8n): do NOT add `import authelia`
 

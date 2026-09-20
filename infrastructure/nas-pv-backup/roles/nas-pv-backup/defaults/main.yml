@@ -1,0 +1,3 @@
+---
+nas_pv_backup_retain: 14
+nas_pv_backup_textfile_dir: /var/lib/node_exporter/textfile

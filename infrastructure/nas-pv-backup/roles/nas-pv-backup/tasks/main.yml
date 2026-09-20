@@ -1,0 +1,99 @@
+---
+- name: Ensure rsync is present
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+  become: true
+
+- name: Assert the archive disk is actually mounted
+  ansible.builtin.command: "mountpoint -q {{ nas_pv_backup_required_mount }}"
+  become: true
+  changed_when: false
+  check_mode: false
+  register: _nas_pv_mount
+  failed_when: _nas_pv_mount.rc != 0
+
+- name: Assert source and destination are on DIFFERENT physical devices
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    src=$(df --output=source {{ nas_pv_backup_source }} | tail -1);
+    dst=$(df --output=source {{ nas_pv_backup_required_mount }} | tail -1);
+    echo "$src $dst";
+    [ "$src" != "$dst" ]
+  args:
+    executable: /bin/bash
+  become: true
+  changed_when: false
+  check_mode: false
+  register: _nas_pv_devices
+
+- name: Show the device pair being used
+  ansible.builtin.debug:
+    msg: "PV source and backup destination are on {{ _nas_pv_devices.stdout }} (must differ)"
+
+- name: Deploy the backup script
+  ansible.builtin.template:
+    src: nas-pv-backup.sh.j2
+    dest: /usr/local/bin/nas-pv-backup.sh
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Deploy the systemd service
+  ansible.builtin.template:
+    src: nas-pv-backup.service.j2
+    dest: /etc/systemd/system/nas-pv-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  register: _nas_pv_service
+
+- name: Deploy the systemd timer
+  ansible.builtin.template:
+    src: nas-pv-backup.timer.j2
+    dest: /etc/systemd/system/nas-pv-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  register: _nas_pv_timer
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+  when: _nas_pv_service is changed or _nas_pv_timer is changed
+
+- name: Ensure the node-exporter textfile directory exists
+  ansible.builtin.file:
+    path: "{{ nas_pv_backup_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+# In --check the unit file was never written, so systemd cannot find it; skip
+# these two rather than let a dry run fail on an artefact of dry running.
+- name: Enable and start the timer
+  ansible.builtin.systemd:
+    name: nas-pv-backup.timer
+    enabled: true
+    state: started
+  become: true
+  when: not ansible_check_mode
+
+- name: Show when the timer next fires
+  ansible.builtin.command: systemctl list-timers nas-pv-backup.timer --no-pager
+  become: true
+  changed_when: false
+  when: not ansible_check_mode
+  register: _nas_pv_next
+
+- name: Report timer schedule
+  ansible.builtin.debug:
+    msg: "{{ _nas_pv_next.stdout_lines | select('search', 'nas-pv-backup') | list }}"
+  when: not ansible_check_mode

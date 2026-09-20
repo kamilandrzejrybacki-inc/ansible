@@ -1,0 +1,12 @@
+# Managed by ansible (infrastructure/nas-pv-backup).
+[Unit]
+Description=Nightly Kubernetes NFS PV snapshot
+
+[Timer]
+OnCalendar={{ nas_pv_backup_oncalendar }}
+# Catch up after the NAS has been off (it is the cluster SPOF and has died before).
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

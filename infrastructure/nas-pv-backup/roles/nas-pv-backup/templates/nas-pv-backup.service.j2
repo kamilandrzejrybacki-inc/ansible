@@ -1,0 +1,12 @@
+# Managed by ansible (infrastructure/nas-pv-backup).
+[Unit]
+Description=Snapshot the Kubernetes NFS PV tree onto the archive disk
+Documentation=https://github.com/kamilandrzejrybacki-inc/ansible
+# The archive disk is mounted nofail; the script re-checks anyway.
+RequiresMountsFor={{ nas_pv_backup_required_mount }}
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nas-pv-backup.sh
+Nice=10
+IOSchedulingClass=idle

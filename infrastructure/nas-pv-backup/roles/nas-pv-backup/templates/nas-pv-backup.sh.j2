@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Managed by ansible (infrastructure/nas-pv-backup). Manual edits are overwritten.
+#
+# Snapshots the live Kubernetes NFS PV tree onto the archive disk, hardlinking
+# against the previous snapshot so history is nearly free. Writes Prometheus
+# textfile metrics so a silently dead backup is visible instead of assumed.
+set -euo pipefail
+
+SRC="{{ nas_pv_backup_source }}"
+DEST_ROOT="{{ nas_pv_backup_dest }}"
+REQUIRED_MOUNT="{{ nas_pv_backup_required_mount }}"
+RETAIN={{ nas_pv_backup_retain }}
+TEXTFILE_DIR="{{ nas_pv_backup_textfile_dir }}"
+PROM="$TEXTFILE_DIR/nas_pv_backup.prom"
+
+STARTED=$(date +%s)
+STAMP=$(date +%F_%H%M)
+LATEST="$DEST_ROOT/latest"
+TARGET="$DEST_ROOT/$STAMP"
+
+log() { echo "$(date '+%F %T') $*"; }
+
+# Always publish the outcome, success or failure, atomically.
+publish() {
+    local status=$1 size=$2 count=$3 duration=$4
+    mkdir -p "$TEXTFILE_DIR"
+    local tmp
+    tmp=$(mktemp "$TEXTFILE_DIR/.nas_pv_backup.XXXXXX")
+    {
+        echo "# HELP nas_pv_backup_success Whether the last PV backup run completed (1) or failed (0)."
+        echo "# TYPE nas_pv_backup_success gauge"
+        echo "nas_pv_backup_success $status"
+        echo "# HELP nas_pv_backup_last_run_timestamp_seconds Unix time of the last run, successful or not."
+        echo "# TYPE nas_pv_backup_last_run_timestamp_seconds gauge"
+        echo "nas_pv_backup_last_run_timestamp_seconds $(date +%s)"
+        if [ "$status" = "1" ]; then
+            echo "# HELP nas_pv_backup_last_success_timestamp_seconds Unix time of the last successful run."
+            echo "# TYPE nas_pv_backup_last_success_timestamp_seconds gauge"
+            echo "nas_pv_backup_last_success_timestamp_seconds $(date +%s)"
+        fi
+        echo "# HELP nas_pv_backup_duration_seconds Wall-clock duration of the last run."
+        echo "# TYPE nas_pv_backup_duration_seconds gauge"
+        echo "nas_pv_backup_duration_seconds $duration"
+        echo "# HELP nas_pv_backup_size_bytes Apparent size of the newest snapshot."
+        echo "# TYPE nas_pv_backup_size_bytes gauge"
+        echo "nas_pv_backup_size_bytes $size"
+        echo "# HELP nas_pv_backup_snapshots Number of retained snapshots."
+        echo "# TYPE nas_pv_backup_snapshots gauge"
+        echo "nas_pv_backup_snapshots $count"
+    } > "$tmp"
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$PROM"
+}
+
+fail() {
+    log "ERROR: $*"
+    publish 0 0 "$(find "$DEST_ROOT" -maxdepth 1 -name '20*' -type d 2>/dev/null | wc -l)" "$(( $(date +%s) - STARTED ))"
+    exit 1
+}
+trap 'fail "unexpected error on line $LINENO"' ERR
+
+# The archive disk is mounted with `nofail`. If it is ever absent the path is
+# just an empty directory on the SSD, so a backup written there would sit on
+# the very disk it is meant to protect against — and fill the root filesystem.
+mountpoint -q "$REQUIRED_MOUNT" || fail "$REQUIRED_MOUNT is not a mountpoint - archive disk missing, refusing to back up onto the SSD"
+[ -d "$SRC" ] || fail "source $SRC does not exist"
+
+mkdir -p "$DEST_ROOT"
+
+link_opt=()
+if [ -d "$LATEST" ]; then
+    link_opt=(--link-dest="$(readlink -f "$LATEST")")
+fi
+
+log "backing up $SRC -> $TARGET"
+rm -rf "${TARGET}.partial"
+# -aHAX keeps hardlinks, ACLs and xattrs; --numeric-ids avoids remapping uids
+# through this host's passwd file (PV contents are owned by container users).
+rsync -aHAX --numeric-ids --delete "${link_opt[@]}" "$SRC/" "${TARGET}.partial/"
+mv "${TARGET}.partial" "$TARGET"
+ln -sfn "$TARGET" "$LATEST"
+
+# Prune oldest snapshots beyond the retention count. Names sort chronologically.
+# NOTE: wrapped in a jinja raw block. Bash array-length syntax opens with a
+# brace followed by a hash, which jinja reads as the start of a comment tag and
+# then fails with "Missing end of comment tag". Do not write that token in a
+# plain comment here either - this very line used to break the template.
+{% raw %}
+mapfile -t snaps < <(find "$DEST_ROOT" -maxdepth 1 -name '20*' -type d -printf '%f\n' | sort)
+if [ "${#snaps[@]}" -gt "$RETAIN" ]; then
+    for old in "${snaps[@]:0:$(( ${#snaps[@]} - RETAIN ))}"; do
+        log "pruning $old"
+        rm -rf "${DEST_ROOT:?}/$old"
+    done
+fi
+{% endraw %}
+
+SIZE=$(du -sb "$TARGET" 2>/dev/null | awk '{print $1}')
+COUNT=$(find "$DEST_ROOT" -maxdepth 1 -name '20*' -type d | wc -l)
+DURATION=$(( $(date +%s) - STARTED ))
+USED=$(du -sh "$DEST_ROOT" 2>/dev/null | awk '{print $1}')
+
+trap - ERR
+publish 1 "$SIZE" "$COUNT" "$DURATION"
+log "OK: snapshot $STAMP, $(numfmt --to=iec "$SIZE" 2>/dev/null || echo "$SIZE bytes"), ${COUNT} snapshots, ${USED} on disk, ${DURATION}s"

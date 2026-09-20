@@ -1,0 +1,38 @@
+---
+# Nightly on-disk backup of the live Kubernetes NFS PV tree.
+#
+# WHY: every RWX PersistentVolume in the cluster (Hermes' home, Paperless,
+# Grafana, Prometheus, Loki, model caches — ~7.7 GB) lives under
+# /mnt/pool/k8s-nfs, which is a directory on lw-nas's ONE 120 GB SSD (sdb2, the
+# root filesystem). There is no RAID, no snapshots and, until this role, no
+# backup of any of it — while the 1.8 TB spinning disk (sda, /mnt/disks/archive)
+# sat at 4% used. A single SSD failure would have taken every PV with it.
+#
+# WHAT THIS IS NOT: the copy is crash-consistent, not application-consistent.
+# Services that keep a database in a PV (Paperless, Grafana) should also dump
+# their own data; see README.md. It is also SAME-BOX — it survives the SSD
+# dying, NOT the NAS dying. Off-box mirroring is a separate decision.
+
+nas_host: "192.168.0.115"
+nas_ssh_user: kamil
+
+nas_pv_backup_source: /mnt/pool/k8s-nfs
+# MUST live on the other physical disk. The role refuses to run if this is not
+# a real mountpoint — /etc/fstab mounts the archive disk with `nofail`, so if
+# sda ever disappears the path silently becomes an empty directory ON THE SSD,
+# and a backup written there would both be worthless and fill the root disk.
+nas_pv_backup_dest: /mnt/disks/archive/k8s-nfs-backups
+nas_pv_backup_required_mount: /mnt/disks/archive
+
+# Snapshots are hardlinked against the previous one (rsync --link-dest), so
+# keeping two weeks of history costs roughly one full copy plus the churn.
+nas_pv_backup_retain: 14
+
+# 02:47 — deliberately off the :00/:30 marks and clear of k3s-pg-backup (03:23).
+nas_pv_backup_oncalendar: "*-*-* 02:47:00"
+
+# node-exporter runs with --collector.textfile.directory=/host/var/lib/node_exporter/textfile,
+# i.e. THIS path on the host, and Alloy scrapes lw-nas as job node-lw-nas.
+# (Note: the older snapraid-collector.sh writes to /opt/nas-monitoring/textfile,
+# which nothing reads — that is why its metrics never appeared.)
+nas_pv_backup_textfile_dir: /var/lib/node_exporter/textfile

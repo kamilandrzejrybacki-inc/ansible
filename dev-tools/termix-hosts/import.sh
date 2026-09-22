@@ -13,15 +13,20 @@
 #
 # PREREQUISITES:
 #   - You are LOGGED INTO Termix (active session) — required for encryption.
-#   - kubectl context reaches the cluster; SSH key at ~/.ssh/id_ed25519.
+#   - SSH access to the Termix host (lw-pi); SSH key at ~/.ssh/id_ed25519.
+#
+# Termix runs OFF-cluster since 2026-09-13 (docker compose on lw-pi, break-glass:
+# it must work while k3s is down), so the payload travels via ssh + docker cp.
 #
 # USAGE:
 #   ./import.sh                       # uses ~/.ssh/id_ed25519
 #   TERMIX_SSH_KEY=/path/to/key ./import.sh
+#   TERMIX_HOST=kamil@192.168.0.109 TERMIX_CONTAINER=termix ./import.sh
 # =============================================================================
 set -euo pipefail
 
-NS="${TERMIX_NAMESPACE:-termix}"
+TERMIX_HOST="${TERMIX_HOST:-kamil@192.168.0.109}"
+CONTAINER="${TERMIX_CONTAINER:-termix}"
 KEY_FILE="${TERMIX_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="$SCRIPT_DIR/hosts.json"
@@ -29,9 +34,9 @@ MANIFEST="$SCRIPT_DIR/hosts.json"
 [ -f "$KEY_FILE" ] || { echo "SSH key not found: $KEY_FILE" >&2; exit 1; }
 [ -f "$MANIFEST" ] || { echo "manifest not found: $MANIFEST" >&2; exit 1; }
 
-POD="$(kubectl -n "$NS" get pod -l app=termix -o jsonpath='{.items[0].metadata.name}')"
-[ -n "$POD" ] || { echo "termix pod not found in ns $NS" >&2; exit 1; }
-echo "pod: $POD"
+ssh "$TERMIX_HOST" "docker inspect -f '{{.State.Running}}' $CONTAINER" | grep -qx true \
+  || { echo "container $CONTAINER not running on $TERMIX_HOST" >&2; exit 1; }
+echo "target: $TERMIX_HOST/$CONTAINER"
 
 # Build payload with the private key injected (never committed).
 PAYLOAD="$(mktemp)"; RUNNER="$(mktemp --suffix=.mjs)"
@@ -76,8 +81,8 @@ console.log('IMPORT', r.status, (await r.text()).slice(0,600));
 process.exit(0);
 EOF
 
-kubectl -n "$NS" cp "$PAYLOAD" "$POD:/tmp/termix-hosts-payload.json"
-kubectl -n "$NS" cp "$RUNNER" "$POD:/tmp/termix-import-runner.mjs"
-kubectl -n "$NS" exec "$POD" -- node /tmp/termix-import-runner.mjs
-kubectl -n "$NS" exec "$POD" -- rm -f /tmp/termix-hosts-payload.json /tmp/termix-import-runner.mjs
+# Stream both files straight into the container (no copy left on the lw-pi host).
+ssh "$TERMIX_HOST" "docker exec -i $CONTAINER sh -c 'umask 077; cat > /tmp/termix-hosts-payload.json'" < "$PAYLOAD"
+ssh "$TERMIX_HOST" "docker exec -i $CONTAINER sh -c 'cat > /tmp/termix-import-runner.mjs'" < "$RUNNER"
+ssh "$TERMIX_HOST" "docker exec $CONTAINER sh -c 'cd /app && node /tmp/termix-import-runner.mjs; rc=\$?; rm -f /tmp/termix-hosts-payload.json /tmp/termix-import-runner.mjs; exit \$rc'"
 echo "done"

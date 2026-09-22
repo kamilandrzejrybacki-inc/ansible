@@ -5,7 +5,7 @@ so they can be recreated after a PVC loss / re-provision (Termix host data lives
 only in its encrypted DB on the PVC — it is not otherwise declarative).
 
 ## Files
-- **`hosts.json`** — the 6 homelab hosts. **No secrets** (SSH key + VNC password
+- **`hosts.json`** — the 7 homelab hosts. **No secrets** (SSH key + VNC password
   injected at runtime). `terminalConfig.autoTmux: true` enables **Auto-Tmux**
   (persistent shell across disconnects); `enableTmuxMonitor: true` enables the
   Tmux Monitor app. A host may also enable remote desktop: `enableVnc: true` +
@@ -26,9 +26,9 @@ update in place (no duplicates) and re-assert Auto-Tmux.
 ## Requirements / caveats
 - **You must be logged into Termix** when running: host data is encrypted with a
   per-user, session-derived key, so the import goes through your active session
-  (the script reads the token server-side in the pod and calls Termix's own
+  (the script reads the token server-side in the container and calls Termix's own
   `/host/bulk-import`). No active session → the script aborts.
-- Needs `kubectl` access to the cluster and the SSH key on disk.
+- Needs SSH to the Termix host (lw-pi, docker compose since 2026-09-13) and the SSH key on disk.
 - The private key is injected only into an ephemeral payload that is copied into
   the pod and deleted immediately; it is never written to the repo.
 

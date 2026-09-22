@@ -154,6 +154,32 @@
       "connectionType": "ssh",
       "enableSsh": true,
       "sshPort": 22
+    },
+    {
+      "name": "lw-amd",
+      "ip": "192.168.0.118",
+      "port": 22,
+      "username": "kamil",
+      "authType": "key",
+      "keyType": "ssh-ed25519",
+      "folder": "Homelab",
+      "tags": [
+        "homelab",
+        "k3s",
+        "gpu"
+      ],
+      "notes": "k3s GPU agent (IdeaPad C340, Radeon Vega gfx902, WiFi)",
+      "enableTerminal": true,
+      "enableFileManager": true,
+      "enableTunnel": false,
+      "showTerminalInSidebar": true,
+      "enableTmuxMonitor": true,
+      "terminalConfig": {
+        "autoTmux": true
+      },
+      "connectionType": "ssh",
+      "enableSsh": true,
+      "sshPort": 22
     }
   ]
 }

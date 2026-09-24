@@ -1,0 +1,64 @@
+---
+# Mount the lw-nas bulk-storage share on every homelab host, for exchanging large files
+# (models, datasets, media) between machines.
+#
+# lw-nas = Netgear ReadyNAS NV+ (192.168.0.116), RAIDiator 4.1 -> NFSv3 only.
+# Share /d/storage lives on volume D (single Toshiba 2 TB, NO redundancy, 500 GB quota);
+# the NAS exports it read-write to 192.168.0.0/24 with root squashed to 65534.
+#
+# Mounted as a systemd automount: the share is attached on first access and detached
+# after idle, so a host whose NAS is down still boots and nothing hangs at startup.
+# The path is the same everywhere: /mnt/lw-nas/storage (NOT /mnt/storage, which is an
+# existing bind mount on lw-db).
+#
+# Usage: ansible-playbook -i infrastructure/lw-nas-storage-mount/inventory/hosts.ini \
+#          infrastructure/lw-nas-storage-mount/setup.yml
+- name: Mount lw-nas bulk storage on all homelab hosts
+  hosts: storage_clients
+  become: true
+  gather_facts: false
+  vars:
+    lw_nas_storage_src: "192.168.0.116:/d/storage"
+    lw_nas_storage_path: /mnt/lw-nas/storage
+    lw_nas_storage_opts: "nfsvers=3,hard,timeo=600,retrans=3,noatime,_netdev,nofail,x-systemd.automount,x-systemd.idle-timeout=600,x-systemd.mount-timeout=120"
+  tasks:
+    - name: Ensure the NFS client is installed
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+
+    # Not ansible.builtin.file: once the share is (auto)mounted the path IS the NFS root,
+    # and chmod on it is refused because the NAS squashes root to 65534.
+    - name: Create the mount point unless the share is already mounted there
+      ansible.builtin.shell: |
+        mountpoint -q {{ lw_nas_storage_path }} && exit 0
+        mkdir -p {{ lw_nas_storage_path }} && echo created
+      register: _mkdir
+      changed_when: "'created' in _mkdir.stdout"
+
+    - name: Add the automount entry to fstab (no immediate mount)
+      ansible.posix.mount:
+        src: "{{ lw_nas_storage_src }}"
+        path: "{{ lw_nas_storage_path }}"
+        fstype: nfs
+        opts: "{{ lw_nas_storage_opts }}"
+        state: present
+      register: _fstab
+
+    - name: Reload systemd and start the automount unit
+      ansible.builtin.shell: |
+        set -e
+        systemctl daemon-reload
+        unit="$(systemd-escape --path --suffix=automount {{ lw_nas_storage_path }})"
+        systemctl restart "$unit"
+        systemctl is-active "$unit"
+      changed_when: _fstab.changed
+
+    - name: Probe the share (triggers the automount)
+      ansible.builtin.command: stat -f -c '%T' {{ lw_nas_storage_path }}
+      register: _probe
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ lw_nas_storage_path }} -> {{ _probe.stdout }}"

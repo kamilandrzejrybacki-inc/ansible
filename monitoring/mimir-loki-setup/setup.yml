@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# Mimir + Loki Setup (on lw-nas)
+# Mimir + Loki Setup (on lw-db)
 # =============================================================================
 # Deploys Mimir and Loki as a Docker Compose stack on the NAS, storing data
 # on the mergerfs pool with SnapRAID protection.

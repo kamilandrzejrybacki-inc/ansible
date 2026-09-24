@@ -1,21 +1,21 @@
 ---
-# Nightly snapshot of the Kubernetes NFS PV tree onto lw-nas's archive disk.
+# Nightly snapshot of the Kubernetes NFS PV tree onto lw-db's archive disk.
 # Read group_vars/all.yml and README.md first.
 # Dry-run:  ansible-playbook setup.yml -i localhost, --check --diff
 
-- name: Register lw-nas as a target
+- name: Register lw-db as a target
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Add lw-nas to the in-memory inventory
+    - name: Add lw-db to the in-memory inventory
       ansible.builtin.add_host:
         name: "{{ nas_host }}"
         groups: nas_hosts
         ansible_user: "{{ nas_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
 
-- name: Install the PV backup job on lw-nas
+- name: Install the PV backup job on lw-db
   hosts: nas_hosts
   become: true
   roles:

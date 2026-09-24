@@ -25,7 +25,7 @@ make a single control-plane node death survivable.
 
 ## Prerequisites (do first)
 
-1. **Cable eno1 on lw-nas and move `.115` (datastore + NFS) onto wired.** Building
+1. **Cable eno1 on lw-db and move `.115` (datastore + NFS) onto wired.** Building
    HA while the datastore rides a USB WiFi dongle is pointless — WiFi drop still
    kills the DB. This is the real fix and it is physical.
 2. **Store the shared token + datastore endpoint in Vault** (they are currently only
@@ -59,7 +59,7 @@ ansible-playbook infrastructure/k3s-cluster-setup/setup.yml \
 ## What this does NOT fix (say it out loud)
 
 - **NAS death still downs the cluster.** The datastore is still one Postgres on
-  lw-nas, and NFS RWX PVCs are still served from lw-nas. Three apiservers change
+  lw-db, and NFS RWX PVCs are still served from lw-db. Three apiservers change
   "c3 dies" from fatal to survivable; they do nothing for "NAS dies." True NAS-death
   survival needs datastore replication (Postgres, not etcd — k3s has no in-place
   Postgres→etcd migration) + NFS resilience, on top of the eno1 cabling above.

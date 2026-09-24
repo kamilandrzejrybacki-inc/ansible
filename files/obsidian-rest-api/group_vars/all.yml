@@ -1,5 +1,5 @@
 ---
-# Obsidian REST API — standalone vault API server on lw-nas
+# Obsidian REST API — standalone vault API server on lw-db
 obsidian_rest_api_install_dir: /home/kamil/obsidian-rest-api
 obsidian_rest_api_vault_dir: /opt/knowledge-vault/content
 obsidian_rest_api_port: 27124

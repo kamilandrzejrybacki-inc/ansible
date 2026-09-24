@@ -2,7 +2,7 @@
 # =============================================================================
 # NAS Sudoers Setup
 # =============================================================================
-# Grants kamil passwordless sudo on lw-nas (matches all other homelab nodes).
+# Grants kamil passwordless sudo on lw-db (matches all other homelab nodes).
 #
 # Usage (one-time, requires sudo password):
 #   ansible-playbook infrastructure/nas-sudoers-setup/setup.yml \
@@ -10,7 +10,7 @@
 #     --ask-become-pass
 # =============================================================================
 
-- name: Configure passwordless sudo on lw-nas
+- name: Configure passwordless sudo on lw-db
   hosts: nas
   become: true
   gather_facts: false
@@ -33,4 +33,4 @@
 
     - name: Confirm result
       ansible.builtin.debug:
-        msg: "Passwordless sudo active for kamil on lw-nas (whoami: {{ _sudo_check.stdout }})"
+        msg: "Passwordless sudo active for kamil on lw-db (whoami: {{ _sudo_check.stdout }})"

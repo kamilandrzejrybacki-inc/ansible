@@ -1,14 +1,14 @@
 ---
-# IaC for lw-nas's LAN networking. Captures what was hand-fixed on 2026-09-20,
+# IaC for lw-db's LAN networking. Captures what was hand-fixed on 2026-09-20,
 # when the homelab was re-cabled onto a single switch.
 #
 # WHY THIS EXISTS (do not delete): before 2026-09-20 the NAS held 192.168.0.115
 # on a USB WiFi dongle, and its wired eno1 carried a static 10.0.1.2/24 for the
-# retired lw-main↔lw-nas direct cable. When everything moved onto one switch the
+# retired lw-main↔lw-db direct cable. When everything moved onto one switch the
 # dongle went away, .115 vanished from the LAN, and because the NAS serves BOTH
 # the k3s datastore Postgres (5432) and NFS (2049), the entire cluster went down:
 # k3s stuck `activating` on all three control-plane nodes, API VIP .60 dead.
-# lw-nas is a hard SPOF — this file is what makes its address reproducible.
+# lw-db is a hard SPOF — this file is what makes its address reproducible.
 #
 # ⚠️  APPLYING THIS REWRITES THE NAS'S PRIMARY NETPLAN. A mistake here costs the
 #     whole cluster and locks you out of SSH. ALWAYS dry-run first:

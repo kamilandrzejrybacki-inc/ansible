@@ -2,13 +2,13 @@
 # =============================================================================
 # Obsidian MCP Server Setup
 # =============================================================================
-# 1. Deploys a standalone Obsidian-compatible REST API on lw-nas that serves
+# 1. Deploys a standalone Obsidian-compatible REST API on lw-db that serves
 #    the knowledge vault (/opt/knowledge-vault/content) as HTTP.
 # 2. Generates an API key and stores it in Vault (secret/homelab/obsidian).
 # 3. Registers mcp-obsidian in Claude Code pointing at http://192.168.0.115:27124.
 #
 # Prerequisites:
-#   - Docker running on lw-nas
+#   - Docker running on lw-db
 #   - uvx installed locally (comes with uv)
 #   - Vault token in ~/.vault-ansible.yml (generates & saves key automatically)
 #
@@ -65,7 +65,7 @@
       when: (_obsidian_api_key_is_new | default(false)) and (_vault_available | bool)
       no_log: true
 
-- name: Deploy Obsidian REST API on lw-nas
+- name: Deploy Obsidian REST API on lw-db
   hosts: nas
   become: false
   gather_facts: true

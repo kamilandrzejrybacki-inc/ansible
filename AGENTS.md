@@ -40,7 +40,7 @@ secrets. Every host-level or off-cluster change starts here.
   new roles for this.
 - **Never `kubectl edit` a secret managed by k8s-secrets/.** Change
   the sops file, re-run the role.
-- **k3s datastore is external Postgres on lw-nas — always.** Never
+- **k3s datastore is external Postgres on lw-db — always.** Never
   revert to etcd/sqlite. New nodes join as workers only.
 - **caddy edge non-interactive deploy:** `vars_prompt` fails headless;
   pass `saved_*` as `-e` JSON.

@@ -1,8 +1,8 @@
 ---
 # Obsidian MCP Server — https://github.com/MarkusPfundstein/mcp-obsidian
-# Uses a standalone REST API server on lw-nas (no Obsidian desktop app needed).
+# Uses a standalone REST API server on lw-db (no Obsidian desktop app needed).
 
-# Standalone REST API on lw-nas (deployed by files/obsidian-rest-api/setup.yml)
+# Standalone REST API on lw-db (deployed by files/obsidian-rest-api/setup.yml)
 obsidian_host: "192.168.0.115"
 obsidian_port: "27124"
 obsidian_protocol: "http"

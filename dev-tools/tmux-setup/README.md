@@ -24,7 +24,7 @@ ansible-playbook dev-tools/tmux-setup/setup.yml \
 
 # a subset:
 ansible-playbook dev-tools/tmux-setup/setup.yml \
-  -i dev-tools/tmux-setup/inventory/hosts.ini --limit lw-c1,lw-nas
+  -i dev-tools/tmux-setup/inventory/hosts.ini --limit lw-c1,lw-db
 ```
 
 Idempotent — safe to re-run. Prints the installed tmux version per host.
@@ -32,7 +32,7 @@ Idempotent — safe to re-run. Prints the installed tmux version per host.
 ## Hosts
 
 Defined in `inventory/hosts.ini` under `[tmux_hosts]`: `lw-main` (local),
-`lw-c1`, `lw-c2`, `lw-c3`, `lw-nas`, `lw-pi`. Add or remove hosts there as your
+`lw-c1`, `lw-c2`, `lw-c3`, `lw-db`, `lw-pi`. Add or remove hosts there as your
 Termix targets change.
 
 ## After running

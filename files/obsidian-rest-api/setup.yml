@@ -2,7 +2,7 @@
 # =============================================================================
 # Obsidian REST API Setup (standalone NAS deployment only)
 # =============================================================================
-# Deploys the standalone REST API server on lw-nas.
+# Deploys the standalone REST API server on lw-db.
 # For full setup including Claude Code MCP registration, use:
 #   dev-tools/obsidian-mcp-setup/setup.yml
 #
@@ -59,7 +59,7 @@
       when: (_obsidian_api_key_is_new | default(false)) and (_vault_available | bool)
       no_log: true
 
-- name: Deploy Obsidian REST API on lw-nas
+- name: Deploy Obsidian REST API on lw-db
   hosts: nas
   become: false
   gather_facts: true

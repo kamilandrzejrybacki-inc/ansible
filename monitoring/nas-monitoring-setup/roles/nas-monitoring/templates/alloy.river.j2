@@ -19,7 +19,7 @@ prometheus.relabel "host_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -45,7 +45,7 @@ prometheus.relabel "smartctl_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -65,7 +65,7 @@ prometheus.relabel "postgres_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -85,7 +85,7 @@ prometheus.relabel "mariadb_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -105,7 +105,7 @@ prometheus.relabel "redis_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -125,7 +125,7 @@ prometheus.relabel "docker_exporter_labels" {
   }
   rule {
     target_label = "instance"
-    replacement  = "{{ ansible_hostname | default('lw-nas') }}"
+    replacement  = "{{ ansible_hostname | default('lw-db') }}"
   }
 }
 
@@ -141,7 +141,7 @@ loki.source.docker "containers" {
 
   labels = {
     "job"      = "docker",
-    "instance" = "{{ ansible_hostname | default('lw-nas') }}",
+    "instance" = "{{ ansible_hostname | default('lw-db') }}",
   }
 }
 
@@ -152,7 +152,7 @@ loki.source.journal "system" {
 
   labels = {
     "job"      = "systemd-journal",
-    "instance" = "{{ ansible_hostname | default('lw-nas') }}",
+    "instance" = "{{ ansible_hostname | default('lw-db') }}",
   }
 }
 

@@ -4,7 +4,7 @@
 # =============================================================================
 # Deploys Alloy agent, smartctl_exporter, postgres_exporter,
 # mysqld_exporter, redis_exporter, docker-exporter, and SnapRAID
-# textfile collector on lw-nas.
+# textfile collector on lw-db.
 #
 # Usage:
 #   ansible-playbook monitoring/nas-monitoring-setup/setup.yml \

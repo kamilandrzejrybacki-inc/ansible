@@ -6,7 +6,7 @@
     update_cache: true
   become: true
 
-- name: Deploy lw-nas primary netplan
+- name: Deploy lw-db primary netplan
   ansible.builtin.template:
     src: 00-eno1.yaml.j2
     dest: "/etc/netplan/00-{{ nas_iface }}.yaml"
@@ -41,7 +41,7 @@
   when: _nas_netplan is changed
   changed_when: true
 
-- name: Wait for lw-nas to come back on its LAN address
+- name: Wait for lw-db to come back on its LAN address
   ansible.builtin.wait_for_connection:
     delay: 5
     timeout: 120
@@ -74,8 +74,8 @@
       # as a mapping instead of a conditional string.
       - "nas_address.split('/')[0] in _nas_state.stdout"
       - "(not (nas_wol_enabled | bool)) or ('Wake-on: g' in _nas_state.stdout)"
-    fail_msg: "lw-nas network is not in the expected state: {{ _nas_state.stdout }}"
-    success_msg: "lw-nas: {{ _nas_state.stdout_lines | join(' | ') }}"
+    fail_msg: "lw-db network is not in the expected state: {{ _nas_state.stdout }}"
+    success_msg: "lw-db: {{ _nas_state.stdout_lines | join(' | ') }}"
 
 - name: Verify the k3s datastore and NFS are still listening
   ansible.builtin.wait_for:

@@ -93,7 +93,7 @@
 - name: Display access information
   ansible.builtin.debug:
     msg: |
-      Mimir + Loki are running on lw-nas ({{ inventory_hostname }})
+      Mimir + Loki are running on lw-db ({{ inventory_hostname }})
 
       Endpoints:
         Mimir push: http://{{ inventory_hostname }}:{{ mimir_port }}/api/v1/push

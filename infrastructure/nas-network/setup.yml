@@ -1,21 +1,21 @@
 ---
-# Pin lw-nas's LAN address (192.168.0.115) and Wake-on-LAN onto its wired NIC.
+# Pin lw-db's LAN address (192.168.0.115) and Wake-on-LAN onto its wired NIC.
 # Read group_vars/all.yml first — this rewrites the NAS's primary netplan.
 # Dry-run before any real apply:  ansible-playbook setup.yml --check --diff
 
-- name: Register lw-nas as a target
+- name: Register lw-db as a target
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Add lw-nas to the in-memory inventory
+    - name: Add lw-db to the in-memory inventory
       ansible.builtin.add_host:
         name: "{{ nas_host }}"
         groups: nas_hosts
         ansible_user: "{{ nas_ssh_user }}"
         ansible_python_interpreter: /usr/bin/python3
 
-- name: Configure lw-nas LAN networking
+- name: Configure lw-db LAN networking
   hosts: nas_hosts
   become: true
   roles:

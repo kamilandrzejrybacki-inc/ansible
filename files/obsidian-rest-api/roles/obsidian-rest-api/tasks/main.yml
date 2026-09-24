@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# Obsidian REST API — deploy standalone vault API server on lw-nas
+# Obsidian REST API — deploy standalone vault API server on lw-db
 # =============================================================================
 
 # ── API key ───────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@
 - name: Display result
   ansible.builtin.debug:
     msg: |
-      Obsidian REST API deployed on lw-nas.
+      Obsidian REST API deployed on lw-db.
 
       URL:      https://192.168.0.115:{{ obsidian_rest_api_port }}
       Vault:    {{ obsidian_rest_api_vault_dir }}

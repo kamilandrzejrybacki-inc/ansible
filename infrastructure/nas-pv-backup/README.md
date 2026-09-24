@@ -1,12 +1,12 @@
 # nas-pv-backup — nightly snapshot of the Kubernetes NFS PV tree
 
 Snapshots `/mnt/pool/k8s-nfs` (every RWX PersistentVolume in the cluster) onto
-lw-nas's 1.8 TB archive disk, hardlinked against the previous snapshot.
+lw-db's 1.8 TB archive disk, hardlinked against the previous snapshot.
 
 ## Why
 
 Before this role, every cluster PV — Hermes' home, Paperless, Grafana,
-Prometheus, Loki, model caches, ~7.7 GB — lived on lw-nas's **single 120 GB
+Prometheus, Loki, model caches, ~7.7 GB — lived on lw-db's **single 120 GB
 SSD** (`sdb2`, which is also the root filesystem and the k3s datastore's disk).
 No RAID, no snapshots, no backup. Meanwhile the 1.8 TB spinning disk
 (`sda`, `/mnt/disks/archive`) sat at 4% used. One SSD failure would have taken
@@ -21,7 +21,7 @@ the two disks above are real. Do not assume parity protection.
 |---|---|
 | SSD (`sdb`) dies or corrupts | **Yes** — snapshots are on `sda` |
 | Accidental deletion inside a PV | **Yes** — up to `nas_pv_backup_retain` days |
-| lw-nas dies (PSU, board, whole box) | **No** — both disks are in that box |
+| lw-db dies (PSU, board, whole box) | **No** — both disks are in that box |
 | Application-level corruption | **Partially** — see below |
 
 **The copy is crash-consistent, not application-consistent.** rsync walks a live
@@ -48,9 +48,9 @@ destination is a real mountpoint on a different device than the source.
 ## Observability
 
 The script writes `nas_pv_backup.prom` into `/var/lib/node_exporter/textfile`,
-which is the directory lw-nas's node-exporter actually reads
+which is the directory lw-db's node-exporter actually reads
 (`--collector.textfile.directory=/host/var/lib/node_exporter/textfile`) and
-which Alloy scrapes as job `node-lw-nas`. Metrics: `nas_pv_backup_success`,
+which Alloy scrapes as job `node-lw-db`. Metrics: `nas_pv_backup_success`,
 `..._last_success_timestamp_seconds`, `..._last_run_timestamp_seconds`,
 `..._duration_seconds`, `..._size_bytes`, `..._snapshots`.
 
@@ -70,7 +70,7 @@ ansible-playbook infrastructure/nas-pv-backup/setup.yml -i localhost, --check --
 
 ansible-playbook infrastructure/nas-pv-backup/setup.yml -i localhost,
 
-# on lw-nas: run once by hand, watch it
+# on lw-db: run once by hand, watch it
 sudo systemctl start nas-pv-backup.service && journalctl -u nas-pv-backup -n 20 --no-pager
 ```
 

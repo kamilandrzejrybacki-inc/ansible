@@ -1,5 +1,5 @@
 ---
-# IaC the k3s control-plane datastore Postgres container on lw-nas.
+# IaC the k3s control-plane datastore Postgres container on lw-db.
 # Read group_vars/all.yml first — applying this can restart the datastore.
 # Dry-run before any real apply:  ansible-playbook setup.yml --check --diff
 

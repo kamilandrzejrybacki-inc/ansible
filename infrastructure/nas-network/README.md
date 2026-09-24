@@ -1,14 +1,14 @@
-# nas-network — lw-nas LAN address + Wake-on-LAN
+# nas-network — lw-db LAN address + Wake-on-LAN
 
-Pins `192.168.0.115/24` and Wake-on-LAN onto lw-nas's **wired** NIC (`eno1`,
+Pins `192.168.0.115/24` and Wake-on-LAN onto lw-db's **wired** NIC (`eno1`,
 matched by MAC `18:03:73:1f:85:ae`).
 
 ## Why this exists
 
-lw-nas is a hard SPOF: it serves the k3s control-plane datastore Postgres
+lw-db is a hard SPOF: it serves the k3s control-plane datastore Postgres
 (`5432`) and every RWX NFS PV (`2049`). Until 2026-09-20 its `.115` lived on a
 USB WiFi dongle while `eno1` carried a static `10.0.1.2/24` for the retired
-lw-main↔lw-nas direct cable. When the homelab was re-cabled onto a single
+lw-main↔lw-db direct cable. When the homelab was re-cabled onto a single
 switch the dongle went away, `.115` disappeared from the LAN, and the whole
 cluster went down — k3s stuck `activating` on all three control-plane nodes,
 API VIP `.60` dead, every ingress 502. The fix was applied by hand; this role

@@ -106,7 +106,7 @@
       "sshPort": 22
     },
     {
-      "name": "lw-nas",
+      "name": "lw-db",
       "ip": "192.168.0.115",
       "port": 22,
       "username": "kamil",
@@ -117,7 +117,7 @@
         "homelab",
         "storage"
       ],
-      "notes": "NAS / storage / pg",
+      "notes": "DB host: k3s Postgres datastore / NFS PVs / backups",
       "enableTerminal": true,
       "enableFileManager": true,
       "enableTunnel": false,

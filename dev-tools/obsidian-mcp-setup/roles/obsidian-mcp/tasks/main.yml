@@ -1,7 +1,7 @@
 ---
 # =============================================================================
 # Obsidian MCP Server — install and register in Claude Code
-# Connects to the standalone REST API on lw-nas (no Obsidian desktop needed).
+# Connects to the standalone REST API on lw-db (no Obsidian desktop needed).
 # =============================================================================
 
 - name: Ensure uvx is available
@@ -51,7 +51,7 @@
 
 # ── Connectivity check ────────────────────────────────────────────────────────
 
-- name: Verify standalone REST API is reachable on lw-nas
+- name: Verify standalone REST API is reachable on lw-db
   ansible.builtin.uri:
     url: "{{ obsidian_protocol }}://{{ obsidian_host }}:{{ obsidian_port }}/"
     status_code: [200]
@@ -64,12 +64,12 @@
     msg: >-
       WARNING: Obsidian REST API at {{ obsidian_protocol }}://{{ obsidian_host }}:{{ obsidian_port }}
       is not reachable (status: {{ _obsidian_check.status | default('no response') }}).
-      Run files/obsidian-rest-api/setup.yml to deploy the API server on lw-nas.
+      Run files/obsidian-rest-api/setup.yml to deploy the API server on lw-db.
   when: _obsidian_check.status is not defined or _obsidian_check.status != 200
 
 # ── Patch mcp-obsidian to honour OBSIDIAN_HOST/PORT/PROTOCOL env vars ─────────
 # The upstream package hardcodes https://127.0.0.1:27124; this patch makes it
-# read the three env vars so our standalone REST API on lw-nas is used instead.
+# read the three env vars so our standalone REST API on lw-db is used instead.
 
 - name: Locate mcp-obsidian tools.py in uv cache
   ansible.builtin.find:

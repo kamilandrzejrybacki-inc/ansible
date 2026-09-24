@@ -115,9 +115,11 @@
       "folder": "Homelab",
       "tags": [
         "homelab",
-        "storage"
+        "storage",
+        "db",
+        "forgejo"
       ],
-      "notes": "DB host: k3s Postgres datastore / NFS PVs / backups",
+      "notes": "Dell Optiplex (formerly lw-nas). k3s Postgres datastore, Forgejo (git.<domain>, SSH :2222), current NFS PVs until the move to lw-nas",
       "enableTerminal": true,
       "enableFileManager": true,
       "enableTunnel": false,

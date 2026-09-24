@@ -180,8 +180,10 @@
           # Nightly Forgejo backup to lw-nas (different physical disk than lw-db's SSD).
           set -euo pipefail
           DEST="{{ forgejo_dump_dir }}"
-          # nofail NFS mount: refuse to write onto the local SSD if lw-nas is not mounted.
-          mountpoint -q "$(dirname "$DEST")" || { echo "archive mount missing, refusing"; exit 1; }
+          # Must be the lw-nas NFS mount: a missing nofail mount (or the legacy local bind
+          # mount) would put the dump on the same SSD as the data it is backing up.
+          findmnt -n -o FSTYPE --target "$(dirname "$DEST")" | grep -q '^nfs' \
+            || { echo "archive is not on lw-nas NFS, refusing"; exit 1; }
           mkdir -p "$DEST"
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
           docker exec {{ forgejo_container_name }} forgejo dump --type tar.gz --file - \

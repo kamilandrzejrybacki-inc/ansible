@@ -27,5 +27,7 @@ forgejo_org: kamilandrzejrybacki-inc
 
 # Nightly `forgejo dump` lands on a DIFFERENT physical disk (lw-nas Toshiba via the
 # /mnt/disks/archive NFS mount) so an lw-db SSD failure does not take the backups with it.
+# The dump script refuses to run until that path really is NFS (it is still a local bind
+# mount until the lw-db archive switch).
 forgejo_dump_dir: /mnt/disks/archive/forgejo-dumps
 forgejo_dump_retention_days: 14

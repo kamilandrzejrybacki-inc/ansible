@@ -450,7 +450,7 @@
     # so re-runs render a valid secret (empty here => Authelia refuses to start).
     - name: Load GlitchTip OIDC secret from Vault
       ansible.builtin.uri:
-        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/glitchtip"
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/authelia/glitchtip-oidc"
         headers:
           X-Vault-Token: "{{ _vault_token }}"
         return_content: true
@@ -462,7 +462,7 @@
     - name: Hash GlitchTip OIDC secret (pbkdf2-sha512)
       ansible.builtin.shell: >
         docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
-        --password '{{ (_glitchtip_vault.content | from_json).data.data.oidc_secret }}'
+        --password '{{ (_glitchtip_vault.content | from_json).data.data.client_secret }}'
         2>/dev/null | grep 'Digest:' | awk '{print $2}'
       register: _glitchtip_hash
       changed_when: false
@@ -488,7 +488,7 @@
     # → Authelia refuses to start (fatal). See the correct pattern below.
     - name: Load Termix OIDC secret from Vault
       ansible.builtin.uri:
-        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/termix"
+        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/authelia/termix-oidc"
         headers:
           X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
         return_content: true
@@ -500,7 +500,7 @@
     - name: Hash Termix OIDC secret (pbkdf2-sha512)
       ansible.builtin.shell: >
         docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
-        --password '{{ (_termix_vault.content | from_json).data.data.oidc_secret }}'
+        --password '{{ (_termix_vault.content | from_json).data.data.client_secret }}'
         2>/dev/null | grep 'Digest:' | awk '{print $2}'
       register: _termix_hash
       changed_when: false
@@ -521,7 +521,7 @@
     # hash here so Authelia registers a matching client secret.
     - name: Load LiteLLM OIDC secret from Vault
       ansible.builtin.uri:
-        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/litellm"
+        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/authelia/litellm-oidc"
         headers:
           X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
         return_content: true
@@ -533,7 +533,7 @@
     - name: Hash LiteLLM OIDC secret (pbkdf2-sha512)
       ansible.builtin.shell: >
         docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
-        --password '{{ (_litellm_vault.content | from_json).data.data.oidc_secret }}'
+        --password '{{ (_litellm_vault.content | from_json).data.data.client_secret }}'
         2>/dev/null | grep 'Digest:' | awk '{print $2}'
       register: _litellm_hash
       changed_when: false
@@ -546,6 +546,39 @@
         authelia_oidc_client_secret_litellm_hash: "{{ _litellm_hash.stdout | trim }}"
       no_log: true
       when: _litellm_hash is not skipped
+      tags: [always]
+
+    # Forgejo (git forge on lw-db). Plaintext client secret in Vault
+    # homelab/authelia/forgejo-oidc#client_secret, written there by
+    # dev-tools/forgejo-setup (which also registered it in Forgejo's auth source).
+    - name: Load Forgejo OIDC secret from Vault
+      ansible.builtin.uri:
+        url: "{{ hostvars['localhost']['_vault_addr'] }}/v1/{{ hostvars['localhost']['_vault_kv_mount'] | default('secret') }}/data/homelab/authelia/forgejo-oidc"
+        headers:
+          X-Vault-Token: "{{ hostvars['localhost']['_vault_token'] }}"
+        return_content: true
+        status_code: [200, 404]
+      register: _forgejo_vault
+      no_log: true
+      when: hostvars['localhost']['_vault_available'] | default(false) | bool
+      tags: [always]
+
+    - name: Hash Forgejo OIDC secret (pbkdf2-sha512)
+      ansible.builtin.shell: >
+        docker run --rm {{ authelia_image }} authelia crypto hash generate pbkdf2
+        --password '{{ (_forgejo_vault.content | from_json).data.data.client_secret }}'
+        2>/dev/null | grep 'Digest:' | awk '{print $2}'
+      register: _forgejo_hash
+      changed_when: false
+      no_log: true
+      when: _forgejo_vault is not skipped and _forgejo_vault.status == 200
+      tags: [always]
+
+    - name: Set Forgejo OIDC hash fact
+      ansible.builtin.set_fact:
+        authelia_oidc_client_secret_forgejo_hash: "{{ _forgejo_hash.stdout | trim }}"
+      no_log: true
+      when: _forgejo_hash is not skipped
       tags: [always]
 
     - name: Slurp OIDC JWK private key for inline embedding

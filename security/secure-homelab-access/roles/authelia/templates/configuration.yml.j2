@@ -242,4 +242,24 @@ identity_providers:
         grant_types: [authorization_code]
         userinfo_signed_response_alg: none
 
+      # Forgejo — git forge SSO (Docker on lw-db). Plaintext secret in Vault
+      # homelab/authelia/forgejo-oidc#client_secret; Forgejo's auth source "authelia"
+      # uses the same value. Only rendered once the hash exists (first run of
+      # dev-tools/forgejo-setup writes the secret).
+{% if authelia_oidc_client_secret_forgejo_hash | default('') %}
+      - client_id: forgejo
+        client_name: Forgejo
+        client_secret: "{{ authelia_oidc_client_secret_forgejo_hash }}"
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        scopes: [openid, profile, email, groups]
+        redirect_uris:
+          - "https://{{ subdomain_forgejo | default('git') }}.{{ domain }}/user/oauth2/authelia/callback"
+        response_types: [code]
+        grant_types: [authorization_code]
+        userinfo_signed_response_alg: none
+        token_endpoint_auth_method: client_secret_basic
+{% endif %}
+
 {% endif %}

@@ -100,6 +100,9 @@ subdomain_mimir: "mimir"
 subdomain_kroki: "kroki"
 subdomain_tldraw: "tldraw"
 subdomain_k8s_dashboard: "k8s"
+# Forgejo git forge (Docker on lw-db) — replaces GitHub for kamilandrzejrybacki-inc.
+subdomain_forgejo: "git"
+forgejo_backend: "http://192.168.0.115:3000"
 # Notesnook self-hosted (sync server + identity + SSE + monograph).
 # Notesnook mobile/desktop clients reject HTTP, so all 4 must terminate TLS
 # at Caddy. Authelia is NOT imported — the clients use their own E2EE auth.

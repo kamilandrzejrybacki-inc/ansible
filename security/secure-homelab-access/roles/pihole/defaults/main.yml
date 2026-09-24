@@ -14,6 +14,14 @@ pihole_exporter_port: "9617"
 # These subdomains have NO public Caddy edge block, so external resolution
 # (Cloudflare) hits nothing; on LAN/WireGuard Pi-hole points them internally.
 # seerr -> Traefik VIP (k8s); jellyfin + *arr -> lw-pi internal media-proxy :80.
+# Split-horizon for hosts that DO have a public edge block (Cloudflare tunnel -> Caddy):
+# on LAN/WireGuard they resolve to the edge Caddy's LAN IP instead, so traffic skips
+# Cloudflare (100 MB request-body cap) and hits Caddy's LAN-only HTTPS twin site.
+# Intended entry: git -> 192.168.0.111 (Forgejo; registry traffic exceeds the tunnel cap).
+# NOT enabled yet: it needs Caddy's LAN-only HTTPS twin site, which needs a Cloudflare
+# DNS-01 token that caddy-dns/cloudflare accepts (the current cfat_* token is rejected).
+lan_split_dns: {}
+
 media_lan_dns:
   seerr: "192.168.0.50"
   hogtus: "192.168.0.50"

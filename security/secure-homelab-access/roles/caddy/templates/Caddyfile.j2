@@ -33,6 +33,21 @@
 	}
 }
 
+# Forgejo routing shared by the public (tunnel) and LAN (HTTPS) sites.
+# Browser UI goes through Authelia. Machine paths bypass it because git, docker/k3s
+# registry clients and the OIDC callback cannot complete a browser SSO flow; Forgejo
+# authenticates those itself (tokens, basic auth, OAuth state).
+(forgejo_routes) {
+	@forgejo_machine path_regexp ^/(api/|v2/|user/oauth2/|login/oauth/|\.well-known/|[^/]+/[^/]+(\.git)?/(info/refs|info/lfs|git-upload-pack|git-receive-pack))
+	handle @forgejo_machine {
+		reverse_proxy {{ forgejo_backend }}
+	}
+	handle {
+		import authelia
+		reverse_proxy {{ forgejo_backend }}
+	}
+}
+
 (rate_limit) {
 	@wan {
 		not remote_ip private_ranges
@@ -207,7 +222,9 @@
 {% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
 	import cf_tls
 {% endif %}
-	reverse_proxy http://{{ traefik_vip | default('192.168.0.50') }} {
+	# Termix runs as docker compose on lw-pi since 2026-09-13 (break-glass: must work
+	# while k3s is down) — the old Traefik VIP backend is gone.
+	reverse_proxy http://{{ termix_backend | default('192.168.0.109:8099') }} {
 		flush_interval -1
 		transport http {
 			read_timeout 0
@@ -470,4 +487,14 @@
 			write_timeout 0
 		}
 	}
+}
+
+# Forgejo git forge (Docker on lw-db) — replaces GitHub for kamilandrzejrybacki-inc.
+{{ _scheme }}{{ subdomain_forgejo }}.{{ domain }} {
+	import rate_limit
+	import proxy_headers
+{% if cloudflare_api_token | default('') and not cf_tunnel_name | default('') %}
+	import cf_tls
+{% endif %}
+	import forgejo_routes
 }

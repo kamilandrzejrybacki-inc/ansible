@@ -95,6 +95,18 @@
     mode: "0644"
   notify: Restart Pi-hole DNS
 
+- name: Write LAN split-horizon DNS for publicly exposed hosts
+  ansible.builtin.copy:
+    dest: "{{ pihole_data_dir }}/etc-dnsmasq.d/03-lan-split.conf"
+    content: |
+      # LAN split-horizon for hosts that also have a public (tunnel) edge block.
+      # Managed by the pihole role (lan_split_dns).
+      {% for host, ip in lan_split_dns.items() %}
+      address=/{{ host }}.{{ domain }}/{{ ip }}
+      {% endfor %}
+    mode: "0644"
+  notify: Restart Pi-hole DNS
+
 - name: Add adlists to Pi-hole gravity database
   community.docker.docker_container_exec:
     container: "{{ pihole_container_name }}"

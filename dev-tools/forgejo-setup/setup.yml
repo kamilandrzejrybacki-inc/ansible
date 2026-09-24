@@ -1,0 +1,221 @@
+---
+# =============================================================================
+# Forgejo on lw-db
+# =============================================================================
+# Usage:
+#   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini dev-tools/forgejo-setup/setup.yml
+#
+# Secrets (generated on first run, stored in Vault, never printed):
+#   forgejo/admin#password          local admin (break-glass; normal login is Authelia SSO)
+#   authelia/forgejo-oidc#client_secret  OIDC client secret shared with Authelia
+# The edge side (Authelia client + Caddy site + Pi-hole record) is applied separately by
+# security/secure-homelab-access with --tags authelia,caddy.
+# =============================================================================
+
+- name: Prepare Forgejo secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Require Vault (secrets must not live anywhere else)
+      ansible.builtin.assert:
+        that: _vault_available | bool
+        fail_msg: Vault is required to run this playbook.
+
+    - name: Load existing Forgejo secrets
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_refs:
+          admin_password: "forgejo/admin#password"
+          oidc_secret: "authelia/forgejo-oidc#client_secret"
+
+    - name: Generate missing secrets
+      ansible.builtin.command: openssl rand -hex 32
+      register: _gen
+      loop: [admin_password, oidc_secret]
+      when: _vault_secrets[item] | default('') | length == 0
+      changed_when: true
+      no_log: true
+
+    - name: Store newly generated secrets in Vault
+      ansible.builtin.uri:
+        url: "{{ _vault_addr }}/v1/{{ _vault_kv_mount }}/data/homelab/{{ item.path }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body_format: json
+        body:
+          data: "{{ {item.field: item.value} }}"
+        status_code: [200, 204]
+        timeout: 10
+      loop:
+        - path: forgejo/admin
+          field: password
+          value: "{{ (_gen.results | selectattr('item', 'equalto', 'admin_password') | first).stdout | default('') }}"
+        - path: authelia/forgejo-oidc
+          field: client_secret
+          value: "{{ (_gen.results | selectattr('item', 'equalto', 'oidc_secret') | first).stdout | default('') }}"
+      when: item.value | length > 0
+      no_log: true
+
+    - name: Expose final secrets to the next play
+      ansible.builtin.set_fact:
+        forgejo_admin_password: >-
+          {{ _vault_secrets.admin_password if (_vault_secrets.admin_password | default('') | length > 0)
+             else (_gen.results | selectattr('item', 'equalto', 'admin_password') | first).stdout }}
+        forgejo_oidc_secret: >-
+          {{ _vault_secrets.oidc_secret if (_vault_secrets.oidc_secret | default('') | length > 0)
+             else (_gen.results | selectattr('item', 'equalto', 'oidc_secret') | first).stdout }}
+      no_log: true
+
+- name: Deploy Forgejo on lw-db
+  hosts: forgejo
+  become: true
+  gather_facts: false
+  vars:
+    _admin_password: "{{ hostvars['localhost'].forgejo_admin_password | trim }}"
+    _oidc_secret: "{{ hostvars['localhost'].forgejo_oidc_secret | trim }}"
+  tasks:
+    - name: Create data and config directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ forgejo_uid }}"
+        group: "{{ forgejo_uid }}"
+        mode: "0750"
+      loop: [/srv/forgejo, "{{ forgejo_data_dir }}", "{{ forgejo_config_dir }}"]
+
+    - name: Run the Forgejo container
+      community.docker.docker_container:
+        name: "{{ forgejo_container_name }}"
+        image: "{{ forgejo_image }}"
+        state: started
+        restart_policy: unless-stopped
+        user: "{{ forgejo_uid }}:{{ forgejo_uid }}"
+        ports:
+          - "{{ forgejo_http_bind }}:{{ forgejo_http_port }}:3000"
+          - "{{ forgejo_ssh_port }}:2222"
+        volumes:
+          - "{{ forgejo_data_dir }}:/var/lib/gitea"
+          - "{{ forgejo_config_dir }}:/etc/gitea"
+          - /etc/timezone:/etc/timezone:ro
+          - /etc/localtime:/etc/localtime:ro
+        env:
+          # environment-to-ini: every FORGEJO__section__KEY is written into app.ini at start.
+          FORGEJO__security__INSTALL_LOCK: "true"
+          FORGEJO__database__DB_TYPE: sqlite3
+          FORGEJO__server__DOMAIN: "{{ forgejo_subdomain }}.{{ domain }}"
+          FORGEJO__server__ROOT_URL: "{{ forgejo_root_url }}"
+          FORGEJO__server__SSH_DOMAIN: "{{ forgejo_ssh_domain }}"
+          FORGEJO__server__SSH_PORT: "{{ forgejo_ssh_port | string }}"
+          FORGEJO__server__SSH_LISTEN_PORT: "2222"
+          FORGEJO__server__START_SSH_SERVER: "true"
+          FORGEJO__server__LFS_START_SERVER: "true"
+          FORGEJO__server__OFFLINE_MODE: "true"
+          FORGEJO__repository__DEFAULT_PRIVATE: private
+          FORGEJO__service__DISABLE_REGISTRATION: "false"
+          FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"   # accounts only via Authelia SSO
+          FORGEJO__service__REQUIRE_SIGNIN_VIEW: "true"
+          FORGEJO__openid__ENABLE_OPENID_SIGNIN: "false"
+          FORGEJO__openid__ENABLE_OPENID_SIGNUP: "false"
+          FORGEJO__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+          FORGEJO__oauth2_client__ACCOUNT_LINKING: auto
+          FORGEJO__oauth2_client__USERNAME: nickname
+          FORGEJO__packages__ENABLED: "true"                             # container registry (replaces GHCR)
+          FORGEJO__actions__ENABLED: "true"
+          FORGEJO__actions__DEFAULT_ACTIONS_URL: self                    # full GitHub cut-off: actions/* mirrored locally
+          FORGEJO__mirror__DEFAULT_INTERVAL: 10m
+          FORGEJO__cron__update_mirrors__SCHEDULE: "@every 10m"
+          FORGEJO__log__LEVEL: Info
+
+    - name: Wait for Forgejo to answer
+      ansible.builtin.uri:
+        url: "http://{{ forgejo_http_bind }}:{{ forgejo_http_port }}/api/healthz"
+        status_code: 200
+      register: _health
+      retries: 30
+      delay: 5
+      until: _health.status == 200
+
+    - name: Check whether the admin user exists
+      ansible.builtin.command: >-
+        docker exec {{ forgejo_container_name }} forgejo admin user list --admin
+      register: _admins
+      changed_when: false
+
+    - name: Create the local admin user (break-glass)
+      ansible.builtin.command: >-
+        docker exec {{ forgejo_container_name }} forgejo admin user create --admin
+        --username {{ forgejo_admin_user }} --email {{ forgejo_admin_email }}
+        --password {{ _admin_password | quote }} --must-change-password=false
+      when: forgejo_admin_user not in _admins.stdout
+      no_log: true
+
+    - name: Check whether the Authelia auth source exists
+      ansible.builtin.command: docker exec {{ forgejo_container_name }} forgejo admin auth list
+      register: _auths
+      changed_when: false
+
+    - name: Add Authelia as the OIDC login source
+      ansible.builtin.command: >-
+        docker exec {{ forgejo_container_name }} forgejo admin auth add-oauth
+        --name authelia --provider openidConnect --key forgejo
+        --secret {{ _oidc_secret | quote }}
+        --auto-discover-url {{ authelia_url }}/.well-known/openid-configuration
+        --scopes openid --scopes email --scopes profile --scopes groups
+        --skip-local-2fa
+      when: "'authelia' not in _auths.stdout"
+      no_log: true
+
+    - name: Install the nightly dump script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/forgejo-dump.sh
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          # Nightly Forgejo backup to lw-nas (different physical disk than lw-db's SSD).
+          set -euo pipefail
+          DEST="{{ forgejo_dump_dir }}"
+          # nofail NFS mount: refuse to write onto the local SSD if lw-nas is not mounted.
+          mountpoint -q "$(dirname "$DEST")" || { echo "archive mount missing, refusing"; exit 1; }
+          mkdir -p "$DEST"
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          docker exec {{ forgejo_container_name }} forgejo dump --type tar.gz --file - \
+            --work-path /var/lib/gitea --config /etc/gitea/app.ini > "$DEST/forgejo-$STAMP.tar.gz.part"
+          mv "$DEST/forgejo-$STAMP.tar.gz.part" "$DEST/forgejo-$STAMP.tar.gz"
+          find "$DEST" -name 'forgejo-*.tar.gz' -mtime +{{ forgejo_dump_retention_days }} -delete
+          echo "forgejo dump ok: $DEST/forgejo-$STAMP.tar.gz"
+
+    - name: Install the dump service and timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: forgejo-dump.service
+          content: |
+            [Unit]
+            Description=Nightly Forgejo dump to lw-nas
+            After=docker.service
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/forgejo-dump.sh
+        - name: forgejo-dump.timer
+          content: |
+            [Unit]
+            Description=Nightly Forgejo dump
+            [Timer]
+            OnCalendar=*-*-* 03:40:00 UTC
+            Persistent=true
+            [Install]
+            WantedBy=timers.target
+
+    - name: Enable the dump timer
+      ansible.builtin.systemd:
+        name: forgejo-dump.timer
+        enabled: true
+        state: started
+        daemon_reload: true

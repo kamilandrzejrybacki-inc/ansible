@@ -1,0 +1,31 @@
+---
+# Forgejo — self-hosted git forge for the kamilandrzejrybacki-inc organization (replaces
+# GitHub for that org; personal kamilrybacki repos stay on GitHub).
+#
+# Runs as Docker on lw-db, OUTSIDE the k3s cluster, so ArgoCD can pull its own config from
+# Forgejo without a bootstrap loop. Web UI is published by the edge Caddy on lw-main at
+# https://git.<domain> behind Authelia; git/api/registry paths bypass Authelia and are
+# authenticated by Forgejo tokens. SSH (2222) is LAN-only.
+forgejo_image: "codeberg.org/forgejo/forgejo:16.0.5-rootless"
+forgejo_container_name: forgejo
+forgejo_uid: 1000
+forgejo_data_dir: /srv/forgejo/data     # /var/lib/gitea  (repos, sqlite, lfs, packages)
+forgejo_config_dir: /srv/forgejo/config # /etc/gitea      (app.ini incl. generated secrets)
+forgejo_http_bind: "192.168.0.115"      # only the LAN IP; the edge Caddy is the public front
+forgejo_http_port: 3000
+forgejo_ssh_port: 2222
+
+domain: kamilandrzejrybacki.dpdns.org
+forgejo_subdomain: git
+forgejo_root_url: "https://{{ forgejo_subdomain }}.{{ domain }}/"
+forgejo_ssh_domain: "lw-db.{{ domain }}"  # Pi-hole: lw-db -> 192.168.0.115 (SSH is not proxied by Caddy)
+authelia_url: "https://auth.{{ domain }}"
+
+forgejo_admin_user: forgejo-admin
+forgejo_admin_email: "forgejo-admin@{{ domain }}"
+forgejo_org: kamilandrzejrybacki-inc
+
+# Nightly `forgejo dump` lands on a DIFFERENT physical disk (lw-nas Toshiba via the
+# /mnt/disks/archive NFS mount) so an lw-db SSD failure does not take the backups with it.
+forgejo_dump_dir: /mnt/disks/archive/forgejo-dumps
+forgejo_dump_retention_days: 14

@@ -1,0 +1,160 @@
+---
+# =============================================================================
+# Full migration WITH history: PRs (+ review comments), issues, labels, milestones,
+# releases, wiki (migration cutover step)
+# =============================================================================
+# Pull mirrors carry git refs only, and Forgejo cannot add PR history to an existing
+# repo. So at cutover (after GitHub writes are frozen) each mirror is REPLACED by a
+# one-shot, non-mirror migration that brings the history along.
+#
+# Rehearsal (safe any time; writes into a throwaway org, touches no mirror):
+#   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini \
+#     dev-tools/forgejo-setup/migrate-history.yml \
+#     -e history_owner=history-rehearsal -e '{"history_repos": ["argocd-apps", "teammates"]}'
+#
+# Cutover (DESTRUCTIVE for the mirrors in the org — they are deleted and re-imported;
+# GitHub is still the source at that moment, so nothing is lost):
+#   ansible-playbook ... migrate-history.yml -e history_owner=kamilandrzejrybacki-inc -e replace_mirrors=true
+#
+# Secrets (Vault, never printed): github/cellarette#token, forgejo/admin#password
+# =============================================================================
+
+- name: Migrate GitHub repos into Forgejo with their history
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/all.yml
+  vars:
+    _forgejo_api: "http://{{ forgejo_http_bind }}:{{ forgejo_http_port }}/api/v1"
+    _github_api: https://api.github.com
+    history_owner: "{{ forgejo_org }}"
+    history_repos: []          # empty = every repo of the GitHub org
+    replace_mirrors: false
+  tasks:
+    - name: Refuse to replace mirrors outside the real org by accident
+      ansible.builtin.assert:
+        that: not (replace_mirrors | bool) or history_owner == forgejo_org
+        fail_msg: replace_mirrors=true is only meaningful for {{ forgejo_org }}
+
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Require Vault
+      ansible.builtin.assert:
+        that: _vault_available | bool
+        fail_msg: Vault is required to run this playbook.
+
+    - name: Load secrets
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_refs:
+          github_token: "github/cellarette#token"
+          admin_password: "forgejo/admin#password"
+
+    - name: List the GitHub org repos
+      ansible.builtin.uri:
+        url: "{{ _github_api }}/orgs/{{ forgejo_org }}/repos?type=all&per_page=100"
+        headers:
+          Authorization: "Bearer {{ _vault_secrets.github_token | trim }}"
+          Accept: application/vnd.github+json
+      register: _gh_repos
+      no_log: true
+
+    - name: Select repos
+      ansible.builtin.set_fact:
+        _repos: >-
+          {{ _gh_repos.json
+             | selectattr('name', 'in', history_repos if history_repos | length > 0 else _gh_repos.json | map(attribute='name') | list)
+             | map('dict2items')
+             | map('selectattr', 'key', 'in', ['name', 'private', 'description', 'archived', 'clone_url', 'has_wiki'])
+             | map('items2dict') | list }}
+
+    - name: Ensure the target org exists
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/orgs"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          username: "{{ history_owner }}"
+          visibility: private
+        status_code: [201, 422]
+      register: _org
+      changed_when: _org.status == 201
+      no_log: true
+
+    - name: Look up each repo in the target org
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/{{ history_owner }}/{{ item.name }}"
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        status_code: [200, 404]
+      loop: "{{ _repos }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _existing
+      no_log: true
+
+    # Only mirrors are ever deleted: a repo that is already a normal repo has been
+    # migrated (and may have new commits since) and is left alone.
+    - name: Delete the pull mirrors being replaced
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/{{ history_owner }}/{{ item.item.name }}"
+        method: DELETE
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        status_code: 204
+      loop: "{{ _existing.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: replace_mirrors | bool and item.status == 200 and item.json.mirror
+      register: _deleted
+      no_log: true
+
+    - name: Migrate with history
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/migrate"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          clone_addr: "{{ item.item.clone_url }}"
+          auth_token: "{{ _vault_secrets.github_token | trim }}"
+          service: github
+          repo_owner: "{{ history_owner }}"
+          repo_name: "{{ item.item.name }}"
+          description: "{{ item.item.description | default('', true) }}"
+          private: "{{ item.item.private }}"
+          mirror: false
+          lfs: true
+          wiki: "{{ item.item.has_wiki }}"
+          issues: true
+          labels: true
+          milestones: true
+          pull_requests: true
+          releases: true
+        status_code: 201
+        timeout: 1800
+      loop: "{{ _existing.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: >-
+        item.status == 404
+        or (replace_mirrors | bool and item.json.mirror | default(false))
+      register: _migrated
+      failed_when: false
+      no_log: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          migrated: "{{ _migrated.results | selectattr('status', 'defined') | selectattr('status', 'equalto', 201) | map(attribute='item.item.name') | list }}"
+          failed: "{{ _migrated.results | selectattr('status', 'defined') | rejectattr('status', 'equalto', 201) | map(attribute='item.item.name') | list }}"
+          skipped: "{{ _migrated.results | rejectattr('status', 'defined') | map(attribute='item.item.name') | list }}"

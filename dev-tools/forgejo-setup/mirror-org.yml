@@ -1,0 +1,124 @@
+---
+# =============================================================================
+# Mirror the kamilandrzejrybacki-inc GitHub org into Forgejo (migration phase 2)
+# =============================================================================
+# Usage:
+#   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini dev-tools/forgejo-setup/mirror-org.yml
+#
+# Creates the Forgejo org and one PULL mirror per GitHub repo (all repos, archived too;
+# visibility, description and default branch are preserved). Mirrors re-sync every 10m
+# until cutover, when they are converted to normal repos and GitHub is cut off.
+# Idempotent: a repo that already exists in Forgejo is skipped.
+#
+# Secrets (read from Vault, never printed):
+#   github/cellarette#token   GitHub PAT with read access to the org (stored in each mirror)
+#   forgejo/admin#password    Forgejo break-glass admin (API basic auth)
+# =============================================================================
+
+- name: Mirror the GitHub org into Forgejo
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/all.yml
+  vars:
+    _forgejo_api: "http://{{ forgejo_http_bind }}:{{ forgejo_http_port }}/api/v1"
+    _github_api: https://api.github.com
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Require Vault
+      ansible.builtin.assert:
+        that: _vault_available | bool
+        fail_msg: Vault is required to run this playbook.
+
+    - name: Load secrets
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_refs:
+          github_token: "github/cellarette#token"
+          admin_password: "forgejo/admin#password"
+
+    - name: List the GitHub org repos
+      ansible.builtin.uri:
+        url: "{{ _github_api }}/orgs/{{ forgejo_org }}/repos?type=all&per_page=100"
+        headers:
+          Authorization: "Bearer {{ _vault_secrets.github_token | trim }}"
+          Accept: application/vnd.github+json
+        return_content: true
+      register: _gh_repos
+      no_log: true
+
+    - name: Keep only the fields the migration needs
+      ansible.builtin.set_fact:
+        _repos: >-
+          {{ _gh_repos.json | map('dict2items')
+             | map('selectattr', 'key', 'in', ['name', 'private', 'description', 'archived', 'clone_url'])
+             | map('items2dict') | list }}
+
+    - name: Ensure the Forgejo org exists
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/orgs"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          username: "{{ forgejo_org }}"
+          full_name: "{{ forgejo_org }}"
+          visibility: private
+          repo_admin_change_team_access: true
+        status_code: [201, 422]   # 422 = already exists
+      register: _org
+      changed_when: _org.status == 201
+      no_log: true
+
+    - name: Check which repos are already in Forgejo
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/{{ forgejo_org }}/{{ item.name }}"
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        status_code: [200, 404]
+      loop: "{{ _repos }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _existing
+      no_log: true
+
+    - name: Create pull mirrors
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/migrate"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          clone_addr: "{{ item.item.clone_url }}"
+          auth_token: "{{ _vault_secrets.github_token | trim }}"
+          service: github
+          repo_owner: "{{ forgejo_org }}"
+          repo_name: "{{ item.item.name }}"
+          description: "{{ item.item.description | default('', true) }}"
+          private: "{{ item.item.private }}"
+          mirror: true
+          mirror_interval: 10m
+          lfs: true
+        status_code: 201
+        timeout: 900
+      loop: "{{ _existing.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.status == 404
+      register: _migrated
+      no_log: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          {{ _repos | length }} GitHub repos;
+          {{ _migrated.results | selectattr('status', 'defined') | list | length }} mirrored now;
+          archived upstream: {{ _repos | selectattr('archived') | map(attribute='name') | join(', ') }}

@@ -4,6 +4,7 @@
 # =============================================================================
 # Usage:
 #   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini dev-tools/forgejo-setup/setup.yml
+#   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini dev-tools/forgejo-setup/mirror-org.yml   # phase 2
 #
 # Secrets (generated on first run, stored in Vault, never printed):
 #   forgejo/admin#password          local admin (break-glass; normal login is Authelia SSO)

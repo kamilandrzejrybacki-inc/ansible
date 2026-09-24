@@ -78,6 +78,18 @@ const r = await fetch('http://127.0.0.1:'+(process.env.PORT||'8080')+'/host/bulk
 });
 console.log('TARGET_USER', user.username);
 console.log('IMPORT', r.status, (await r.text()).slice(0,600));
+// bulk-import only persists vncPassword for non-SSH connection types, so an SSH host that
+// also offers VNC (lw-main) loses its VNC password on every overwrite import. Re-save those
+// hosts through the single-host PUT, which stores vncPassword for any connection type.
+const base = 'http://127.0.0.1:'+(process.env.PORT||'8080')+'/host';
+const auth = {'Authorization':'Bearer '+sess.jwtToken};
+const existing = await (await fetch(base+'/db/host', { headers: auth })).json();
+for (const h of payload.hosts.filter(h => h.enableVnc && h.vncPassword)) {
+  const match = (Array.isArray(existing) ? existing : []).find(e => e.ip === h.ip && Number(e.port) === Number(h.port) && e.username === h.username);
+  if (!match) { console.log('VNC_FIX skip (not found)', h.name); continue; }
+  const u = await fetch(base+'/db/host/'+match.id, { method:'PUT', headers:{...auth,'Content-Type':'application/json'}, body: JSON.stringify(h) });
+  console.log('VNC_FIX', h.name, u.status);
+}
 process.exit(0);
 EOF
 

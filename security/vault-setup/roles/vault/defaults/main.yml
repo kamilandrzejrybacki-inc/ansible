@@ -40,7 +40,7 @@ vault_ansible_policy: "ansible-automation"
 # secrets) and Vault (metrics token) mint things ESO must deliver, so only their power keys
 # are restricted, by path.
 vault_restricted_issuers: [wireguard, pihole, cloudflare, machines, k3s]
-vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-vault/root", "hashicorp-vault/unseal", "hashicorp-vault/mcp-bridge"]
+vault_restricted_paths: ["postgres/k3s-datastore", "authelia/admin", "hashicorp-vault/root", "hashicorp-vault/unseal", "hashicorp-vault/mcp-bridge", "forgejo/admin"]
 
 # Narrow carve-outs INSIDE a restricted issuer, for single credentials that are
 # demonstrably low-privilege. Rendered AFTER the deny rules; in a Vault ACL an

@@ -9,6 +9,7 @@
 # Secrets (generated on first run, stored in Vault, never printed):
 #   forgejo/admin#password          local admin (break-glass; normal login is Authelia SSO)
 #   authelia/forgejo-oidc#client_secret  OIDC client secret shared with Authelia
+#   forgejo/runner#secret           shared secret of the instance-wide Actions runner (40 hex)
 # The edge side (Authelia client + Caddy site + Pi-hole record) is applied separately by
 # security/secure-homelab-access with --tags authelia,caddy.
 # =============================================================================
@@ -32,11 +33,13 @@
         vault_refs:
           admin_password: "forgejo/admin#password"
           oidc_secret: "authelia/forgejo-oidc#client_secret"
+          runner_secret: "forgejo/runner#secret"
 
+    # The runner secret must be exactly 40 hex chars (forgejo-cli actions register).
     - name: Generate missing secrets
-      ansible.builtin.command: openssl rand -hex 32
+      ansible.builtin.command: "openssl rand -hex {{ 20 if item == 'runner_secret' else 32 }}"
       register: _gen
-      loop: [admin_password, oidc_secret]
+      loop: [admin_password, oidc_secret, runner_secret]
       when: _vault_secrets[item] | default('') | length == 0
       changed_when: true
       no_log: true
@@ -59,6 +62,9 @@
         - path: authelia/forgejo-oidc
           field: client_secret
           value: "{{ (_gen.results | selectattr('item', 'equalto', 'oidc_secret') | first).stdout | default('') }}"
+        - path: forgejo/runner
+          field: secret
+          value: "{{ (_gen.results | selectattr('item', 'equalto', 'runner_secret') | first).stdout | default('') }}"
       when: item.value | length > 0
       no_log: true
 
@@ -70,6 +76,9 @@
         forgejo_oidc_secret: >-
           {{ _vault_secrets.oidc_secret if (_vault_secrets.oidc_secret | default('') | length > 0)
              else (_gen.results | selectattr('item', 'equalto', 'oidc_secret') | first).stdout }}
+        forgejo_runner_secret: >-
+          {{ _vault_secrets.runner_secret if (_vault_secrets.runner_secret | default('') | length > 0)
+             else (_gen.results | selectattr('item', 'equalto', 'runner_secret') | first).stdout }}
       no_log: true
 
 - name: Deploy Forgejo on lw-db
@@ -79,6 +88,7 @@
   vars:
     _admin_password: "{{ hostvars['localhost'].forgejo_admin_password | trim }}"
     _oidc_secret: "{{ hostvars['localhost'].forgejo_oidc_secret | trim }}"
+    _runner_secret: "{{ hostvars['localhost'].forgejo_runner_secret | trim }}"
   tasks:
     - name: Create data and config directories
       ansible.builtin.file:
@@ -131,6 +141,10 @@
           FORGEJO__mirror__DEFAULT_INTERVAL: 10m
           FORGEJO__cron__update_mirrors__SCHEDULE: "@every 10m"
           FORGEJO__log__LEVEL: Info
+          # [git.config] fetch.fsck.largePathname=ignore — actions/cache history holds an object git
+          # fsck rejects as "excessively large pathname"; without this its mirror cannot be cloned.
+          # Only this one check is relaxed; every other fsck check still applies.
+          FORGEJO__git_0X2E_config__fetch_0X2E_fsck_0X2E_largePathname: ignore
 
     - name: Wait for Forgejo to answer
       ansible.builtin.uri:
@@ -171,6 +185,19 @@
       when: "'authelia' not in _auths.stdout"
       no_log: true
 
+    # Instance-wide runner (charts/forgejo-runner in the helm repo) authenticates with the same
+    # secret via `forgejo-runner create-runner-file`; ESO delivers it from forgejo/runner#secret.
+    # Idempotent: re-registering with the same secret keeps the runner's identity.
+    - name: Register the Actions runner (shared secret, via stdin)
+      ansible.builtin.command:
+        cmd: >-
+          docker exec -i {{ forgejo_container_name }} forgejo forgejo-cli actions register
+          --name {{ forgejo_runner_name }} --secret-stdin --keep-labels
+        stdin: "{{ _runner_secret }}"
+        stdin_add_newline: false   # a trailing newline makes the secret 41 chars and invalid
+      changed_when: false
+      no_log: true
+
     - name: Install the nightly dump script
       ansible.builtin.copy:
         dest: /usr/local/bin/forgejo-dump.sh
@@ -186,8 +213,9 @@
             || { echo "archive is not on lw-nas NFS, refusing"; exit 1; }
           mkdir -p "$DEST"
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          # app.ini location comes from the image env (GITEA_APP_INI=/var/lib/gitea/custom/conf/app.ini)
           docker exec {{ forgejo_container_name }} forgejo dump --type tar.gz --file - \
-            --work-path /var/lib/gitea --config /etc/gitea/app.ini > "$DEST/forgejo-$STAMP.tar.gz.part"
+            > "$DEST/forgejo-$STAMP.tar.gz.part"
           mv "$DEST/forgejo-$STAMP.tar.gz.part" "$DEST/forgejo-$STAMP.tar.gz"
           find "$DEST" -name 'forgejo-*.tar.gz' -mtime +{{ forgejo_dump_retention_days }} -delete
           echo "forgejo dump ok: $DEST/forgejo-$STAMP.tar.gz"

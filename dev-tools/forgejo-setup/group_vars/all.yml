@@ -10,7 +10,8 @@ forgejo_image: "codeberg.org/forgejo/forgejo:16.0.5-rootless"
 forgejo_container_name: forgejo
 forgejo_uid: 1000
 forgejo_data_dir: /srv/forgejo/data     # /var/lib/gitea  (repos, sqlite, lfs, packages)
-forgejo_config_dir: /srv/forgejo/config # /etc/gitea      (app.ini incl. generated secrets)
+forgejo_config_dir: /srv/forgejo/config # /etc/gitea (unused by this image; app.ini with the generated
+                                        # secrets lives in the data dir: custom/conf/app.ini)
 forgejo_http_bind: "192.168.0.115"      # only the LAN IP; the edge Caddy is the public front
 forgejo_http_port: 3000
 forgejo_ssh_port: 2222
@@ -24,6 +25,7 @@ authelia_url: "https://auth.{{ domain }}"
 forgejo_admin_user: forgejo-admin
 forgejo_admin_email: "forgejo-admin@{{ domain }}"
 forgejo_org: kamilandrzejrybacki-inc
+forgejo_runner_name: k8s-dind   # instance-wide Actions runner (helm charts/forgejo-runner)
 
 # Nightly `forgejo dump` lands on a DIFFERENT physical disk (lw-nas Toshiba via the
 # /mnt/disks/archive NFS mount) so an lw-db SSD failure does not take the backups with it.

@@ -1,0 +1,113 @@
+---
+# =============================================================================
+# Mirror the third-party GitHub Actions our workflows use (migration phase 4)
+# =============================================================================
+# Usage:
+#   ansible-playbook -i dev-tools/forgejo-setup/inventory/hosts.ini dev-tools/forgejo-setup/mirror-actions.yml
+#
+# Forgejo runs with actions.DEFAULT_ACTIONS_URL=self, so `uses: owner/repo@ref` resolves to
+# https://git.<domain>/owner/repo. Each action is a public pull mirror under an org named like
+# its GitHub owner, re-synced daily (new tags such as @v5 arrive on their own).
+#
+# Deliberately NOT mirrored — GitHub-only, workflows using them need porting instead:
+#   actions/{configure,upload,deploy}-pages*   GitHub Pages
+#   github/codeql-action                       code scanning (713 MB)
+#   softprops/action-gh-release                use actions/forgejo-release on Forgejo
+# Add an entry to forgejo_action_mirrors when a workflow starts using a new action.
+# =============================================================================
+
+- name: Mirror GitHub Actions into Forgejo
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/all.yml
+  vars:
+    _forgejo_api: "http://{{ forgejo_http_bind }}:{{ forgejo_http_port }}/api/v1"
+    forgejo_action_mirrors:
+      - actions/checkout
+      - actions/setup-go
+      - actions/setup-python
+      - actions/setup-node
+      - actions/upload-artifact
+      - actions/download-artifact
+      - actions/cache
+      - actions/github-script
+      - docker/login-action
+      - docker/setup-buildx-action
+      - docker/build-push-action
+      - docker/metadata-action
+      - docker/setup-qemu-action
+      - goreleaser/goreleaser-action
+      - golangci/golangci-lint-action
+      - golang/govulncheck-action
+    _owners: "{{ forgejo_action_mirrors | map('split', '/') | map('first') | unique }}"
+  tasks:
+    - name: Check Vault availability
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/check.yml"
+
+    - name: Require Vault
+      ansible.builtin.assert:
+        that: _vault_available | bool
+        fail_msg: Vault is required to run this playbook.
+
+    - name: Load the Forgejo admin password
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/vault-integration/load.yml"
+      vars:
+        vault_refs:
+          admin_password: "forgejo/admin#password"
+
+    # Public so that every runner job token can clone them (the instance still requires
+    # sign-in to view anything, so they are not exposed anonymously).
+    - name: Ensure one public org per action owner
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/orgs"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          username: "{{ item }}"
+          visibility: public
+          description: "Mirror of github.com/{{ item }} actions"
+        status_code: [201, 422]
+      loop: "{{ _owners }}"
+      register: _orgs
+      changed_when: _orgs.status == 201
+      no_log: true
+
+    - name: Check which actions are already mirrored
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/{{ item }}"
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        status_code: [200, 404]
+      loop: "{{ forgejo_action_mirrors }}"
+      register: _existing
+      no_log: true
+
+    - name: Create pull mirrors of the actions
+      ansible.builtin.uri:
+        url: "{{ _forgejo_api }}/repos/migrate"
+        method: POST
+        url_username: "{{ forgejo_admin_user }}"
+        url_password: "{{ _vault_secrets.admin_password | trim }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          clone_addr: "https://github.com/{{ item.item }}.git"
+          service: git
+          repo_owner: "{{ item.item.split('/')[0] }}"
+          repo_name: "{{ item.item.split('/')[1] }}"
+          private: false
+          mirror: true
+          mirror_interval: 24h
+        status_code: 201
+        timeout: 900
+      loop: "{{ _existing.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.status == 404
+      no_log: true
